@@ -1,0 +1,54 @@
+[
+  {
+    "id": "hello-world-flow",
+    "config": {
+      "src\\steps\\hello\\process-greeting.step.js": {
+        "x": 350,
+        "y": 44
+      },
+      "src\\steps\\hello\\hello-api.step.js": {
+        "x": 0,
+        "y": 0
+      }
+    }
+  },
+  {
+    "id": "candidate-onboarding-flow",
+    "config": {
+      "src\\steps\\api\\admin\\candidate\\createCandidate.step.js": {
+        "x": -73,
+        "y": -73
+      },
+      "src\\steps\\api\\admin\\candidate\\generateResumeProfile.step.js": {
+        "x": 410,
+        "y": -13
+      }
+    }
+  },
+  {
+    "id": "interview-scheduling-flow",
+    "config": {
+      "src\\steps\\api\\admin\\interview\\scheduleInterview.step.js": {
+        "x": -73,
+        "y": -73
+      },
+      "src\\steps\\api\\admin\\interview\\sendInterviewScheduleMail.step.js": {
+        "x": 310,
+        "y": 60
+      }
+    }
+  },
+  {
+    "id": "interview-rescheduling-flow",
+    "config": {
+      "src\\steps\\api\\admin\\interview\\rescheduleInterviews.step.js": {
+        "x": 0,
+        "y": 0
+      },
+      "src\\steps\\api\\admin\\interview\\sendInterviewRescheduleMail.step.js": {
+        "x": 419,
+        "y": 35
+      }
+    }
+  }
+]

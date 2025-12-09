@@ -1,0 +1,9 @@
+node_modules
+python_modules
+.env
+venv
+.motia
+.mermaid
+dist
+*.pyc
+/generated/prisma

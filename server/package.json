@@ -1,0 +1,47 @@
+{
+  "name": "server",
+  "description": "",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "postinstall": "motia install",
+    "dev": "motia dev",
+    "start": "motia start",
+    "generate-types": "motia generate-types",
+    "build": "motia build",
+    "clean": "rm -rf dist node_modules python_modules .motia .mermaid"
+  },
+  "keywords": [
+    "motia"
+  ],
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@langchain/community": "^1.0.7",
+    "@langchain/core": "^1.1.4",
+    "@motiadev/adapter-bullmq-events": "^0.15.4-beta.169",
+    "@motiadev/core": "^0.15.4-beta.169",
+    "@motiadev/plugin-bullmq": "^0.15.4-beta.169",
+    "@motiadev/plugin-endpoint": "^0.15.4-beta.169",
+    "@motiadev/plugin-logs": "^0.15.4-beta.169",
+    "@motiadev/plugin-observability": "^0.15.4-beta.169",
+    "@motiadev/plugin-states": "^0.15.4-beta.169",
+    "@prisma/adapter-pg": "^7.1.0",
+    "@prisma/client": "^7.1.0",
+    "backblaze-b2": "^1.7.1",
+    "bcrypt": "^6.0.0",
+    "inngest": "^3.47.0",
+    "motia": "^0.15.4-beta.169",
+    "nodemailer": "^7.0.11",
+    "pg": "^8.16.3",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@types/pg": "^8.15.6",
+    "@types/react": "^19.1.1",
+    "dotenv": "^17.2.3",
+    "prisma": "^7.1.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  }
+}

@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Role {
+  roleId      Int      @id @default(autoincrement()) @map("role_id")
+  roleName    String   @unique @map("role_name")
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  users       User[]
+}
+
+model User {
+  userId       String     @id @default(uuid()) @map("user_id")
+  email        String     @unique
+  passwordHash String     @map("password_hash")
+  firstName    String     @map("first_name")
+  lastName     String     @map("last_name")
+  phone        String?
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  roleId       Int        @map("role_id")
+  admin        Admin?
+  candidate    Candidate?
+  role         Role       @relation(fields: [roleId], references: [roleId])
+
+  @@map("users")
+}
+
+model Admin {
+  adminId    String      @id @default(uuid())
+  email      String      @unique
+  firstName  String
+  lastName   String
+  phone      String?
+  createdAt  DateTime    @default(now())
+  user       User        @relation(fields: [adminId], references: [userId])
+  candidates Candidate[] @relation("AdminCandidates")
+  interviews Interview[]
+}
+
+model Candidate {
+  candidateId       String             @id @default(uuid())
+  firstName         String
+  lastName          String
+  email             String             @unique
+  resumeUrl         String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  adminId           String?
+  phone             String?
+  status            String
+  admin             Admin?             @relation("AdminCandidates", fields: [adminId], references: [adminId])
+  user              User               @relation(fields: [candidateId], references: [userId])
+  interviews        Interview[]
+  interviewProfiles InterviewProfile[]
+  resumeProfile     ResumeProfile?
+}
+
+model ResumeProfile {
+  resumeProfileId   String    @id @default(uuid())
+  candidateId       String    @unique
+  technicalSkills   Json?
+  otherSkills       Json?
+  educationSummary  String?
+  createdAt         DateTime  @default(now())
+  certifications    Json?
+  projects          Json?
+  experienceSummary Json?
+  profileTitle      String?
+  jobAreaId         String?
+  candidate         Candidate @relation(fields: [candidateId], references: [candidateId])
+  jobArea           JobAreas? @relation(fields: [jobAreaId], references: [jobAreaId])
+}
+
+model Interview {
+  interviewId        String              @id @default(uuid())
+  candidateId        String
+  adminId            String
+  scheduledAt        DateTime
+  durationMin        Int
+  status             InterviewStatus     @default(PENDING)
+  createdAt          DateTime            @default(now())
+  cancellationReason String?
+  cancelledAt        DateTime?
+  completionMin      Float?
+  attemptedAt        DateTime?
+  admin              Admin               @relation(fields: [adminId], references: [adminId])
+  candidate          Candidate           @relation(fields: [candidateId], references: [candidateId])
+  interviewProfile   InterviewProfile?
+  questions          InterviewQuestion[]
+}
+
+model InterviewQuestion {
+  interviewQuestionId String    @id @default(uuid())
+  interviewId         String
+  content             String
+  difficultyLevel     Int
+  askedAt             DateTime  @default(now())
+  candidateAnswer     String?
+  aiFeedback          String?
+  correct             Boolean?
+  section             String?
+  interview           Interview @relation(fields: [interviewId], references: [interviewId])
+}
+
+model InterviewProfile {
+  interviewProfileId String    @id @default(uuid())
+  candidateId        String
+  interviewId        String    @unique
+  performanceScore   Float?
+  recommendedRoles   Json?
+  strengths          Json?
+  weaknesses         Json?
+  analytics          Json?
+  createdAt          DateTime  @default(now())
+  candidate          Candidate @relation(fields: [candidateId], references: [candidateId])
+  interview          Interview @relation(fields: [interviewId], references: [interviewId])
+}
+
+model JobAreas {
+  jobAreaId      String          @id @default(uuid())
+  name           String
+  resumeProfiles ResumeProfile[]
+}
+
+enum CandidateStatus {
+  NEW
+  INTERVIEW_SCHEDULED
+  INTERVIEW_COMPLETED
+}
+
+enum InterviewStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+}
