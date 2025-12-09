@@ -1,1 +1,1 @@
-# ai-interviewer-nextjs-motia
+# AI-interviewer-nextjs-motia
