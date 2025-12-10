@@ -1,5 +1,6 @@
 import { prisma } from "../../lib/prisma";
 import bcrypt from "bcrypt";
+import tokenGeneration from "../../utils/token.generation";
 
 export const AuthService = {
   async login(email, password) {
@@ -14,11 +15,20 @@ export const AuthService = {
     if (!valid) {
       throw new Error("Invalid password")
     }  
+    
+    // Generate JWT token
+    const token = await tokenGeneration(user);
+    if (!token) {
+      logger.error(`Token generation failed for email: ${email}`);
+      throw new ApiError(500, 'Token generation failed.');
+    }
     return {
-      id: user.userId,
+      userId: user.userId,
       email: user.email,
-      name: user.firstName + " " + user.lastName,
-      role: user.role.roleName
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role.roleName,
+      token: token
     };
   },
   async signup( email, password, firstName, lastName, phone ){

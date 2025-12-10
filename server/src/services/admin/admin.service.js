@@ -3,6 +3,7 @@ import { UploadResume } from "../../utils/backblaze.util";
 import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { sendScheduledInterviewMail, sendRescheduledInterviewMail } from "../../utils/email.util";
+import { ApiError } from "../../utils/apiError.util";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -40,7 +41,16 @@ const formatDate = (dateString) => {
 
 export const AdminService = {
 
-  async getAnalytics (adminId) {
+  async getAnalytics (userId) {
+    const admin = await prisma.user.findFirst({
+      where:{
+        userId: userId,
+        roleId: 1
+      }
+    })
+    if(!admin){
+      throw new ApiError(401,'Not authorised');
+    }
     const candidatesCount = await prisma.candidate.count();
     const interviewsCount = await prisma.interview.count();
 
@@ -204,15 +214,26 @@ export const AdminService = {
     return {newCandidate, arrayBuffer};
   },
 
-  async getAllCandidates(adminId) {
+  async getAllCandidates(userId) {
+    const admin = await prisma.user.findFirst({
+      where:{
+        userId: userId,
+        roleId: 1
+      }
+    })
+    if(!admin){
+      // throw new Error({error: 'Interview not found'}, {code: 400});
+      throw { message: 'Interview not found', status: 400 };
+    }
     const candidates = await prisma.candidate.findMany({});
     if(candidates.length < 1){
-      throw new Error('No candidate found.',{status: 404})
+      throw { message: 'Candidate not found', status: 400 };
+      // throw new Error({error: 'Candidate not found'}, {code: 404});
     }
     return candidates;
   },
 
-  async deleteCandidate(candidateId, adminId) {
+  async deleteCandidate(candidateId, userId) {
     const existingCandidate = await prisma.candidate.findFirst({
       where: {
         candidateId: candidateId
@@ -220,7 +241,7 @@ export const AdminService = {
     })
 
     if(!existingCandidate){
-      throw new Error('Candidate not found',{status: 404});
+      throw new ApiError('Candidate not found',404);
     }
 
     await prisma.interviewQuestion.deleteMany({
@@ -258,7 +279,7 @@ export const AdminService = {
     })
 
     if(!existingCandidate){
-      throw new Error('Candidate not found',{status: 404});
+      throw new ApiError('Candidate not found',404);
     }
 
     const interviews = await prisma.interview.findMany({
@@ -309,7 +330,7 @@ export const AdminService = {
     })
 
     if(!interviews){
-      throw new Error('Candidate interviews profile not found.',{status: 404})
+      throw new ApiError('Candidate interviews profile not found.',404)
     }
     return interviews;
   },
@@ -322,7 +343,7 @@ export const AdminService = {
     })
 
     if(!existingCandidate){
-      throw new Error('Candidate not found',{status: 404});
+      throw new ApiError('Candidate not found',404);
     }
 
     const candidateResumeProfile = await prisma.resumeProfile.findFirst({
@@ -349,7 +370,7 @@ export const AdminService = {
     });
 
     if(!candidateResumeProfile){
-      throw new Error('Candidate resume profile not found',{status: 404});
+      throw new ApiError('Candidate resume profile not found',404);
     }
 
     return candidateResumeProfile;
@@ -444,7 +465,7 @@ Return ONLY the final JSON object.
       try {
         return JSON.parse(output);
       } catch (err) {
-        console.error("Gemini returned invalid JSON:", output);
+        console.ApiError("Gemini returned invalid JSON:", output);
 
         const cleaned = output
           .replace(/\n/g, " ")
@@ -455,7 +476,7 @@ Return ONLY the final JSON object.
         try {
           return JSON.parse(cleaned);
         } catch (err2) {
-          throw new Error("Gemini output was not valid JSON");
+          throw new ApiError("Gemini output was not valid JSON",400);
         }
       }
     };
@@ -486,17 +507,33 @@ Return ONLY the final JSON object.
     return { success: true, parsed: structured };
   },
 
-  async getAllInterviews(adminId) {
-    const interviews = await prisma.interview.findMany({});
+  async getAllInterviews(userId) {
+    const admin = await prisma.user.findFirst({
+      where:{
+        userId: userId,
+        roleId: 1
+      }
+    })
+    if(!admin){
+      throw new ApiError('Not authorised',401);
+    }
+    const interviews = await prisma.interview.findMany({
+      include: {
+        candidate: true
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
     if(interviews.length < 1){
-      throw new Error('No interview found.',{status: 404})
+      throw new ApiError('No interview found.',404)
     }
     return interviews;
   },
 
   async scheduleInterview({datetime, duration, candidateId, adminId}){
     if( !candidateId || !datetime || !duration){
-        throw new Error("Missing fields", { status: 400 });
+        throw new ApiError("Missing fields",400);
     }
 
     const candidate = await prisma.candidate.findFirst({
@@ -536,7 +573,7 @@ Return ONLY the final JSON object.
 
   async sendScheduledInterviewMail({mailDetails}){
     if(!mailDetails){
-      throw new Error('Missing mail details',{status: 400})
+      throw new ApiError('Missing mail details',400)
     }
     const response = await sendScheduledInterviewMail({mailDetails});
     return response;
@@ -544,7 +581,7 @@ Return ONLY the final JSON object.
 
   async rescheduleInterview({candidateId, adminId, interviewId, newDatetime, oldDatetime, duration}){
     if( !candidateId || !newDatetime || !duration){
-        return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+        throw new ApiError('Missing fields',400)
     }
 
     const candidate = await prisma.candidate.findFirst({
@@ -578,7 +615,7 @@ Return ONLY the final JSON object.
 
   async sendRescheduledInterviewMail({mailDetails}){
     if(!mailDetails){
-      throw new Error('Missing mail details',{status: 400})
+      throw new ApiError('Missing mail details',400)
     }
     const response = await sendRescheduledInterviewMail({mailDetails});
     return response;
@@ -592,7 +629,7 @@ Return ONLY the final JSON object.
     })
 
     if(!existingInterview){
-      throw new Error('Interview not found',{status: 404});
+      throw new ApiError('Interview not found',404);
     }
     const interview = await prisma.interview.update({
       where: {

@@ -4,7 +4,7 @@ import { AuthService } from '../../../services/auth/auth.service';
 export const config = {
   name: 'UserSignup',
   type: 'api',
-  path: '/auth/signup',
+  path: '/api/auth/signup',
   method: 'POST',
   description: 'User signup endpoint',
   emits: [],

@@ -13,7 +13,7 @@ export const config = {
 
 export const handler = async (req, { emit, logger, state }) => {
     try {
-        const { email, firstName, lastName, resume } = await req.json();
+        const { email, firstName, lastName, resume } = await req.body;
 
         const result = await AdminService.createCandidate(
             email,
@@ -22,7 +22,7 @@ export const handler = async (req, { emit, logger, state }) => {
             resume
         );
 
-        if (!result.ok) {
+        if (!result) {
             logger.error('Failed to create candidate');
             throw new Error('Failed to create candidate');
         }
@@ -44,14 +44,17 @@ export const handler = async (req, { emit, logger, state }) => {
                 candidate: result,
             },
         };
-    } catch (err) {
-        logger.error('Failed to create candidate', err);
-
-        return {
-            status: 500,
-            body: {
-                message: 'Internal server error',
-            },
-        };
     }
+    catch (error) {
+      if (logger) {
+        logger.error('Failed to create candidate', { error: error.message });
+      }
+      return {
+        status: 500,
+        body: {
+          message: 'Internal server error'
+        }
+      };
+    }
+    
 };

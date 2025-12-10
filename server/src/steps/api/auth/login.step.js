@@ -4,7 +4,7 @@ import { AuthService } from '../../../services/auth/auth.service';
 export const config = {
   name: 'UserLogin',
   type: 'api',
-  path: '/auth/signin',
+  path: '/api/auth/signin',
   method: 'POST',
   description: 'User signin endpoint',
   emits: [],
@@ -35,13 +35,15 @@ export const handler = async (req, { emit, logger }) => {
     }
   };
   }
-  catch(err){
-    logger.error('Failed in user signin',err);
+  catch (error) {
+    if (logger) {
+      logger.error('Failed in user signin', { error: error.message });
+    }
     return {
       status: 500,
       body: {
-        message: 'User signin failed'
+        error: 'Internal server error'
       }
-  };
+    };
   }
 };
