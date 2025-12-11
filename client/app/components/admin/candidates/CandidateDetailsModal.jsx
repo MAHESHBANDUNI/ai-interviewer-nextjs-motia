@@ -12,9 +12,10 @@ function getFilenameFromUrl(url) {
 export default function CandidateDetailsModal({
   candidateDetailsModalOpen,
   setCandidateDetailsModalOpen,
-  candidateId,
   candidate
 }) {
+  console.log('NNN',candidate);
+  const [candidateId, setCandiddateId]= useState(candidate?.candidateId);
   const [activeSection, setActiveSection] = useState("ResumeProfile");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -31,7 +32,7 @@ export default function CandidateDetailsModal({
       case "OriginalResume":
         return (
           <ResumeViewer
-            fileName={`documents/${getFilenameFromUrl(candidate.resumeUrl)}`}
+            fileName={`documents/${getFilenameFromUrl(candidate?.resumeUrl)}`}
             onClose={() => setActiveSection("ResumeProfile")}
           />
         );

@@ -25,6 +25,7 @@ declare module 'motia' {
     'GetAllInterviews': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'CancelInterview': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GetCandidateResumeProfile': ApiRouteHandler<Record<string, unknown>, unknown, never>
+    'ViewResume': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GetCandidateInterviews': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GetAllCandidates': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GenerateResumeProfile': EventHandler<never, never>

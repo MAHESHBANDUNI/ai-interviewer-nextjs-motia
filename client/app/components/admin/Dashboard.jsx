@@ -36,11 +36,11 @@ export default function DashboardPage() {
   const [topJobAreas, setTopJobAreas] = useState([]);
   const [totalInterviewsThisMonth, setTotalInterviewsThisMonth] = useState('');
 
-  useEffect(()=>{
-    if(session?.user){
-      fetchAnalytics();
-    }
-  },[session])
+  useEffect(() => {
+    if (!session?.user?.token) return;
+
+    fetchAnalytics();
+  }, [session?.user?.token]);
 
   const fetchAnalytics = async() =>{
     try{

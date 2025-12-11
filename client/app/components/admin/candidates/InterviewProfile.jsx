@@ -1,4 +1,5 @@
 import { Check, X } from "lucide-react";
+import { useSession } from "next-auth/react";
 import React, { useState, useEffect } from "react";
 
 export default function InterviewProfile({ candidateId}) {
@@ -6,6 +7,7 @@ export default function InterviewProfile({ candidateId}) {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedInterview, setSelectedInterview] = useState(null);
+  const { data: session } = useSession();
 
   useEffect(() => {
     fetchInterviewProfiles(candidateId);
@@ -14,9 +16,9 @@ export default function InterviewProfile({ candidateId}) {
   const fetchInterviewProfiles = async (candidateId) => {
     setLoading(true);
     try {
-      const response = await fetch('${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/candidates/interviews/list', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/candidate/interview/list`, {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`},
         body: JSON.stringify({ candidateId })
       });
       const data = await response.json();

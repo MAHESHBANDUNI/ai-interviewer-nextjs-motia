@@ -1,13 +1,13 @@
-import { StatusCodes } from 'http-status-codes';
+import { ApiError } from "../utils/apiError.util";
 
-export const errorHandlerMiddleware = async (req, context, next) => {
-  const { logger, response } = context;
+export const errorHandlerMiddleware = async (req, ctx, next) => {
+  const { logger, response } = ctx;
 
   try {
     // Run next middleware/handler
     return await next();
   } catch (error) {
-    ctx.logger.error('recent error', { error: error.error })
+    logger.error('recent error', { error: error.error })
 
     // If the error is not an ApiError, convert it
     if (!(error instanceof ApiError)) {
@@ -26,7 +26,7 @@ export const errorHandlerMiddleware = async (req, context, next) => {
     }
 
     if (error.status === 401) {
-      ctx.logger.error('Authorization error', { error: error.error })
+      logger.error('Authorization error', { error: error.error })
       return { status: 401, body: { error: error.error } }
     }
 
@@ -39,11 +39,11 @@ export const errorHandlerMiddleware = async (req, context, next) => {
 
     // Final fallback response
     return {
-      status: error.status || StatusCodes.INTERNAL_SERVER_ERROR,
+      status: error.status || 500,
       body: {
         ...error,
         message: error.message,
-        ...(process.env === 'development' && { stack: error.stack })
+        ...(process.env.MOTIA_ENV === 'development' && { stack: error.stack })
       }
     };
   }

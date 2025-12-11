@@ -7,17 +7,26 @@ export const config = {
     description: 'Generates resume profile in the background',
     subscribes: ['generate.resume.profile'],
     emits: [],
-    flows: ['candidate-onboarding-flow']
+    flows: ['candidate-onboarding-flow'],
 }
 
 export const handler = async(input, context) => {
     const { emit, logger, state } = context || {};
-    let arrayBuffer, candidateId;
+    let arrayBuffer, candidateId = input.data;
+    if(!arrayBuffer || !candidateId){
+      logger.error('Failed to parse candidate resume. Missing fields.');
+      return ;
+    }
     try{
         const result = AdminService.parseCandidateResume({candidateId, arrayBuffer});
-        if(!result.success){
+        if(!result){
             logger.error('Failed to parse candidate resume');
-            throw new Error('Failed to parse candidate resume',{status: 400})
+            return {
+              status: 400,
+              body: {
+                error: 'Failed to parse candidate resume'
+              }
+            }
         }
         if(result.success){
           logger.info('Candidate resume parsed successfully')
@@ -26,11 +35,6 @@ export const handler = async(input, context) => {
     }
     catch(err){
         logger.error('Failed to parse candidate resume',err);
-        if(!arrayBuffer || !candidateId){
-          logger.error('Failed to parse candidate resume. Missing fields.');
-          return ;
-        }
-
         return ;
     }
 }

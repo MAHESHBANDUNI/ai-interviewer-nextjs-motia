@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 
 export default function ResumeProfile({ candidateId }) {
   const [candidateResumeProfile, setCandidateResumeProfile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("experience");
+  const { data: session } = useSession();
 
   useEffect(() => {
     fetchCandidateResumeProfile(candidateId);
@@ -12,14 +14,14 @@ export default function ResumeProfile({ candidateId }) {
   const fetchCandidateResumeProfile = async (candidateId) => {
     setLoading(true);
     try {
-      const response = await fetch('${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/candidates/resume/profile', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/candidate/resume/profile`, {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`},
         body: JSON.stringify({ candidateId })
       });
       const data = await response.json();
       if (response.ok) {
-        setCandidateResumeProfile(data.candidateResumeProfile);
+        setCandidateResumeProfile(data?.resumeProfile);
       }
     } catch (error) {
       console.error('Error fetching resume profile:', error);

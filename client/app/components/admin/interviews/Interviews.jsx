@@ -65,8 +65,10 @@ export default function Interview() {
   }, []);
 
   useEffect(() => {
+    if (!session?.user?.token) return;
+
     fetchInterviews();
-  }, []);
+  }, [session?.user?.token]);
 
   const fetchInterviews = async () => {
     setLoading(true);

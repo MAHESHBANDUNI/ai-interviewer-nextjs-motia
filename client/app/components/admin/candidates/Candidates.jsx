@@ -22,6 +22,7 @@ export default function Candidates() {
   const [saving, setSaving] = useState(false);
   const [candidateDetailsModalOpen, setCandidateDetailsModalOpen] = useState(false);
   const [selectedCandidateId, setSelectedCandidateId] = useState(null);
+  const [selectedCandidate, setSelectedCandidate] = useState([]);
   const [showDeleteCandidateModal, setShowDeleteCandidateModal] = useState(false);
 
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -52,7 +53,7 @@ export default function Candidates() {
   };
 
   const clearFilter = (type) => {
-if (type === 'search') {
+    if (type === 'search') {
       setSearchQuery("");
     }
   };
@@ -63,14 +64,15 @@ if (type === 'search') {
   }, []);
 
   useEffect(() => {
+    if (!session?.user?.token) return;
+
     fetchCandidates();
-  }, [session?.user]);
+  }, [session?.user?.token]);
+
 
   const fetchCandidates = async () => {
-    // if(!session?.user) return;
     setLoading(true);
     try {
-      console.log('Bearer token: ',session?.user?.token)
       const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/candidate/list`,
         {
           method: 'GET',
@@ -93,22 +95,54 @@ if (type === 'search') {
     }
   };
 
+  const handleResumeUpload = async(resume) => {
+    try{
+        const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/candidate/resume/upload`, {
+          method: "POST",
+          headers: {
+            "Content-Type": file.type,
+            "x-file-name": file.name
+          },
+          body: new Uint8Array(await file.arrayBuffer())
+        });
+        if(!response.ok){
+          errorToast('Problem creating candidate');
+          console.error(response?.error || 'Problem creating candidate');
+          setSaving(false);
+          setIsFormOpen(false);
+          return;
+        }
+        if(response?.ok){
+          const data = await response.json();
+          return data.resumeUrl;
+        }
+      }
+      catch(error){
+
+      }
+  }
+
   const handleSubmit = async (formData) => {
     try {
-      const submitData = new FormData();
-      submitData.append('firstName', formData.firstName);
-      submitData.append('lastName', formData.lastName);
-      submitData.append('phoneNumber', formData.phoneNumber);
-      submitData.append('email', formData.email);
-      submitData.append('adminId', session?.user?.id || '');
-
-      if (formData.resume) {
-        submitData.append('resume', formData.resume);
+      const resumeData ={
+        filename: formData.resume.name,
+        type: formData.resume.type,
+        data: await formData.resume.arrayBuffer().then(b => Buffer.from(b).toString("base64")),
       }
-
-      const res = await fetch('${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/candidates/create', {
+      const resumeUrl = await handleResumeUpload(resumeData);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/candidate/create`, {
         method: 'POST',
-        body: submitData,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.user?.token}`
+        },
+        body: JSON.stringify({
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          phoneNumber: formData.phoneNumber,
+          email: formData.email,
+          resumeUrl: resumeUrl
+          }),
       });
 
       const response = await res.json();
@@ -152,10 +186,10 @@ if (type === 'search') {
 
   const handleDelete = async () => {
     try {
-      const response = await fetch('${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/candidates/delete',
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/candidate/delete`,
         {
           method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`},
           body: JSON.stringify({ candidateId: selectedCandidateId })
         }
       );
@@ -195,6 +229,7 @@ if (type === 'search') {
 
   const handleCandidateDetailsClick = async (candidateId) => {
     setSelectedCandidateId(candidateId);
+    setSelectedCandidate(candidatesList.find(c => c.candidateId === candidateId));
     setCandidateDetailsModalOpen(true);
   }
 
@@ -282,8 +317,8 @@ if (type === 'search') {
         <CandidateDetailsModal 
           candidateDetailsModalOpen={candidateDetailsModalOpen}
           setCandidateDetailsModalOpen={setCandidateDetailsModalOpen}
-          candidateId={selectedCandidateId}
-          candidate={candidatesList.find(c => c.candidateId === selectedCandidateId)}
+          // candidateId={selectedCandidateId}
+          candidate={selectedCandidate}
         />
       }
 

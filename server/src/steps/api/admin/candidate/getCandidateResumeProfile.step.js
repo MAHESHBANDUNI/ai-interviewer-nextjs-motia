@@ -1,23 +1,32 @@
 import {z} from 'zod';
 import {AdminService} from '../../../../services/admin/admin.service'
+import { authMiddleware } from '../../../../middlewares/auth.middleware';
+import { errorHandlerMiddleware } from '../../../../middlewares/errorHandler.middleware';
 
 export const config = {
     name: 'GetCandidateResumeProfile',
     type : 'api',
-    path : '/admin/candidate/resume/profile',
+    path : '/api/admin/candidate/resume/profile',
     method: 'POST',
     description: 'Get candidate resume profile endpoint',
     emits: [],
     flows: [],
+    middleware: [errorHandlerMiddleware, authMiddleware]
 }
 
 export const handler = async(req, {emit, logger}) => {
     try{
-        const {candidateId, adminId} = await req.json();
-        const result = await AdminService.getCandidateResumeProfile(candidateId, adminId);
-        if(!result.ok){
-            logger.error('Failed to get candidate resume profile');
-            throw new Error('Failed to get candidate resume profile',{status: 400})
+        const userId = await req?.user?.userId;
+        const {candidateId} = await req.body;
+        const result = await AdminService.getCandidateResumeProfile({candidateId, userId});
+        if(!result){
+          logger.error('Failed to retrieve candidate resume profile');
+          return {
+            status: 400,
+            body: {
+              error: 'Failed to retrieve candidate resume profile'
+            }
+          }
         }
         return {
           status: 200,
@@ -27,13 +36,15 @@ export const handler = async(req, {emit, logger}) => {
           }
         };
     }
-    catch(err){
-        logger.error('Failed to retrieve candidate resume profile',err);
-        return {
-          status: 500,
-          body: {
-            message: 'Internal server error'
-          }
-        };
+    catch (error) {
+      if (logger) {
+        logger.error('Failed to retrieve candidate resume profile', { error: error.message, status: error.status });
+      }
+      return {
+        status: error.status || 500,
+        body: {
+          error: error.message || 'Internal server error'
+        }
+      };
     }
 }

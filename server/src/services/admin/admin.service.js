@@ -1,5 +1,5 @@
 import { prisma } from "../../lib/prisma";
-import { UploadResume } from "../../utils/backblaze.util";
+import { UploadResume, ViewResume } from "../../utils/backblaze.util";
 import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { sendScheduledInterviewMail, sendRescheduledInterviewMail } from "../../utils/email.util";
@@ -41,7 +41,7 @@ const formatDate = (dateString) => {
 
 export const AdminService = {
 
-  async getAnalytics (userId) {
+  async getAnalytics ({userId}) {
     const admin = await prisma.user.findFirst({
       where:{
         userId: userId,
@@ -181,11 +181,18 @@ export const AdminService = {
         };
   },
 
-  async createCandidate(email, firstName, lastName, resume) {
+  async createCandidate({email, firstName, lastName, resumeUrl, phoneNumber, userId}) {
+    const admin = await prisma.user.findFirst({
+      where:{
+        userId: userId,
+        roleId: 1
+      }
+    })
+    if(!admin){
+      throw new ApiError(401,'Not authorised');
+    }
     const customUUID = crypto.randomUUID();
     const hashedPassword = await bcrypt.hash(`${firstName}@123`, 10);
-
-    const {arrayBuffer, fileUrl} = await UploadResume(resume);
 
     const user = await prisma.user.create({
       data:{
@@ -207,14 +214,15 @@ export const AdminService = {
         lastName,
         status: "NEW",
         phone: phoneNumber,
-        resumeUrl: fileUrl,
-        adminId: adminId
+        resumeUrl: resumeUrl,
+        adminId: userId
       }
     });
+    const {arrayBuffer} = await UploadResume(resumeUrl);
     return {newCandidate, arrayBuffer};
   },
 
-  async getAllCandidates(userId) {
+  async getAllCandidates({userId}) {
     const admin = await prisma.user.findFirst({
       where:{
         userId: userId,
@@ -222,18 +230,33 @@ export const AdminService = {
       }
     })
     if(!admin){
-      // throw new Error({error: 'Interview not found'}, {code: 400});
-      throw { message: 'Interview not found', status: 400 };
+      throw new ApiError(401,'Not authorised');
     }
-    const candidates = await prisma.candidate.findMany({});
+    const candidates = await prisma.candidate.findMany({
+      include: {
+        resumeProfile: {
+          include: {
+            jobArea: true
+          }
+        },
+      }
+    });
     if(candidates.length < 1){
-      throw { message: 'Candidate not found', status: 400 };
-      // throw new Error({error: 'Candidate not found'}, {code: 404});
+      throw new ApiError(400, 'Candidate not found');
     }
     return candidates;
   },
 
-  async deleteCandidate(candidateId, userId) {
+  async deleteCandidate({candidateId, userId}) {
+    const admin = await prisma.user.findFirst({
+      where:{
+        userId: userId,
+        roleId: 1
+      }
+    })
+    if(!admin){
+      throw new ApiError(401,'Not authorised');
+    }
     const existingCandidate = await prisma.candidate.findFirst({
       where: {
         candidateId: candidateId
@@ -271,7 +294,16 @@ export const AdminService = {
     return deletedCandidate;
   },
 
-  async getCandidateInterviews(candidateId, adminId, interviewId) {
+  async getCandidateInterviews({candidateId, userId, interviewId}) {
+    const admin = await prisma.user.findFirst({
+      where:{
+        userId: userId,
+        roleId: 1
+      }
+    })
+    if(!admin){
+      throw new ApiError(401,'Not authorised');
+    }
     const existingCandidate = await prisma.candidate.findFirst({
       where: {
         candidateId: candidateId
@@ -335,7 +367,21 @@ export const AdminService = {
     return interviews;
   },
 
-  async getCandidateResumeProfile(candidateId) {
+  async getCandidateResume(fileName){
+    const result = await ViewResume(fileName);
+    return result;
+  },
+
+  async getCandidateResumeProfile({candidateId, userId}) {
+    const admin = await prisma.user.findFirst({
+      where:{
+        userId: userId,
+        roleId: 1
+      }
+    })
+    if(!admin){
+      throw new ApiError(401,'Not authorised');
+    }
     const existingCandidate = await prisma.candidate.findFirst({
       where: {
         candidateId: candidateId
@@ -507,7 +553,7 @@ Return ONLY the final JSON object.
     return { success: true, parsed: structured };
   },
 
-  async getAllInterviews(userId) {
+  async getAllInterviews({userId}) {
     const admin = await prisma.user.findFirst({
       where:{
         userId: userId,
@@ -531,7 +577,16 @@ Return ONLY the final JSON object.
     return interviews;
   },
 
-  async scheduleInterview({datetime, duration, candidateId, adminId}){
+  async scheduleInterview({datetime, duration, candidateId, userId}){
+    const admin = await prisma.user.findFirst({
+      where:{
+        userId: userId,
+        roleId: 1
+      }
+    })
+    if(!admin){
+      throw new ApiError(401,'Not authorised');
+    }
     if( !candidateId || !datetime || !duration){
         throw new ApiError("Missing fields",400);
     }
@@ -547,7 +602,7 @@ Return ONLY the final JSON object.
         candidateId: candidateId,
         scheduledAt: datetime,
         durationMin: Number(duration),
-        adminId: adminId,
+        adminId: userId,
         status: 'PENDING'
       }
     })
@@ -571,7 +626,16 @@ Return ONLY the final JSON object.
     return mailDetails;
   },
 
-  async sendScheduledInterviewMail({mailDetails}){
+  async sendScheduledInterviewMail({mailDetails, userId}){
+    const admin = await prisma.user.findFirst({
+      where:{
+        userId: userId,
+        roleId: 1
+      }
+    })
+    if(!admin){
+      throw new ApiError(401,'Not authorised');
+    }
     if(!mailDetails){
       throw new ApiError('Missing mail details',400)
     }
@@ -579,7 +643,16 @@ Return ONLY the final JSON object.
     return response;
   },
 
-  async rescheduleInterview({candidateId, adminId, interviewId, newDatetime, oldDatetime, duration}){
+  async rescheduleInterview({candidateId, userId, interviewId, newDatetime, oldDatetime, duration}){
+    const admin = await prisma.user.findFirst({
+      where:{
+        userId: userId,
+        roleId: 1
+      }
+    })
+    if(!admin){
+      throw new ApiError(401,'Not authorised');
+    }
     if( !candidateId || !newDatetime || !duration){
         throw new ApiError('Missing fields',400)
     }
@@ -613,7 +686,16 @@ Return ONLY the final JSON object.
     return mailDetails;
   },
 
-  async sendRescheduledInterviewMail({mailDetails}){
+  async sendRescheduledInterviewMail({mailDetails, userId}){
+    const admin = await prisma.user.findFirst({
+      where:{
+        userId: userId,
+        roleId: 1
+      }
+    })
+    if(!admin){
+      throw new ApiError(401,'Not authorised');
+    }
     if(!mailDetails){
       throw new ApiError('Missing mail details',400)
     }
@@ -621,7 +703,16 @@ Return ONLY the final JSON object.
     return response;
   },
 
-  async cancelInterview(interviewId, cancellationReason){
+  async cancelInterview(interviewId, cancellationReason, userId){
+    const admin = await prisma.user.findFirst({
+      where:{
+        userId: userId,
+        roleId: 1
+      }
+    })
+    if(!admin){
+      throw new ApiError(401,'Not authorised');
+    }
     const existingInterview = await prisma.interview.findFirst({
       where: {
         interviewId: interviewId

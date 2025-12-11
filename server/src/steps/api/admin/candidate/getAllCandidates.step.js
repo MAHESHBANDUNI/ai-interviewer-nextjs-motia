@@ -2,7 +2,6 @@ import {z} from 'zod';
 import {AdminService} from '../../../../services/admin/admin.service'
 import { errorHandlerMiddleware } from '../../../../middlewares/errorHandler.middleware';
 import { authMiddleware } from '../../../../middlewares/auth.middleware';
-import { ApiError } from '../../../../utils/apiError.util';
 
 export const config = {
     name: 'GetAllCandidates',
@@ -12,15 +11,13 @@ export const config = {
     description: 'Get all candidates endpoint',
     emits: [],
     flows: [],
-    middleware: [authMiddleware]
+    middleware: [errorHandlerMiddleware, authMiddleware]
 }
 
 export const handler = async(req, {emit, logger}) => {
   try{
-    let userId = await req.user.userId;
-    logger.info("userId",userId);
+    let userId = await req?.user?.userId;
     const result = await AdminService.getAllCandidates(userId);
-    logger.info("result",result);
     if(!result){
         logger.error('Failed to retreived candidates');
         return {
@@ -40,12 +37,12 @@ export const handler = async(req, {emit, logger}) => {
     }
     catch (error) {
       if (logger) {
-        logger.error('Failed to retreive candidates', { error: error.message, code: error.code });
+        logger.error('Failed to retreive candidates', { error: error.message, status: error.status });
       }
       return {
-        status: error.code || 500,
+        status: error.status || 500,
         body: {
-          message: error.message || 'Internal server error'
+          error: error.message || 'Internal server error'
         }
       };
     }

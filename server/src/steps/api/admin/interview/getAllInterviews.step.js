@@ -1,6 +1,7 @@
 import {z} from 'zod';
 import {AdminService} from '../../../../services/admin/admin.service'
 import { authMiddleware } from '../../../../middlewares/auth.middleware';
+import { errorHandlerMiddleware } from '../../../../middlewares/errorHandler.middleware';
 
 export const config = {
     name: 'GetAllInterviews',
@@ -10,7 +11,7 @@ export const config = {
     description: 'Get all interviews endpoint',
     emits: [],
     flows: [],
-    middleware: [authMiddleware]
+    middleware: [errorHandlerMiddleware, authMiddleware]
 }
 
 export const handler = async(req, {emit, logger}) => {
@@ -36,7 +37,7 @@ export const handler = async(req, {emit, logger}) => {
       return {
         status: error.status || 500,
         body: {
-          message: error.message || 'Internal server error'
+          error: error.message || 'Internal server error'
         }
       };
     }
