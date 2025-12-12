@@ -16,8 +16,10 @@ export const config = {
 
 export const handler = async(req, {emit, logger}) => {
     try{
-        const {candidateId, adminId} = await req.json();
-        const result = await AdminService.deleteCandidate(candidateId, adminId);
+        logger.info('Deleting candidate', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
+        const userId = await req?.user?.userId;
+        const {candidateId} = await req.body;
+        const result = await AdminService.deleteCandidate({candidateId, userId});
         if(!result){
           logger.error('Failed to delete candidate');
           return {

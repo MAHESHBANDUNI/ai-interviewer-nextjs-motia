@@ -2,7 +2,6 @@ import { z } from 'zod';
 import { AdminService } from '../../../../services/admin/admin.service';
 import { authMiddleware } from '../../../../middlewares/auth.middleware';
 import { errorHandlerMiddleware } from '../../../../middlewares/errorHandler.middleware';
-import { handleUpload } from '../../../../middlewares/upload.middleware.js'; // Resume upload middleware
 
 export const config = {
   name: 'CreateCandidate',
@@ -17,6 +16,7 @@ export const config = {
 
 export const handler = async (req, { emit, logger, state }) => {
   try {
+    logger.info('Creating new candidate', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
     const userId = req?.user?.userId;
     logger.info('Req: ',req)
 
@@ -28,14 +28,14 @@ export const handler = async (req, { emit, logger, state }) => {
     const resumeUrl = req.body.resumeUrl
 
     // Call the service to create a candidate
-    const result = await AdminService.createCandidate(
+    const result = await AdminService.createCandidate({
       email,
       firstName,
       lastName,
       resumeUrl,
       userId,
       phoneNumber
-    );
+    });
 
     if (!result) {
       logger.error('Failed to create candidate');
@@ -51,7 +51,7 @@ export const handler = async (req, { emit, logger, state }) => {
         topic: 'generate.resume.profile',
         data: {
           candidateId: result?.newCandidate?.candidateId,
-          arrayBuffer: result?.arrayBuffer,
+          resumeUrl: result?.newCandidate?.resumeUrl,
         }
       });
     }

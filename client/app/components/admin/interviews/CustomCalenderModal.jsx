@@ -64,8 +64,8 @@ export default function CustomCalendarModal({ isOpen, onClose, selectedDate, onS
   if (!isOpen) return null;
 
   return (
-    <div className="modal-content fixed inset-0 backdrop-blur-xs bg-black/30 flex items-center z-[5555] justify-center">
-      <div ref={modalRef} className="calendar-modal bg-white z-[1100] rounded-lg shadow-xl lg:p-6.5 p-4 sm:mx-auto mx-8 max-w-full">
+    <div className="modal-content fixed inset-0 backdrop-blur-xs bg-black/30 flex items-center z-[5555] justify-center" onClick={onClose}>
+      <div ref={modalRef} className="calendar-modal bg-white z-[1100] rounded-lg shadow-xl lg:p-6.5 p-4 sm:mx-auto mx-8 max-w-full" onClick={(e) => e.stopPropagation()}>
         <DayPicker
           mode="single"
           selected={selectedDate}

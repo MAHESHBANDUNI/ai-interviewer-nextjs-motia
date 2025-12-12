@@ -1,28 +1,31 @@
 import { X, Check } from "lucide-react";
+import { useSession } from "next-auth/react";
 import React, { useState, useEffect } from "react";
 
 export default function InterviewProfile({ candidateId, interviewId }) {
+  const {data: session} = useSession();
   const [interviews, setInterviews] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedInterview, setSelectedInterview] = useState(null);
 
   useEffect(() => {
+    if (!session?.user?.token) return;
     fetchInterviewProfiles(candidateId, interviewId);
-  }, [candidateId, interviewId]);
+  }, [session?.user?.token]);
 
   const fetchInterviewProfiles = async (candidateId, interviewId) => {
     setLoading(true);
     try {
-      const response = await fetch('${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/candidates/interviews/list', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/candidate/interview/list`, {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`},
         body: JSON.stringify({ candidateId, interviewId })
       });
       const data = await response.json();
-      if (response.ok && data.interviews) {
-        setInterviews(data.interviews);
-        if (data.interviews.length > 0) {
+      if (response.ok && data?.interviews) {
+        setInterviews(data?.interviews);
+        if (data?.interviews.length > 0) {
           setSelectedInterview(data.interviews[0]);
         }
       }

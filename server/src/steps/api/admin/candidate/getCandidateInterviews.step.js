@@ -6,7 +6,7 @@ import { errorHandlerMiddleware } from '../../../../middlewares/errorHandler.mid
 export const config = {
     name: 'GetCandidateInterviews',
     type : 'api',
-    path : '/api/admin/candidate/interviews/list',
+    path : '/api/admin/candidate/interview/list',
     method: 'POST',
     description: 'Get candidates interviews endpoint',
     emits: [],
@@ -16,8 +16,10 @@ export const config = {
 
 export const handler = async(req, {emit, logger}) => {
     try{
-        const {candidateId, adminId} = await req.json();
-        const result = await AdminService.getCandidateInterviews(candidateId, adminId);
+        logger.info('Retrieving candidate interviews', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
+        const userId = req?.user?.userId;
+        const {candidateId, interviewId} = await req.body;
+        const result = await AdminService.getCandidateInterviews({candidateId, interviewId, userId});
         if(!result){
           logger.error('Failed to get candidate interviews');
           return {

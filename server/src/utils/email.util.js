@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { ApiError } from './apiError.util';
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
@@ -10,7 +11,8 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-export const sendScheduledInterviewMail = async ({maildetails}) => {
+export const sendScheduledInterviewMail = async (maildetails, logger) => {
+  logger.info("Mail details 3: ", maildetails);
     try{
         const {candidateEmail, candidateName, loginUrl, candidatePassword, meetingTime} = maildetails;
         const info = await transporter.sendMail({
@@ -50,13 +52,9 @@ export const sendScheduledInterviewMail = async ({maildetails}) => {
           messageId: info.messageId,
           message: success ? "Email sent successfully" : "Email rejected by SMTP server"
         };
-    }catch (err) {
-        console.error("Error sending email:", err);
-
-        return {
-          success: false,
-          error: err.message || "Failed to send email"
-        };
+    }catch (error) {
+      logger.info("error 2",error);
+      throw new ApiError("Failed to send email", 400);
     }
 };
 

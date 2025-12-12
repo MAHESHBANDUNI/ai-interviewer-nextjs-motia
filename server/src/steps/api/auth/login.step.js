@@ -19,10 +19,7 @@ export const config = {
 
 export const handler = async (req, { emit, logger }) => {
   try{
-  const appName = process.env.APP_NAME || 'AI-Interviewer';
-  const timestamp = new Date().toISOString();
-  
-  logger.info('User signin attempted', { appName, timestamp });
+  logger.info('User signin attempted', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
   
   const {email, password} = req.body || {};
   const result = await AuthService.login(email, password);

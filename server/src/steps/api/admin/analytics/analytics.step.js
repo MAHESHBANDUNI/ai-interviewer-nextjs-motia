@@ -17,6 +17,7 @@ export const config = {
 
 export const handler = async (req, { emit, logger, traceId }) => {
   try {
+     logger.info('Retrieving dashboard analytics', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
     const userId = await req?.user?.userId;
     if (!userId) {
       return {

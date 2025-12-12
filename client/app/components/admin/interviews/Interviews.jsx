@@ -97,15 +97,10 @@ export default function Interview() {
 
   const handleSubmit = async (formData) => {
     try {
-      const submitData = new FormData();
-      submitData.append('candidateId', formData.candidateId);
-      submitData.append('datetime', formData.datetime);
-      submitData.append('duration', formData.duration);
-      submitData.append('adminId', session?.user?.id || '');
-
-      const res = await fetch('${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/interviews/schedule', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/interview/schedule`, {
         method: 'POST',
-        body: submitData,
+        headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`},
+        body: JSON.stringify({candidateId: formData.candidateId, datetime: formData.datetime, duration: formData.duration}),
       });
 
       const response = await res.json();
@@ -132,10 +127,10 @@ export default function Interview() {
 
   const handleCancelInterview = async () => {
     try {
-      const response = await fetch('${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/interviews/cancel',
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/interview/cancel`,
         {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`},
           body: JSON.stringify({ interviewId: selectedInterviewId })
         }
       );
@@ -167,16 +162,19 @@ export default function Interview() {
   }
 
   const handleRescheduleInterviewClick = async (interviewId) => {
+    console.log('selectedInterviewId:',interviewId);
     setSelectedInterviewId(interviewId);
     setShowRescheduleInterviewModalOpen(true);
   }
 
   const handleRescheduleInterview = async (formData) => {
+    console.log("formData: ",formData);
     // Get old interview details
     const oldInterviewDetails = interviewsList.find(
-      (i) => i.interviewId === selectedInterviewId
+      (i) => i.interviewId === formData.selectedInterviewId
     );
 
+    console.log("old interview id: ",formData.selectedInterviewId);
     if (!oldInterviewDetails) {
       errorToast("Old interview details not found");
       return;
@@ -185,7 +183,7 @@ export default function Interview() {
     try {
       const submitData = new FormData();
       submitData.append("candidateId", formData.candidateId);
-      submitData.append("interviewId", selectedInterviewId);
+      submitData.append("interviewId", formData.selectedInterviewId);
       submitData.append("newDatetime", formData.datetime);
 
       // old datetime added properly
@@ -194,8 +192,9 @@ export default function Interview() {
       submitData.append("duration", formData.duration);
       submitData.append("adminId", session?.user?.id || "");
 
-      const res = await fetch("${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/interviews/reschedule", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/interview/reschedule`, {
         method: "PUT",
+        headers: {'Authorization':`Bearer ${session?.user?.token}`},
         body: submitData,
       });
 

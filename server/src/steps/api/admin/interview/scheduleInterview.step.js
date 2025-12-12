@@ -1,33 +1,40 @@
 import {z} from 'zod';
 import {AdminService} from '../../../../services/admin/admin.service'
+import { authMiddleware } from '../../../../middlewares/auth.middleware';
+import { errorHandlerMiddleware } from '../../../../middlewares/errorHandler.middleware';
 
 export const config = {
     name: 'ScheduleInterview',
     type : 'api',
-    path : '/admin/interview/schedule',
+    path : '/api/admin/interview/schedule',
     method: 'POST',
     description: 'Schedule interview endpoint',
     emits: ['schedule.interview.mail'],
     flows: ['interview-scheduling-flow'],
+    middleware: [errorHandlerMiddleware, authMiddleware]
 }
 
 export const handler = async(req, {emit, logger}) => {
+  logger.info("request", req)
     try{
-        const formData = await req.formData();
-        const candidateId = formData.get("candidateId");
-        const datetime = formData.get("datetime");
-        const duration = formData.get("duration");
-        const adminId = formData.get("adminId");
-        const result = await AdminService.scheduleInterview({adminId, candidateId, datetime, duration});
-        if(!result.ok){
-            logger.error('Failed to schedule interview');
-            throw new Error('Failed to schedule interview',{status: 400})
+        const userId = await req?.user?.userId;
+        const {candidateId, datetime, duration} = await req.body;
+        const result = await AdminService.scheduleInterview({userId, candidateId, datetime, duration});
+        console.log("Result: ",result);
+        if(!result){
+          logger.error('Failed to schedule interview');
+          return {
+            status: 400,
+            body: {
+              error: 'Failed to schedule interview'
+            }
+          }
         }
         if (emit) {
           await emit({
             topic: 'schedule.interview.mail',
             data: {
-              mailDetails: result?.mailDetails
+              mailDetails: result
             }
           });
         }
@@ -39,13 +46,15 @@ export const handler = async(req, {emit, logger}) => {
           }
         };
     }
-    catch(err){
-        logger.error('Failed to schedule interview',err);
-        return {
-          status: 500,
-          body: {
-            message: 'Internal server error'
-          }
-        };
+    catch (error) {
+      if (logger) {
+        logger.error('Failed to retreive interviews', { error: error.message, status: error.status });
+      }
+      return {
+        status: error.status || 500,
+        body: {
+          error: error.message || 'Internal server error'
+        }
+      };
     }
 }

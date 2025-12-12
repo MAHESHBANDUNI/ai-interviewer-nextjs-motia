@@ -16,11 +16,16 @@ export const config = {
 
 export const handler = async(req, {emit, logger}) => {
     try{
-        const {userId} = await req.body;
+        const userId = await req?.user?.userId;
         const result = await AdminService.getAllInterviews(userId);
         if(!result){
-            logger.error('Failed to retreived interviews');
-            throw new Error('Failed to retreived interviews',{status: 400})
+          logger.error('Failed to retreived interviews');
+          return {
+            status: 400,
+            body: {
+              error: 'Failed to retreived interviews'
+            }
+          }
         }
         return {
           status: 200,

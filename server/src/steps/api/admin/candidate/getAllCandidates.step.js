@@ -16,6 +16,7 @@ export const config = {
 
 export const handler = async(req, {emit, logger}) => {
   try{
+    logger.info('Retrieving all candidates list', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
     let userId = await req?.user?.userId;
     const result = await AdminService.getAllCandidates(userId);
     if(!result){

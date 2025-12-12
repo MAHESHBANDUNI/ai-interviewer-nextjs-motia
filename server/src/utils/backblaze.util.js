@@ -7,47 +7,44 @@ const b2 = new B2({
   applicationKey: process.env.B2_APPLICATION_KEY,
 });
 
-export const UploadResume = async (resume) => {
-  if (!resume || !resume.data || !resume.filename) {
+export const UploadResume = async ({fileBuffer, filename, mimetype}) => {
+  if (!fileBuffer || !filename || !mimetype) {
     throw new ApiError(400, "Invalid resume upload payload");
   }
 
   try {
-    // 1️⃣ Convert base64 → buffer
-    const buffer = Buffer.from(resume.data, "base64");
-
-    // 2️⃣ Also get arrayBuffer to return
-    const arrayBuffer = buffer.buffer.slice(
-      buffer.byteOffset,
-      buffer.byteOffset + buffer.byteLength
+    // 🔹 Convert Node Buffer → ArrayBuffer (optional but your code needs it)
+    const arrayBuffer = fileBuffer.buffer.slice(
+      fileBuffer.byteOffset,
+      fileBuffer.byteOffset + fileBuffer.byteLength
     );
 
-    // 3️⃣ Authorize B2
+    // 1️⃣ Authorize Backblaze
     await b2.authorize();
 
-    // 4️⃣ Generate unique filename
-    const ext = resume.filename.split(".").pop();
+    // 2️⃣ Create unique file name
+    const ext = filename.split(".").pop();
     const uniqueFileName = `${Date.now()}-${Math.random()
       .toString(36)
       .slice(2)}.${ext}`;
 
-    // 5️⃣ Prepare upload URL
+    // 3️⃣ Get upload URL
     const uploadUrlResponse = await b2.getUploadUrl({
       bucketId: process.env.B2_BUCKET_ID,
     });
 
     const { uploadUrl, authorizationToken } = uploadUrlResponse.data;
 
-    // 6️⃣ Upload to Backblaze
+    // 4️⃣ Upload to Backblaze B2
     await b2.uploadFile({
       uploadUrl,
       uploadAuthToken: authorizationToken,
       fileName: `documents/${uniqueFileName}`,
-      data: buffer,
-      contentType: resume.type,
+      data: fileBuffer, // <-- RAW BUFFER
+      contentType: mimetype, // <-- EXACT MIME TYPE SENT FROM CLIENT
     });
 
-    // 7️⃣ Construct URL
+    // 5️⃣ Create public URL
     const fileUrl = `https://f005.backblazeb2.com/file/${process.env.B2_BUCKET_NAME}/documents/${uniqueFileName}`;
 
     return { arrayBuffer, fileUrl };
@@ -56,6 +53,7 @@ export const UploadResume = async (resume) => {
     throw new ApiError(500, "Failed to upload resume");
   }
 };
+
 
 
 // export const UploadResume = async(resume) => {
@@ -249,4 +247,28 @@ export const ViewResume = async (fileName, logger) => {
     contentLength: fileRes.headers.get("content-length"),
   };
 };
+
+export const getSignedUrl=async({fileName,expiresInSeconds = 3600}) => {
+  try {
+    // Must authorize before any request
+    await b2.authorize();
+
+    // Generate a restricted file download URL
+    const response = await b2.getDownloadAuthorization({
+      bucketId: process.env.B2_BUCKET_ID,
+      fileNamePrefix: fileName,
+      validDurationInSeconds: expiresInSeconds,
+    });
+
+    const authToken = response.data.authorizationToken;
+
+    const resumeUrl=  `${b2.downloadUrl}/file/${process.env.B2_BUCKET_NAME}/${encodeURIComponent(fileName)}?Authorization=${authToken}`;
+    // Build the signed URL manually
+    return resumeUrl;
+    } catch (err) {
+    console.error("Error generating B2 signed URL:", err);
+    throw new ApiError("Could not generate Backblaze signed URL",500);
+  }
+}
+
 

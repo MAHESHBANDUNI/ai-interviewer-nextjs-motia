@@ -11,14 +11,15 @@ export const config = {
 }
 
 export const handler = async(input, context) => {
-    const { emit, logger, state } = context || {};
-    let arrayBuffer, candidateId = input.data;
-    if(!arrayBuffer || !candidateId){
-      logger.error('Failed to parse candidate resume. Missing fields.');
-      return ;
-    }
-    try{
-        const result = AdminService.parseCandidateResume({candidateId, arrayBuffer});
+  try{ 
+      logger.info('Parsing candidate resume', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
+      const { emit, logger, state } = context || {};
+      let {resumeUrl, candidateId} = input;
+      if(!resumeUrl || !candidateId){
+        logger.error('Failed to parse candidate resume. Missing fields.');
+        return ;
+      }
+        const result = await AdminService.parseCandidateResume({candidateId, resumeUrl, logger});
         if(!result){
             logger.error('Failed to parse candidate resume');
             return {
@@ -28,13 +29,23 @@ export const handler = async(input, context) => {
               }
             }
         }
-        if(result.success){
-          logger.info('Candidate resume parsed successfully')
-          return ;
+        if(result?.success){
+          return {
+              status: 200,
+              body: {
+                message: 'Candidate resume parsed successfully',
+                resumeProfile: result?.resumeProfile
+              }
+            }
         }
     }
-    catch(err){
-        logger.error('Failed to parse candidate resume',err);
-        return ;
+    catch(error){
+      if (logger) {
+        logger.error('Failed to parse candidate resume', { error: error.message, status: error.status });
+      }
+      return {
+        status: error.status || 500,
+        body: { error: error.message || 'Internal server error' }
+      };
     }
 }

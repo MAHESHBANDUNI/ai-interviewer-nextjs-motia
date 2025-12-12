@@ -23,6 +23,7 @@ export default function AddInterviewForm({
   saving,
   setSaving,
   isRescheduling,
+  selectedInterviewId,
   interview
 }) {
   // Candidate search
@@ -46,6 +47,8 @@ export default function AddInterviewForm({
 
   const searchAbort = useRef(null);
 
+  console.log("selectedInterviewId: ",selectedInterviewId)
+
   useEffect(() => {
     return () => {
       if (searchAbort.current) searchAbort.current.abort();
@@ -53,10 +56,12 @@ export default function AddInterviewForm({
   }, []);
 
   useEffect(() => {
-    if (isOpen) {
+    if (!session?.user?.token) return;
+
+    if (isOpen && !selectedInterviewId) {
       fetchCandidates();
     }
-  }, [isOpen]);
+  }, [isOpen, session?.user?.token]);
 
   useEffect(() => {
     if (candidates.length === 0) {
@@ -100,9 +105,9 @@ export default function AddInterviewForm({
 
   const fetchCandidates = async () => {
     try {
-      const response = await fetch('${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/candidates/list', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/candidate/list`, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
+        headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`},
       });
 
       if (!response.ok) return;
@@ -164,6 +169,9 @@ export default function AddInterviewForm({
     e.preventDefault();
     setSaving(true);
     const payload = validateAndBuildPayload();
+    if(selectedInterviewId){
+      payload.append({selectedInterviewId: selectedInterviewId});
+    }
     if (!payload) {
       setSaving(false);
       return;
@@ -175,13 +183,7 @@ export default function AddInterviewForm({
       console.error('Submit error:', err);
     } finally {
       setSaving(false);
-      setQuery('');
-      setSelectedCandidate('');
-      setFilterCandidates([]);
-      setSelectedDate(null);
-      setSelectedTime('');
-      setDuration(30);
-      onClose && onClose();
+      handleCloseModal();
     }
   };
 
@@ -198,13 +200,13 @@ export default function AddInterviewForm({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-opacity-40 flex items-center justify-center p-4 bg-[#00000082] backdrop-blur-[5px] z-[9999]">
-      <div className="modal-content bg-white rounded-lg w-full max-w-2xl max-h-[95vh] overflow-y-auto shadow-2xl">
+    <div className="fixed inset-0 bg-opacity-40 flex items-center justify-center p-4 bg-[#00000082] backdrop-blur-[5px] z-[9999]" onClick={() => {if (!isCalendarOpen) {handleCloseModal()};}}>
+      <div className="modal-content bg-white rounded-lg w-full max-w-2xl max-h-[95vh] overflow-y-auto shadow-2xl" onClick={(e) =>e.stopPropagation()}>
         <div className="flex justify-between items-center border-b border-gray-200 p-4 bg-gradient-to-r from-blue-600 to-blue-700">
           <h2 className="text-xl text-white font-semibold">
             {isRescheduling ? 'Reschedule Interview' : 'Schedule Interview'}
           </h2>
-          <button onClick={handleCloseModal} className="text-white p-1 cursor-pointer">
+          <button onClick={() => {if (!isCalendarOpen) {handleCloseModal()};}} className="text-white p-1 cursor-pointer">
             <X className="w-6 h-6" />
           </button>
         </div>
@@ -318,7 +320,7 @@ export default function AddInterviewForm({
 
           {/* Buttons */}
           <div className="flex justify-end gap-3 pt-4">
-            <button type="button" onClick={handleCloseModal} className="px-4 py-2 bg-gray-200 rounded-lg cursor-pointer">
+            <button type="button"   onClick={() => {if (!isCalendarOpen) {handleCloseModal()};}} className="px-4 py-2 bg-gray-200 rounded-lg cursor-pointer">
               Cancel
             </button>
             <button

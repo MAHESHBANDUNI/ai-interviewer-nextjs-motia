@@ -1,9 +1,11 @@
 import { prisma } from "../../lib/prisma";
-import { UploadResume, ViewResume } from "../../utils/backblaze.util";
+import { UploadResume, ViewResume, getSignedUrl } from "../../utils/backblaze.util";
 import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { sendScheduledInterviewMail, sendRescheduledInterviewMail } from "../../utils/email.util";
 import { ApiError } from "../../utils/apiError.util";
+import bcrypt from 'bcrypt';
+import PdfParse from "pdf-parse";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -181,6 +183,11 @@ export const AdminService = {
         };
   },
 
+  async uploadCandidateResume({fileBuffer, filename, mimetype}) {
+    const result = await UploadResume(fileBuffer, filename, mimetype);
+    return result;
+  },
+
   async createCandidate({email, firstName, lastName, resumeUrl, phoneNumber, userId}) {
     const admin = await prisma.user.findFirst({
       where:{
@@ -218,8 +225,7 @@ export const AdminService = {
         adminId: userId
       }
     });
-    const {arrayBuffer} = await UploadResume(resumeUrl);
-    return {newCandidate, arrayBuffer};
+    return {newCandidate};
   },
 
   async getAllCandidates({userId}) {
@@ -304,6 +310,7 @@ export const AdminService = {
     if(!admin){
       throw new ApiError(401,'Not authorised');
     }
+
     const existingCandidate = await prisma.candidate.findFirst({
       where: {
         candidateId: candidateId
@@ -361,7 +368,7 @@ export const AdminService = {
         }
     })
 
-    if(!interviews){
+    if(!interviews || interviews.length < 1){
       throw new ApiError('Candidate interviews profile not found.',404)
     }
     return interviews;
@@ -389,7 +396,7 @@ export const AdminService = {
     })
 
     if(!existingCandidate){
-      throw new ApiError('Candidate not found',404);
+      throw new ApiError(404,'Candidate not found');
     }
 
     const candidateResumeProfile = await prisma.resumeProfile.findFirst({
@@ -422,32 +429,40 @@ export const AdminService = {
     return candidateResumeProfile;
   },
 
-  async parseCandidateResume ({candidateId, arrayBuffer}) {
-    const buffer = Buffer.from(arrayBuffer);
+async parseCandidateResume({ candidateId, resumeUrl, logger }) {
+  function getFilenameFromUrl(url) {
+    const parts = url.split('/');
+    return parts.pop() || parts.pop();
+  }
 
-    // Extract resume text
-    const resumeText = async () => {
+  try {
+    const fileName = `documents/${getFilenameFromUrl(resumeUrl)}`;
+    const signedResumeUrl = await getSignedUrl({ fileName });
+
+    const response = await fetch(signedResumeUrl);
+    if (!response.ok) throw new ApiError("Failed to download resume", 400);
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+
+    /** ------------ EXTRACT PDF TEXT ------------ **/
+    const getResumeText = async () => {
       const blob = new Blob([buffer], { type: "application/pdf" });
       const loader = new PDFLoader(blob, { splitPages: false });
       const docs = await loader.load();
       return docs.map((d) => d.pageContent).join("\n\n");
     };
 
-    // Get job areas from DB
-    const jobAreas = await prisma.jobAreas.findMany({
-      select: { name: true },
-    });
-    
-    const jobAreaNames = jobAreas.map(j => j.name);
+    const resumeText = await getResumeText();
 
-    // Gemini resume parsing
-    const structured = async () => {
+    /** ------------ FETCH JOB AREAS ------------ **/
+    const jobAreas = await prisma.jobAreas.findMany({ select: { name: true } });
+    const jobAreaNames = jobAreas.map((x) => x.name);
+
+    /** ------------ GEMINI STRUCTURED PARSING ------------ **/
+    const getStructured = async () => {
       const prompt = `
-You are an expert resume parser. Your task is to convert the resume text into a clean, strictly valid JSON object that follows the exact structure and naming of the provided Prisma model.
+You are an expert resume parser. Convert the resume into valid JSON strict to this model:
 
-========================================
-PRISMA MODEL (RETURN JSON MUST MATCH)
-========================================
 {
   "profileTitle": String?,
   "jobAreaId": String,
@@ -472,46 +487,29 @@ PRISMA MODEL (RETURN JSON MUST MATCH)
   ]
 }
 
-========================================
-STRICT OUTPUT RULES
-========================================
-1. OUTPUT MUST BE ONLY valid JSON — no Markdown, no comments.
-2. DO NOT wrap output inside \`\`\`json or any code fences.
-3. DO NOT hallucinate — if missing, return null or [].
-4. Do not include fields not defined in the model.
-5. Output must be valid JSON with no trailing commas.
-6. technicalSkills must be classified into categories (e.g., Frontend, Backend, Database, DevOps & Cloud etc.) and each category must contain short technology names only.
-7. Select jobAreaId based on the closest matching job area from the provided job area list.
+Rules:
+1. Output ONLY JSON. No markdown. No extra text.
+2. Missing values → null or [].
+3. technicalSkills must be technology-only lists grouped by category.
+4. jobAreaId must be selected by best match from this list:
+${JSON.stringify(jobAreaNames)}
 
-========================================
-INPUT RESUME
-========================================
+RESUME CONTENT:
 """${resumeText}"""
-
-INPUT LIST OF JOB AREAS
-========================================
-"""${JSON.stringify(jobAreaNames)}"""
-
-========================================
-TASK
-========================================
-Return ONLY the final JSON object.
 `;
 
       const result = await geminiModel.generateContent(prompt);
       let output = result.response.text().trim();
 
-      // Cleanup formatting issues
       output = output
         .replace(/```json/i, "")
         .replace(/```/g, "")
         .trim();
 
-      // Parse JSON safely
       try {
         return JSON.parse(output);
       } catch (err) {
-        console.ApiError("Gemini returned invalid JSON:", output);
+        logger.warn("Gemini JSON parse attempt #1 failed. Trying cleanup…");
 
         const cleaned = output
           .replace(/\n/g, " ")
@@ -519,39 +517,53 @@ Return ONLY the final JSON object.
           .replace(/,\s*}/g, "}")
           .replace(/,\s*]/g, "]");
 
-        try {
-          return JSON.parse(cleaned);
-        } catch (err2) {
-          throw new ApiError("Gemini output was not valid JSON",400);
-        }
+        return JSON.parse(cleaned);
       }
     };
 
-    const jobArea = await prisma.jobAreas.findFirst({
+    const structured = await getStructured();
+
+    if (!structured) {
+      throw new ApiError("Gemini returned empty structured output", 400);
+    }
+
+    /** ------------ MATCH JOB AREA FROM STRUCTURE ------------ **/
+    const matchedJobArea = await prisma.jobAreas.findFirst({
       where: {
         name: {
-          contains: structured.jobAreaId,
-          mode: 'insensitive',
-        },
-      },
+          contains: structured.jobAreaId || "",
+          mode: "insensitive"
+        }
+      }
     });
 
-    await prisma.resumeProfile.create({
+    if (!matchedJobArea) {
+      logger.warn(`No matching jobArea found for: ${structured.jobAreaId}`);
+      throw new ApiError("Invalid or unmatched jobAreaId from parsed resume", 400);
+    }
+
+    /** ------------ INSERT INTO DATABASE ------------ **/
+    const savedProfile = await prisma.resumeProfile.create({
       data: {
         candidateId,
-        jobAreaId: jobArea.jobAreaId,
-        profileTitle: toTitleCase(structured.profileTitle),
-        technicalSkills: structured.technicalSkills,
-        otherSkills: structured.otherSkills,
-        experienceSummary: structured.experienceSummary,
-        educationSummary: structured.educationSummary,
-        certifications: structured.certifications,
-        projects: structured.projects,
-      },
+        jobAreaId: matchedJobArea.jobAreaId,
+        profileTitle: structured.profileTitle || null,
+        technicalSkills: structured.technicalSkills || null,
+        otherSkills: structured.otherSkills || null,
+        experienceSummary: structured.experienceSummary || [],
+        educationSummary: structured.educationSummary || null,
+        certifications: structured.certifications || null,
+        projects: structured.projects || []
+      }
     });
+    return { success: true, resumeProfile: savedProfile };
 
-    return { success: true, parsed: structured };
-  },
+  } catch (error) {
+    logger.error("Resume parsing failed:", error);
+    throw new ApiError(400, `Failed to parse resume: ${error}`);
+  }
+}
+,
 
   async getAllInterviews({userId}) {
     const admin = await prisma.user.findFirst({
@@ -626,21 +638,20 @@ Return ONLY the final JSON object.
     return mailDetails;
   },
 
-  async sendScheduledInterviewMail({mailDetails, userId}){
-    const admin = await prisma.user.findFirst({
-      where:{
-        userId: userId,
-        roleId: 1
-      }
-    })
-    if(!admin){
-      throw new ApiError(401,'Not authorised');
-    }
+  async sendScheduledInterviewMail(mailDetails, logger){
+    try{
     if(!mailDetails){
       throw new ApiError('Missing mail details',400)
     }
-    const response = await sendScheduledInterviewMail({mailDetails});
+    logger.info("mailDetails 2: ",mailDetails)
+    const response = await sendScheduledInterviewMail(mailDetails, logger);
+    logger.info("response: ",response)
     return response;
+    }
+    catch(error){
+      logger.info("error 1",error);
+      throw new ApiError(400, `${error}`)
+    }
   },
 
   async rescheduleInterview({candidateId, userId, interviewId, newDatetime, oldDatetime, duration}){

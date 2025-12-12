@@ -24,10 +24,10 @@ export default function InterviewProfile({ candidateId}) {
       const data = await response.json();
       if (response.ok && data.interviews) {
         setInterviews(
-          data.interviews
+          data?.interviews
         );
         if (data.interviews.length > 0) {
-          setSelectedInterview(data.interviews[0]);
+          setSelectedInterview(data?.interviews[0]);
         }
       }
     } catch (error) {

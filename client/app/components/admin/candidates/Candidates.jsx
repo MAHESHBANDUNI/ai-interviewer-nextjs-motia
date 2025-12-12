@@ -69,7 +69,6 @@ export default function Candidates() {
     fetchCandidates();
   }, [session?.user?.token]);
 
-
   const fetchCandidates = async () => {
     setLoading(true);
     try {
@@ -95,41 +94,38 @@ export default function Candidates() {
     }
   };
 
-  const handleResumeUpload = async(resume) => {
-    try{
-        const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/candidate/resume/upload`, {
+  const handleResumeUpload = async (resumeFile) => {
+    const formData = new FormData();
+    formData.append('resume', resumeFile);
+
+    try {
+      const response = await fetch(
+        '/api/admin/candidate/resume-upload',
+        {
           method: "POST",
-          headers: {
-            "Content-Type": file.type,
-            "x-file-name": file.name
-          },
-          body: new Uint8Array(await file.arrayBuffer())
-        });
-        if(!response.ok){
-          errorToast('Problem creating candidate');
-          console.error(response?.error || 'Problem creating candidate');
-          setSaving(false);
-          setIsFormOpen(false);
-          return;
+          body: formData
         }
-        if(response?.ok){
-          const data = await response.json();
-          return data.resumeUrl;
-        }
+      );
+    
+      if (!response.ok) {
+        errorToast("Problem uploading candidate resume");
+        console.error(await response.text());
+        return;
       }
-      catch(error){
-
-      }
-  }
-
+    
+      const data = await response.json();
+      return data.resumeUrl;
+    
+    } catch (error) {
+      console.error("error uploading resume:", error);
+      errorToast("Problem uploading candidate resume");
+    }
+  };
+  
   const handleSubmit = async (formData) => {
     try {
-      const resumeData ={
-        filename: formData.resume.name,
-        type: formData.resume.type,
-        data: await formData.resume.arrayBuffer().then(b => Buffer.from(b).toString("base64")),
-      }
-      const resumeUrl = await handleResumeUpload(resumeData);
+      let resumeUrl;
+      resumeUrl = await handleResumeUpload(formData.resume);
       const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/candidate/create`, {
         method: 'POST',
         headers: {
@@ -190,7 +186,7 @@ export default function Candidates() {
         {
           method: 'DELETE',
           headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`},
-          body: JSON.stringify({ candidateId: selectedCandidateId })
+          body: JSON.stringify({ candidateId: selectedCandidateId || selectedCandidate?.candidateId })
         }
       );
       if (response?.ok) {
@@ -235,6 +231,7 @@ export default function Candidates() {
 
   const handleCandidateDeleteClick = async (candidateId) => {
     setSelectedCandidateId(candidateId);
+    setSelectedCandidate(candidatesList.find(c => c.candidateId === candidateId));
     setShowDeleteCandidateModal(true);
   }
 

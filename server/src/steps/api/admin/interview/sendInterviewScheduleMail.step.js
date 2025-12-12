@@ -12,20 +12,25 @@ export const config = {
 export const handler = async(input, context) => {
     const { emit, logger } = context || {};
     const {mailDetails} = input;
+    logger.info("mailDetails: ",mailDetails);
     try{
-        const result = AdminService.sendScheduledInterviewMail({mailDetails});
+        const result = AdminService.sendScheduledInterviewMail(mailDetails, logger);
         if(!result.success){
             logger.error('Failed to send scheduled interview mail');
-            throw new Error('Failed to send scheduled interview mail',{status: 400})
         }
         if(result.success){
           logger.info('Scheduled interview email sent successfully')
         }
     }
-    catch(err){
-        logger.error('Failed to sent scheduled interview mail',err);
-        if(!mailDetails){
-          logger.error('Failed to sent scheduled interview mail. Missing fields.');
+    catch (error) {
+      if (logger) {
+        logger.error('Failed to send interview mail', { error: error.message, status: error.status });
+      }
+      return {
+        status: error.status || 500,
+        body: {
+          error: error.message || 'Internal server error'
         }
+      };
     }
 }
