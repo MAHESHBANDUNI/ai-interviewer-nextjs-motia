@@ -13,7 +13,7 @@ export const handler = async(input, context) => {
     const { emit, logger } = context || {};
     const {mailDetails} = input;
     try{
-        const result = AdminService.sendRescheduledInterviewMail({mailDetails});
+        const result = await AdminService.sendRescheduledInterviewMail(mailDetails, logger);
         if(!result.success){
             logger.error('Failed to send rescheduled interview mail');
             throw new Error('Failed to send rescheduled interview mail',{status: 400})
@@ -22,10 +22,15 @@ export const handler = async(input, context) => {
           logger.info('Rescheduled interview email sent successfully')
         }
     }
-    catch(err){
-        logger.error('Failed to sent rescheduled interview mail',err);
-        if(!mailDetails){
-          logger.error('Failed to sent rescheduled interview mail. Missing fields.');
+    catch (error) {
+      if (logger) {
+        logger.error('Failed to send interview mail', { error: error.message, status: error.status });
+      }
+      return {
+        status: error.status || 500,
+        body: {
+          error: error.message || 'Internal server error'
         }
+      };
     }
 }

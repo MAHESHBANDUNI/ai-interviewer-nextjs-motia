@@ -11,10 +11,12 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-export const sendScheduledInterviewMail = async (maildetails, logger) => {
-  logger.info("Mail details 3: ", maildetails);
+export const sendScheduledInterviewMail = async (maildetails) => {
     try{
         const {candidateEmail, candidateName, loginUrl, candidatePassword, meetingTime} = maildetails;
+        if(!candidateEmail || !candidateName || !loginUrl || !candidatePassword || !meetingTime) {
+          throw new ApiError("Missing mail details", 400);
+        }
         const info = await transporter.sendMail({
           from: `"AI Interviewer" <${process.env.SMTP_USER}>`,
           to: candidateEmail,
@@ -45,22 +47,24 @@ export const sendScheduledInterviewMail = async (maildetails, logger) => {
             <p>Best regards,<br/>
             AI INTERVIEWER<br/>`
         });
-
         const success = info.accepted && info.accepted.length > 0;  
         return {
           success,
           messageId: info.messageId,
           message: success ? "Email sent successfully" : "Email rejected by SMTP server"
         };
-    }catch (error) {
-      logger.info("error 2",error);
-      throw new ApiError("Failed to send email", 400);
+    }
+    catch (error) {
+      throw new ApiError(400, "Failed to send email");
     }
 };
 
-export const sendRescheduledInterviewMail = async ({maildetails}) => {
+export const sendRescheduledInterviewMail = async (maildetails) => {
     try{
-      const { candidateEmail, candidateName, loginUrl, candidatePassword, meetingTime, oldMeetingTime} = maildetails;
+      const { candidateEmail, candidateName, loginUrl, meetingTime, oldMeetingTime} = maildetails;
+      if(!candidateEmail || !candidateName || !loginUrl || !oldMeetingTime || !meetingTime) {
+        throw new ApiError("Missing mail details", 400);
+      }
       const subject = "Interview Rescheduled";
 
       const textMessage = `Dear ${candidateName},\n\n` +
@@ -100,12 +104,8 @@ export const sendRescheduledInterviewMail = async ({maildetails}) => {
         messageId: info.messageId,
         message: success ? "Email sent successfully" : "Email rejected by SMTP server"
       };
-    }catch (err) {
-        console.error("Error sending email:", err);
-
-        return {
-          success: false,
-          error: err.message || "Failed to send email"
-        };
+    }
+    catch (error) {
+      throw new ApiError(400, "Failed to send email");
     }
 }

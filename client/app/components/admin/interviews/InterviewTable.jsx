@@ -349,21 +349,21 @@ const MobileCard = ({
       }
     }
   
-    useEffect(() => {
-      function handleClickOutside(event) {
-        if (
-          dropdownRef.current &&
-          !dropdownRef.current.contains(event.target) &&
-          ellipsisRef.current &&
-          !ellipsisRef.current.contains(event.target)
-        ) {
-          setSelectedInterviewId(null);
-        }
-      }
+    // useEffect(() => {
+    //   function handleClickOutside(event) {
+    //     if (
+    //       dropdownRef.current &&
+    //       !dropdownRef.current.contains(event.target) &&
+    //       ellipsisRef.current &&
+    //       !ellipsisRef.current.contains(event.target)
+    //     ) {
+    //       setSelectedInterviewId(null);
+    //     }
+    //   }
   
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
+    //   document.addEventListener("mousedown", handleClickOutside);
+    //   return () => document.removeEventListener("mousedown", handleClickOutside);
+    // }, []);
     return(
       <div className="bg-white/90 backdrop-blur-sm p-4 rounded-xl shadow-sm border border-gray-200/60 transition-all duration-300 hover:shadow-lg">
         {/* Header */}

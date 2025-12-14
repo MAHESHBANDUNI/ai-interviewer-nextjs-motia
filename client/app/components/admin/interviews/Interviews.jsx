@@ -162,40 +162,27 @@ export default function Interview() {
   }
 
   const handleRescheduleInterviewClick = async (interviewId) => {
-    console.log('selectedInterviewId:',interviewId);
     setSelectedInterviewId(interviewId);
     setShowRescheduleInterviewModalOpen(true);
   }
 
   const handleRescheduleInterview = async (formData) => {
-    console.log("formData: ",formData);
     // Get old interview details
     const oldInterviewDetails = interviewsList.find(
-      (i) => i.interviewId === formData.selectedInterviewId
+      (i) => i.interviewId === selectedInterviewId
     );
 
-    console.log("old interview id: ",formData.selectedInterviewId);
     if (!oldInterviewDetails) {
       errorToast("Old interview details not found");
       return;
     }
 
     try {
-      const submitData = new FormData();
-      submitData.append("candidateId", formData.candidateId);
-      submitData.append("interviewId", formData.selectedInterviewId);
-      submitData.append("newDatetime", formData.datetime);
-
-      // old datetime added properly
-      submitData.append("oldDatetime", oldInterviewDetails?.scheduledAt);
-
-      submitData.append("duration", formData.duration);
-      submitData.append("adminId", session?.user?.id || "");
-
       const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/interview/reschedule`, {
         method: "PUT",
-        headers: {'Authorization':`Bearer ${session?.user?.token}`},
-        body: submitData,
+        headers: {'Content-type':'application/json', 'Authorization':`Bearer ${session?.user?.token}`},
+        body: JSON.stringify({
+          candidateId: formData.candidateId, interviewId: selectedInterviewId, newDatetime: formData.datetime, oldDatetime: oldInterviewDetails?.scheduledAt, duration: formData.duration}),
       });
 
       const response = await res.json();

@@ -638,18 +638,15 @@ RESUME CONTENT:
     return mailDetails;
   },
 
-  async sendScheduledInterviewMail(mailDetails, logger){
+  async sendScheduledInterviewMail(mailDetails){
     try{
-    if(!mailDetails){
-      throw new ApiError('Missing mail details',400)
-    }
-    logger.info("mailDetails 2: ",mailDetails)
-    const response = await sendScheduledInterviewMail(mailDetails, logger);
-    logger.info("response: ",response)
-    return response;
+      if(!mailDetails){
+        throw new ApiError('Missing mail details',400)
+      }
+      const response = await sendScheduledInterviewMail(mailDetails);
+      return response;
     }
     catch(error){
-      logger.info("error 1",error);
       throw new ApiError(400, `${error}`)
     }
   },
@@ -664,7 +661,7 @@ RESUME CONTENT:
     if(!admin){
       throw new ApiError(401,'Not authorised');
     }
-    if( !candidateId || !newDatetime || !duration){
+    if( !candidateId || !newDatetime || !duration || !interviewId || !oldDatetime){
         throw new ApiError('Missing fields',400)
     }
 
@@ -690,28 +687,23 @@ RESUME CONTENT:
       candidateEmail: candidate.email,
       candidateName: candidate.firstName+' '+candidate.lastName,
       loginUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/auth/signin`,
-      candidatePassword: `${candidate.firstName}@123`,
       meetingTime: formatDate(updatedInterview.scheduledAt),
       oldMeetingTime: formatDate(oldDatetime)
     }
     return mailDetails;
   },
 
-  async sendRescheduledInterviewMail({mailDetails, userId}){
-    const admin = await prisma.user.findFirst({
-      where:{
-        userId: userId,
-        roleId: 1
+  async sendRescheduledInterviewMail(mailDetails){
+    try{
+      if(!mailDetails){
+        throw new ApiError('Missing mail details',400)
       }
-    })
-    if(!admin){
-      throw new ApiError(401,'Not authorised');
+      const response = await sendRescheduledInterviewMail(mailDetails);
+      return response;
     }
-    if(!mailDetails){
-      throw new ApiError('Missing mail details',400)
+    catch(error){
+      throw new ApiError(400, `${error}`)
     }
-    const response = await sendRescheduledInterviewMail({mailDetails});
-    return response;
   },
 
   async cancelInterview(interviewId, cancellationReason, userId){

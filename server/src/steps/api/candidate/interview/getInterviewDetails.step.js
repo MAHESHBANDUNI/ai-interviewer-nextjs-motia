@@ -4,7 +4,7 @@ import { CandidateService } from "../../../../services/candidate/candidate.servi
 export const config = {
     name: 'GetInterviewDetails',
     type : 'api',
-    path : '/candidate/interview/:id',
+    path : '/api/candidate/interview/:id',
     method: 'POST',
     description: 'Get interview details endpoint',
     emits: [],

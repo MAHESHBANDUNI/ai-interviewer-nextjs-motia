@@ -47,8 +47,6 @@ export default function AddInterviewForm({
 
   const searchAbort = useRef(null);
 
-  console.log("selectedInterviewId: ",selectedInterviewId)
-
   useEffect(() => {
     return () => {
       if (searchAbort.current) searchAbort.current.abort();
@@ -169,9 +167,6 @@ export default function AddInterviewForm({
     e.preventDefault();
     setSaving(true);
     const payload = validateAndBuildPayload();
-    if(selectedInterviewId){
-      payload.append({selectedInterviewId: selectedInterviewId});
-    }
     if (!payload) {
       setSaving(false);
       return;

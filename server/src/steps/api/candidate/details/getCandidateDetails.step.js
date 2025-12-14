@@ -4,7 +4,7 @@ import { CandidateService } from "../../../../services/candidate/candidate.servi
 export const config = {
     name: 'GetCandidateDetails',
     type : 'api',
-    path : '/candidate/details',
+    path : '/api/candidate/details',
     method: 'POST',
     description: 'Get candidates details endpoint',
     emits: [],
@@ -13,7 +13,7 @@ export const config = {
 
 export const handler = async(req, {emit, logger}) =>{
     try{
-        const {candidateId} = await req.json();
+        const {candidateId} = await req.body;
         const result = await CandidateService.getCandidateDetails({candidateId});
         if(!result.ok){
             logger.error('Failed to get candidate details');
@@ -27,13 +27,15 @@ export const handler = async(req, {emit, logger}) =>{
           }
         };
     }
-    catch(err){
-        logger.error('Failed to retrieve candidate details',err);
-        return {
-          status: 500,
-          body: {
-            message: 'Internal server error'
-          }
-        };
+    catch (error) {
+      if (logger) {
+        logger.error('Failed to get candidate details', { error: error.message, status: error.status });
+      }
+      return {
+        status: error.status || 500,
+        body: {
+          error: error.message || 'Internal server error'
+        }
+      };
     }
 }

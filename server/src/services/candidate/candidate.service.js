@@ -1,4 +1,5 @@
 import { prisma } from "../../lib/prisma";
+import { ApiError } from "../../utils/apiError.util";
 
 export const CandidateService = {
     async getCandidateDetails(candidateId){
@@ -15,7 +16,7 @@ export const CandidateService = {
           }
         });
         if(!candidate){
-            throw new Error('Candidate not found',{status: 404});
+            throw new ApiError('Candidate not found',404);
         }
         return candidate;
     },
@@ -44,7 +45,7 @@ export const CandidateService = {
           }
         });
         if(!interview){
-            throw new Error({error: 'Interview not found'}, {status: 400});
+            throw new ApiError('Interview not found',400);
         }
         return interview;
     },
@@ -95,7 +96,7 @@ export const CandidateService = {
             }
         })
         if (!interviews) {
-            return NextResponse.json({ error: "Interviews not found" }, { status: 404 });
+            throw new ApiError("Interviews not found", 404);
         }
         return interviews;
     }

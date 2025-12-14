@@ -12,9 +12,8 @@ export const config = {
 export const handler = async(input, context) => {
     const { emit, logger } = context || {};
     const {mailDetails} = input;
-    logger.info("mailDetails: ",mailDetails);
     try{
-        const result = AdminService.sendScheduledInterviewMail(mailDetails, logger);
+        const result = await AdminService.sendScheduledInterviewMail(mailDetails);
         if(!result.success){
             logger.error('Failed to send scheduled interview mail');
         }

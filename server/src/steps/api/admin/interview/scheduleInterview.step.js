@@ -15,12 +15,10 @@ export const config = {
 }
 
 export const handler = async(req, {emit, logger}) => {
-  logger.info("request", req)
     try{
         const userId = await req?.user?.userId;
         const {candidateId, datetime, duration} = await req.body;
         const result = await AdminService.scheduleInterview({userId, candidateId, datetime, duration});
-        console.log("Result: ",result);
         if(!result){
           logger.error('Failed to schedule interview');
           return {

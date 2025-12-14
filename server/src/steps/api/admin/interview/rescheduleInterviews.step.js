@@ -7,7 +7,7 @@ export const config = {
     name: 'RescheduleInterview',
     type : 'api',
     path : '/api/admin/interview/reschedule',
-    method: 'POST',
+    method: 'PUT',
     description: 'Reschedule interview endpoint',
     emits: ['reschedule.interview.mail'],
     flows: ['interview-rescheduling-flow'],
@@ -17,12 +17,7 @@ export const config = {
 export const handler = async(req, {emit, logger}) => {
     try{
         const userId = await req?.user?.userId;
-        const formData = await req.formData();
-        const candidateId = formData.get("candidateId");
-        const interviewId = formData.get("interviewId");
-        const newDatetime = formData.get("newDatetime");
-        const oldDatetime = formData.get("oldDatetime");
-        const duration = formData.get("duration");
+        const {candidateId, duration, interviewId, newDatetime, oldDatetime} = await req.body;
         const result = await AdminService.rescheduleInterview({userId, candidateId, interviewId, duration, newDatetime, oldDatetime});
         if(!result){
           logger.error('Failed to reschedule interview');
@@ -37,7 +32,7 @@ export const handler = async(req, {emit, logger}) => {
           await emit({
             topic: 'reschedule.interview.mail',
             data: {
-              mailDetails: result?.mailDetails
+              mailDetails: result
             }
           });
         }
