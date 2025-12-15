@@ -37,7 +37,7 @@ function parseJsonResponse(raw) {
  * Decision-layer prompt: classify answer as 'save', 'confirm', or 'discard'
  * Must return only valid JSON.
  */
-function buildDecisionPrompt({ question, candidateAnswer }) {
+function buildDecisionPrompt(question, candidateAnswer) {
   return `
 You are a strict moderation and decisioning assistant for interviews. Given a candidate's answer OR follow-up message, decide which action to return:
 
@@ -74,7 +74,7 @@ Make a conservative decision: if you are uncertain whether to save, return "conf
 }
 
 export const CandidateService = {
-    async checkCandidateAuth({userId}){
+    async checkCandidateAuth(userId){
       const candidate = await prisma.user.findFirst({
         where:{
           userId: userId,
@@ -85,17 +85,20 @@ export const CandidateService = {
         throw new ApiError(401,'Not authorised');
       }
       
-      return true;
+      return candidate;
     },
 
-    async checkInterviewDetails({userId, interviewId}){
+    async checkInterviewDetails(userId, interviewId){
         const interview = await prisma.interview.findFirst({
-          where:{
-            interviewId: interviewId,
+          where: {
+            interviewId,
             candidateId: userId,
-            status: 'SCHEDULED' || 'RESCHEDULED'
-          }
-        })
+            status: {
+              in: ['PENDING', 'RESCHEDULED'],
+            },
+          },
+        });
+
         if(!interview){
           throw new ApiError(400,'Failed to start interview session');
         }
@@ -104,7 +107,7 @@ export const CandidateService = {
     },
 
     async getCandidateDetails(userId){
-        await this.checkCandidateAuth({userId});
+        await this.checkCandidateAuth(userId);
         const candidateDetails = await prisma.candidate.findFirst({
           where:{
             candidateId: userId
@@ -118,13 +121,13 @@ export const CandidateService = {
           }
         });
         if(!candidateDetails){
-            throw new ApiError('candidate Details not found',404);
+            throw new ApiError('Candidate Details not found',404);
         }
         return candidateDetails;
     },
 
-    async getInterviewDetails({interviewId, userId}){
-      await this.checkCandidateAuth({userId});
+    async getInterviewDetails(interviewId, userId){
+      await this.checkCandidateAuth(userId);
         const interview = await prisma.interview.findFirst({
           where: {
             interviewId,
@@ -154,8 +157,8 @@ export const CandidateService = {
         return interview;
     },
 
-    async getCandidateInterviews({userId}){
-      await this.checkCandidateAuth({userId});
+    async getCandidateInterviews(userId){
+      await this.checkCandidateAuth(userId);
         const interviews = await prisma.interview.findMany({
             where: {
               candidateId: userId,
@@ -206,9 +209,8 @@ export const CandidateService = {
         return interviews;
     },
 
-    async getAssemblyAIToken({userId}){
+    async getAssemblyAIToken(){
       try{
-        await this.checkCandidateAuth({userId});
         const result = await getAssemblyAIToken();
         return result;
       }
@@ -217,26 +219,26 @@ export const CandidateService = {
       }
     },
 
-    async getTTSAudio({userId, text}){
+    async getTTSAudio(text){
       try{
-        await this.checkCandidateAuth({userId});
+        // await this.checkCandidateAuth(userId);
         const result = await getTTSAudio(text);
         return result;
       }
       catch(error){
-        throw new ApiError("Failed to get TTS audio",500);
+        throw new ApiError("Failed to get TTS audio: " + error.message,500);
       }
     },
 
-    async startInterviewSession({userId, interviewId}) {
+    async startInterviewSession(userId, interviewId) {
       try{
-        await this.checkCandidateAuth({userId});
-        await this.checkInterviewDetails({userId, interviewId});
+        const candidate =await this.checkCandidateAuth(userId);
+        await this.checkInterviewDetails(userId, interviewId);
 
-        const systemPrompt = `You are an interview assistant. Greet the candidate named ${name} with the short welcome in the interview and start the interview session, by asking them to introduce themselves in short. Output plain text: greeting + question.`;
+        const systemPrompt = `You are an interview assistant. Greet the candidate named ${candidate.firstName} ${candidate.lastName} with the short welcome in the interview and start the interview session, by asking them to introduce themselves in short. Output plain text: greeting + question.`;
 
         const aiRes = await callGemini(systemPrompt);
-        let rawText = `Hello ${name}, please introduce yourself briefly?`;
+        let rawText = `Hello ${candidate.firstName} ${candidate.lastName}, please introduce yourself briefly?`;
         try {
           rawText =
             aiRes?.candidates?.[0]?.content?.parts?.[0]?.text ??
@@ -249,7 +251,7 @@ export const CandidateService = {
         return { question: rawText, difficultyLevel: 2, section: 'Introduction'};
       }
       catch(error){
-        throw new ApiError("Failed to start interview session",500);
+        throw new ApiError(`Failed to start interview session: ${error} and  ${error?.message}`,500);
       }
     },
 
@@ -289,10 +291,10 @@ export const CandidateService = {
       }
     },
 
-    async generateInterviewQuestion({ userId, interviewId, candidate, remainingDuration, interviewDuration }) {
+    async generateInterviewQuestion({ logger, userId, interviewId, candidate, remainingDuration, interviewDuration }) {
       try {
-        await this.checkCandidateAuth({userId});
-        await this.checkInterviewDetails({userId, interviewId});
+        await this.checkCandidateAuth(userId);
+        await this.checkInterviewDetails(userId, interviewId);
         let previousQuestion = null;
         let interviewQuestions = null;
         interviewQuestions = await prisma.interviewQuestion.findMany({
@@ -404,9 +406,7 @@ export const CandidateService = {
               } catch {}
             }
           }
-        
-          console.log('This Question: ', qJson);
-        
+  
           return{
               previousQuestionFeedback : previousQuestion?.aiFeedback || "not available",
               question : qJson?.question ?? questionContent,
@@ -415,14 +415,15 @@ export const CandidateService = {
           };
       } 
       catch (err) {
+        logger.error('Error in generateInterviewQuestion:', err);
         throw new ApiError('Failed to generate interview question',500);
     }
     },
 
-    async generateFeedback({ userId, question, candidateAnswer, difficultyLevel, interviewId, resumeProfile, section }) {
+    async generateFeedback({ userId, question, candidateAnswer, difficultyLevel, interviewId, resumeProfile, section, logger }) {
         try {
-          await this.checkCandidateAuth({userId});
-          await this.checkInterviewDetails({userId, interviewId});
+          await this.checkCandidateAuth(userId);
+          await this.checkInterviewDetails(userId, interviewId);
           let savedQuestion = null;
           let grade = {};
           if(section !== 'Introduction')
@@ -510,21 +511,20 @@ export const CandidateService = {
                   section: section
               }
           })
-        
-          console.log('Saved question: ',savedQuestion);
-        
+
           return { interviewQuestion: savedQuestion };
         } catch (err) {
+            logger.error('Error in generateFeedback:', err);
             throw new ApiError('Failed to generate feedback',500);
         }
     },
 
-    async generateResponse({ userId, question, candidateAnswer, interviewId }){
+    async generateResponse({ userId, question, candidateAnswer, interviewId, logger }){
       try{
-        await this.checkCandidateAuth({userId});
-        await this.checkInterviewDetails({userId, interviewId});
+        await this.checkCandidateAuth(userId);
+        await this.checkInterviewDetails(userId, interviewId);
         
-        const decisionPrompt = buildDecisionPrompt({ question, candidateAnswer });
+        const decisionPrompt = buildDecisionPrompt(question, candidateAnswer);
         const dRes = await callGemini(decisionPrompt);
         let dRaw =
           dRes?.candidates?.[0]?.content?.parts?.[0]?.text ??
@@ -563,6 +563,7 @@ export const CandidateService = {
         };
       }
       catch(error){
+        logger.error('Error in generateResponse 1:', error);
         throw new ApiError("Failed to generate response",500);
       }
     },

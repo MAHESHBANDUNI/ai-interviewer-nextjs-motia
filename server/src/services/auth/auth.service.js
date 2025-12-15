@@ -11,7 +11,7 @@ export const AuthService = {
         role: true
       }
     })  
-    if (!user) throw new ApiError("User does not exist", 404);  
+    if (!user) {throw new ApiError("User does not exist", 404)};  
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
       throw new ApiError("Invalid password", 401);

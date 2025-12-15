@@ -18,22 +18,22 @@ export const handler = async(req, {emit, logger}) =>{
     try{
         logger.info('Processing get candidate interviews request', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
         const userId = await req?.user?.userId;
-        const result = await CandidateService.getCandidateInterviews({userId});
+        const result = await CandidateService.getCandidateInterviews(userId);
         if(!result){
-            logger.error('Failed to retrieve interview details');
-            throw new Error('Failed to retrieve interview details',{status: 400})
+            logger.error('Failed to retrieve interviews list');
+            throw new Error('Failed to retrieve interviews list',{status: 400})
         }
         return {
           status: 200,
           body: {
-            message: 'Interview details retrieved successfully',
+            message: 'Interview list retrieved successfully',
             interviews: result
           }
         };
     }
     catch (error) {
       if (logger) {
-        logger.error('Failed to retrieve interview details', { error: error.message, status: error.status });
+        logger.error('Failed to retrieve interviews list', { error: error.message, status: error.status });
       }
       return {
         status: error.status || 500,

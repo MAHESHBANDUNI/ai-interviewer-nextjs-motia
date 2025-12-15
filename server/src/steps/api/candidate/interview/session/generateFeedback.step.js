@@ -15,10 +15,11 @@ export const config = {
 
 export const handler = async (req,{emit, logger}) => {
     try{
-        logger.info('Processing generate feedback request', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp : new Date().toISOString() })
+        logger.info('Processing generate feedback request', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp : new Date().toISOString() });
+        logger.info("Request: ",req.body);
         const userId = await req?.user?.userId;
         const { question, candidateAnswer, difficultyLevel, interviewId, resumeProfile, section } = req.body;
-        const result = await CandidateService.generateFeedback({ userId, question, candidateAnswer, difficultyLevel, interviewId, resumeProfile, section });
+        const result = await CandidateService.generateFeedback({ userId, question, candidateAnswer, difficultyLevel, interviewId, resumeProfile, section, logger });
         if(!result){
             logger.error('Failed to generate feedback');
             return {

@@ -6,7 +6,7 @@ export const config = {
     name: 'StartInterviewSession',
     type: 'api',
     path: '/api/candidate/interview/session/start',
-    method: 'GET',
+    method: 'POST',
     description: 'Start interview session endpoint',
     emits: [],
     flows: [],
@@ -17,8 +17,8 @@ export const handler = async (req,{emit, logger}) => {
     try{
         logger.info('Processing start interview session request', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp : new Date().toISOString() })
         const userId = await req?.user?.userId;
-        const { interviewId } = req.body;
-        const result = await CandidateService.startInterviewSession({userId, interviewId});
+        const interviewId = req?.body?.interviewId;
+        const result = await CandidateService.startInterviewSession(userId, interviewId);
         if(!result){
             logger.error('Failed to start interview session');
             return {

@@ -10,14 +10,13 @@ export const config = {
     description: 'Get AssemblyAI token endpoint',
     emits: [],
     flows: [],
-    middleware: [errorHandlerMiddleware, authMiddleware]
+    middleware: [errorHandlerMiddleware]
 }
 
 export const handler = async (req,{emit, logger}) => {
     try{
         logger.info('Processing get AssemblyAI token request', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp : new Date().toISOString() })
-        const userId = await req?.user?.userId;
-        const result = await CandidateService.getAssemblyAIToken({userId});
+        const result = await CandidateService.getAssemblyAIToken();
         if(!result){
             logger.error('Failed to get AssemblyAI token');
             throw new Error('Failed to get AssemblyAI token',{status: 400})

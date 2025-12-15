@@ -15,10 +15,11 @@ export const config = {
 
 export const handler = async (req,{emit, logger}) => {
     try{
+        logger.info("Request Body: ",req.body); 
         logger.info('Processing generate response request', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp : new Date().toISOString() })
         const userId = await req?.user?.userId;
-        const { question, candidateAnswer, interviewId } = req.body;
-        const result = await CandidateService.generateResponse({ userId, question, candidateAnswer, interviewId });
+        const { question, candidateAnswer, interviewId } = req?.body;
+        const result = await CandidateService.generateResponse({ userId, question, candidateAnswer, interviewId, logger });
         if(!result){
             logger.error('Failed to generate response');
             return {

@@ -18,8 +18,10 @@ export default function HomePage() {
     const today = new Date();
 
     useEffect(() => {
-        fetchCandidateInterviewsList();
-    }, [session]);
+      if (!session?.user?.token) return;
+
+      fetchCandidateInterviewsList();
+    }, [session?.user?.token]);
 
     const mockInterviewData = {
     upcoming: [

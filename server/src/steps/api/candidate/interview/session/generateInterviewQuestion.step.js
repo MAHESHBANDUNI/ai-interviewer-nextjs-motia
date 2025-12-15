@@ -17,8 +17,8 @@ export const handler = async (req,{emit, logger}) => {
     try{
         logger.info('Processing generate interview question request', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp : new Date().toISOString() })
         const userId = await req?.user?.userId;
-        const { interviewId, candidate, remainingDuration, interviewDuration } = req.body;
-        const result = await CandidateService.generateInterviewQuestion({userId, interviewId, candidate, remainingDuration, interviewDuration });
+        const { interviewId, candidate, remainingDuration, interviewDuration } = req?.body;
+        const result = await CandidateService.generateInterviewQuestion({logger, userId, interviewId, candidate, remainingDuration, interviewDuration });
         if(!result){
             logger.error('Failed to generate interview question');
             return {

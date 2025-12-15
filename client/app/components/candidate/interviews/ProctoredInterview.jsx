@@ -163,7 +163,7 @@ const ProctoredInterview = ({ devices, onInterviewEnd, onClose, interviewDetails
     if(!session.user) return ;
     try{
       const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/candidate/details`,{
-        method: 'POST',
+        method: 'GET',
         headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`}
       })
       if(!response.ok){
@@ -239,7 +239,7 @@ const ProctoredInterview = ({ devices, onInterviewEnd, onClose, interviewDetails
         const res = await response.json();
         setCurrentQuestion(res.data);
         setTranscript('');
-        setAiInterviewerInput(res.question);
+        setAiInterviewerInput(res?.data?.question);
       }
     }
     catch(err){
@@ -364,8 +364,8 @@ const ProctoredInterview = ({ devices, onInterviewEnd, onClose, interviewDetails
         await handleAutoSubmit();
         return null;
       }
-      setAssemblyAIToken(data.token);
-      return data.token;
+      setAssemblyAIToken(data?.token);
+      return data?.token;
     } catch (err) {
       console.error('Failed to fetch AssemblyAI token:', err);
       return null;
@@ -403,7 +403,7 @@ const ProctoredInterview = ({ devices, onInterviewEnd, onClose, interviewDetails
 
   const handleSpeak = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/tts`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/tts/audio`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: aiInterviewerInput}),
@@ -418,7 +418,7 @@ const ProctoredInterview = ({ devices, onInterviewEnd, onClose, interviewDetails
 
       // setAskingAiInterviewer(false);
 
-      const blob = await res.blob();
+      const blob = await res?.blob();
       const audioUrl = URL.createObjectURL(blob);
 
       // 🎧 Auto play (hidden audio element)
@@ -456,17 +456,17 @@ const ProctoredInterview = ({ devices, onInterviewEnd, onClose, interviewDetails
       setAiInterviewerInput("I'm sorry, I couldn't process your request. Please try again.");
       return;
     }
-    if(response?.action){
-      if(response.action === 'confirm'){
-        setCurrentQuestion({question: response.message, difficultyLevel: 2});
-        setAiInterviewerInput(response.message);
+    if(response?.data?.action){
+      if(response.data.action === 'confirm'){
+        setCurrentQuestion({question: response.data.message, difficultyLevel: 2});
+        setAiInterviewerInput(response.data.message);
       }
-      else if(response.action === 'next_step'){
+      else if(response.data.action === 'next_step'){
         await handleGenerateAiFeedback();
         const aiFeedback= true;
         await handleQuestionGenerate(aiFeedback);
       }
-      else if(response.action === 'proceed'){
+      else if(response.data.action === 'proceed'){
         await handleQuestionGenerate();
       }
       }
@@ -519,7 +519,7 @@ const ProctoredInterview = ({ devices, onInterviewEnd, onClose, interviewDetails
       }
       console.log('✅ WebSocket connected');
       setMicOpen(true);
-
+      
       mediaStream.current = await startAudioStream();
 
       audioContext.current = new AudioContext({ sampleRate: 16000 });

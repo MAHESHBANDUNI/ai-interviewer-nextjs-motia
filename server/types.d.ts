@@ -14,7 +14,7 @@ declare module 'motia' {
   interface Handlers {
     'ProcessGreeting': EventHandler<{ timestamp: string; appName: string; greetingPrefix: string; requestId: string }, never>
     'HelloAPI': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { message: string; status: string; appName: string }>, { topic: 'process-greeting'; data: { timestamp: string; appName: string; greetingPrefix: string; requestId: string } }>
-    'GetAssemblyAIToken': ApiRouteHandler<Record<string, unknown>, unknown, never>
+    'GetTTSAudio': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GetInterviewDetails': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'StartInterviewSession': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GenerateResponse': ApiRouteHandler<Record<string, unknown>, unknown, never>
@@ -25,6 +25,7 @@ declare module 'motia' {
     'GetCandidateDetails': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'UserSignup': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'UserLogin': ApiRouteHandler<Record<string, unknown>, unknown, never>
+    'GetAssemblyAIToken': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'SendScheduledInterviewMail': EventHandler<never, never>
     'SendRescheduledInterviewMail': EventHandler<never, never>
     'ScheduleInterview': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'schedule.interview.mail'; data: never }>
