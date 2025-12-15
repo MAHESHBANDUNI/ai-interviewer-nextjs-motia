@@ -11,8 +11,9 @@ export const config = {
 
 export const handler = async(input, context) => {
     const { emit, logger } = context || {};
-    const {mailDetails} = input;
     try{
+        logger.info('Processing send rescheduled interview mail request', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
+        const {mailDetails} = input;
         const result = await AdminService.sendRescheduledInterviewMail(mailDetails, logger);
         if(!result.success){
             logger.error('Failed to send rescheduled interview mail');

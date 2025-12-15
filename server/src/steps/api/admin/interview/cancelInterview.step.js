@@ -16,6 +16,7 @@ export const config = {
 
 export const handler = async(req, {emit, logger}) => {
     try{
+        logger.info('Processing cancel interview request', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
         const userId = await req?.user?.userId;
         const {interviewId} = await req.body;
         const result = await AdminService.cancelInterview(userId, interviewId);

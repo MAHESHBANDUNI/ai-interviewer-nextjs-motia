@@ -16,6 +16,7 @@ export const config = {
 
 export const handler = async(req, {emit, logger}) => {
     try{
+        logger.info('Processing reschedule interview request', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
         const userId = await req?.user?.userId;
         const {candidateId, duration, interviewId, newDatetime, oldDatetime} = await req.body;
         const result = await AdminService.rescheduleInterview({userId, candidateId, interviewId, duration, newDatetime, oldDatetime});

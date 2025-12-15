@@ -76,11 +76,10 @@ export default function InterviewPage() {
   const fetchInterviewDetails = async({interviewId}) => {
     if(!interviewId || !session?.user) return ;
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/candidates/interviews/${interviewId}`,
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/candidate/interview/${interviewId}`,
        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ candidateId: session?.user?.id })
+          method: 'GET',
+          headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`}
         }
       );
       if(!response.ok){

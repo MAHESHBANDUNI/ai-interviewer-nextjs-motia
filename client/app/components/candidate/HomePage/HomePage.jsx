@@ -267,10 +267,9 @@ export default function HomePage() {
         if(!session?.user?.id) return;
         setLoading(true);
         try {
-            const res = await fetch('${process.env.NEXT_PUBLIC_SERVER_URL}/api/candidates/interviews/list', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ candidateId: session?.user?.id })
+            const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/candidate/interview/list`, {
+                method: 'GET',
+                headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`}
             });
 
             if (res.ok) {

@@ -131,7 +131,7 @@ export default function InterviewTable({ interviews, loading, error, handleCance
                             <div className="flex items-center space-x-3 text-xs text-gray-500">
                               <span className="flex items-center space-x-1">
                                 <Briefcase className="w-3 h-3" />
-                                <span>{interview.candidate.position || 'Full Stack Developer'}</span>
+                                <span>{interview.candidate.resumeProfile.profileTitle || 'Full Stack Developer'}</span>
                               </span>
                             </div>
                           </div>

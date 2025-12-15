@@ -13,7 +13,7 @@ export const config = {
 
 export const handler = async(req, {emit, logger}) =>{
     try{
-       logger.info('Retrieving candidate resume', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
+       logger.info('Processing retrieving candidate resume request', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
         const fileName = req?.queryParams?.fileName;
         logger.info("Filename 2: ",fileName);
         if (!fileName) {

@@ -4,11 +4,11 @@ import { errorHandlerMiddleware } from "../../../../middlewares/errorHandler.mid
 import { authMiddleware } from "../../../../middlewares/auth.middleware";
 
 export const config = {
-    name: 'GetCandidateDetails',
+    name: 'GetInterviewDetails',
     type : 'api',
-    path : '/api/candidate/details',
-    method: 'POST',
-    description: 'Get candidates details endpoint',
+    path : '/api/candidate/interview/list',
+    method: 'GET',
+    description: 'Get interview details endpoint',
     emits: [],
     flows: [],
     middleware: [errorHandlerMiddleware, authMiddleware]
@@ -16,25 +16,24 @@ export const config = {
 
 export const handler = async(req, {emit, logger}) =>{
     try{
-
-        logger.info('Processing get candidate details request', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
+        logger.info('Processing get candidate interviews request', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
         const userId = await req?.user?.userId;
-        const result = await CandidateService.getCandidateDetails({userId});
+        const result = await CandidateService.getCandidateInterviews({userId});
         if(!result){
-            logger.error('Failed to get candidate details');
-            throw new Error('Failed to get candidate details',{status: 400})
+            logger.error('Failed to retrieve interview details');
+            throw new Error('Failed to retrieve interview details',{status: 400})
         }
         return {
           status: 200,
           body: {
-            message: 'Canidate details retrieved successfully',
-            candidate: result
+            message: 'Interview details retrieved successfully',
+            interviews: result
           }
         };
     }
     catch (error) {
       if (logger) {
-        logger.error('Failed to get candidate details', { error: error.message, status: error.status });
+        logger.error('Failed to retrieve interview details', { error: error.message, status: error.status });
       }
       return {
         status: error.status || 500,

@@ -1,6 +1,7 @@
 import { prisma } from "../../lib/prisma";
 import bcrypt from "bcrypt";
-import tokenGeneration from "../../utils/token.generation";
+import tokenGeneration from "../../utils/jwtToken.util";
+import {ApiError} from "../../utils/apiError.util";
 
 export const AuthService = {
   async login(email, password) {
@@ -10,10 +11,10 @@ export const AuthService = {
         role: true
       }
     })  
-    if (!user) throw new Error("User does not exist")  
+    if (!user) throw new ApiError("User does not exist", 404);  
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
-      throw new Error("Invalid password")
+      throw new ApiError("Invalid password", 401);
     }  
     
     // Generate JWT token
@@ -35,7 +36,7 @@ export const AuthService = {
     const existingUser = await prisma.user.findUnique({ where: { email } });
 
     if (existingUser)
-      throw new Error({ error: "User exists" }, { status: 400 });
+      throw new ApiError("User with this email already exists", 400 );
 
     const hashed = await bcrypt.hash(password, 10);
 

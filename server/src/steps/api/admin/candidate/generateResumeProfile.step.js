@@ -12,7 +12,7 @@ export const config = {
 
 export const handler = async(input, context) => {
   try{ 
-      logger.info('Parsing candidate resume', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
+      logger.info('Processing candidate resume generation request', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
       const { emit, logger, state } = context || {};
       let {resumeUrl, candidateId} = input;
       if(!resumeUrl || !candidateId){

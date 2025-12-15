@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { CandidateService } from "../../../../services/candidate/candidate.service";
+import { authMiddleware } from "../../../../middlewares/auth.middleware";
+import { errorHandlerMiddleware } from "../../../../middlewares/errorHandler.middleware";
 
 export const config = {
     name: 'GetInterviewDetails',
@@ -9,14 +11,16 @@ export const config = {
     description: 'Get interview details endpoint',
     emits: [],
     flows: [],
+    middleware: [errorHandlerMiddleware, authMiddleware]
 }
 
 export const handler = async(req, {emit, logger}) =>{
     try{
-        const { interviewId } = await params;
-        const {candidateId} = await request.json();
-        const result = await CandidateService.getInterviewDetails({candidateId, interviewId});
-        if(!result.ok){
+        logger.info('Processing get interview details request', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
+        const { id } = await params;
+        const userId = await req?.user?.userId;
+        const result = await CandidateService.getInterviewDetails({interviewId: id, userId});
+        if(!result){
             logger.error('Failed to get interview details');
             throw new Error('Failed to get interview details',{status: 400})
         }

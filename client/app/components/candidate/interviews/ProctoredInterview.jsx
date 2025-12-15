@@ -162,10 +162,9 @@ const ProctoredInterview = ({ devices, onInterviewEnd, onClose, interviewDetails
   const fetchCandidateResumeProfile = async() => {
     if(!session.user) return ;
     try{
-      const response = await fetch('${process.env.NEXT_PUBLIC_SERVER_URL}/api/candidates/details',{
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/candidate/details`,{
         method: 'POST',
-        headers: {'Content-type':'application/json'},
-        body: JSON.stringify({candidateId: session?.user?.id})
+        headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`}
       })
       if(!response.ok){
         console.error('Error fetching candidate details');
@@ -227,10 +226,10 @@ const ProctoredInterview = ({ devices, onInterviewEnd, onClose, interviewDetails
   const handleStartInterview = async() => {
     if (!session.user || !interviewDetails?.interviewId) return;
     try{
-      const response = await fetch('${process.env.NEXT_PUBLIC_SERVER_URL}/api/candidates/interviews/session/start', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/candidate/interview/session/start`, {
         method: 'POST',
-        headers: {'Content-type':'application/json'},
-        body: JSON.stringify({name: session?.user?.name})
+        headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`},
+        body: JSON.stringify({interviewId: interviewDetails?.interviewId})
       })
       if(!response.ok){
         console.error('Error starting interview');
@@ -238,7 +237,7 @@ const ProctoredInterview = ({ devices, onInterviewEnd, onClose, interviewDetails
       else if(response.ok){
         setIsInterviewStarted(true);
         const res = await response.json();
-        setCurrentQuestion(res);
+        setCurrentQuestion(res.data);
         setTranscript('');
         setAiInterviewerInput(res.question);
       }
@@ -257,9 +256,9 @@ const ProctoredInterview = ({ devices, onInterviewEnd, onClose, interviewDetails
     ).toFixed(2);
 
     try{
-      const response = await fetch('${process.env.NEXT_PUBLIC_SERVER_URL}/api/candidates/interviews/session/end', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/candidate/interview/session/end`, {
         method: 'POST',
-        headers: {'Content-type':'application/json'},
+        headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`},
         body: JSON.stringify({interviewId: interviewDetails?.interviewId, candidateId: session?.user?.id, completionMin: completionMin})
       })
       if(!response.ok){
@@ -278,9 +277,9 @@ const ProctoredInterview = ({ devices, onInterviewEnd, onClose, interviewDetails
     const remaining = timeRemainingRef.current;
     const remainingDuration = (remaining / 60).toFixed(2);
     try{
-      const response = await fetch('${process.env.NEXT_PUBLIC_SERVER_URL}/api/candidates/interviews/session/conversation/generate', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/candidate/interview/session/conversation/generate`, {
         method: 'POST',
-        headers: {'Content-type':'application/json'},
+        headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`},
         body: JSON.stringify({interviewId: interviewDetails.interviewId, candidate: candidateProfile, remainingDuration: remainingDuration, interviewDuration: interviewDetails?.durationMin})
       })
       if(!response.ok){
@@ -288,12 +287,12 @@ const ProctoredInterview = ({ devices, onInterviewEnd, onClose, interviewDetails
       }
       else if(response.ok){
         const res = await response.json();
-        setCurrentQuestion({question: res?.question, difficultyLevel: res?.difficultyLevel, section: res?.section});
+        setCurrentQuestion({question: res?.data?.question, difficultyLevel: res?.data?.difficultyLevel, section: res?.data?.section});
         if(aiFeedback === false){
-          setAiInterviewerInput(res?.question);
+          setAiInterviewerInput(res?.data?.question);
         }
         else if(aiFeedback === true){
-          setAiInterviewerInput(res?.previousQuestionFeedback + '. Now lets move to the next question. ' + res?.question);
+          setAiInterviewerInput(res?.data?.previousQuestionFeedback + '. Now lets move to the next question. ' + res?.data?.question);
         }
         setTranscript('');
       }
@@ -305,9 +304,9 @@ const ProctoredInterview = ({ devices, onInterviewEnd, onClose, interviewDetails
 
   const handleCandidateResponseModeration = async() =>{
     try{
-      const response = await fetch('${process.env.NEXT_PUBLIC_SERVER_URL}/api/candidates/interviews/session/response', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/candidate/interview/session/response`, {
         method: 'POST',
-        headers: {'Content-type':'application/json'},
+        headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`},
         body: JSON.stringify({interviewId: interviewDetails.interviewId, candidateId: session?.user?.id, question: currentQuestion['question'], candidateAnswer: transcript})
       })
       if(!response.ok){
@@ -326,10 +325,10 @@ const ProctoredInterview = ({ devices, onInterviewEnd, onClose, interviewDetails
   const handleGenerateAiFeedback = async() => {
     console.log("Feedback generator: ",transcript);
     try{
-      const response = await fetch('${process.env.NEXT_PUBLIC_SERVER_URL}/api/candidates/interviews/session/conversation/feedback',
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/candidate/interview/session/conversation/feedback`,
         {
           method: 'POST',
-          headers: {'Content-Type':'application/json'},
+          headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`},
           body: JSON.stringify({question: currentQuestion['question'], candidateAnswer: transcript, difficultyLevel: currentQuestion['difficultyLevel'], section: currentQuestion['section'], interviewId: interviewDetails?.interviewId, resumeProfile: candidateProfile?.resumeProfile})
         }
       );
@@ -358,7 +357,7 @@ const ProctoredInterview = ({ devices, onInterviewEnd, onClose, interviewDetails
   // Get assembly ai token
   const getToken = async () => {
     try {
-      const res = await fetch('${process.env.NEXT_PUBLIC_SERVER_URL}/api/assemblyai-token');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/assemblyai/token`);
       const data = await res.json();
       if (!data?.token) {
         errorToast('Failed to get token');
@@ -404,7 +403,7 @@ const ProctoredInterview = ({ devices, onInterviewEnd, onClose, interviewDetails
 
   const handleSpeak = async () => {
     try {
-      const res = await fetch("${process.env.NEXT_PUBLIC_SERVER_URL}/api/tts", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/tts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: aiInterviewerInput}),

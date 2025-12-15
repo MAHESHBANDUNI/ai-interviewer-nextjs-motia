@@ -16,7 +16,7 @@ export const config = {
 
 export const handler = async(req, {emit, logger}) => {
     try{
-        logger.info('Deleting candidate', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
+        logger.info('Processing delete candidate request', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
         const userId = await req?.user?.userId;
         const {candidateId} = await req.body;
         const result = await AdminService.deleteCandidate({candidateId, userId});

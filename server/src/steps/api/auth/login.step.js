@@ -9,17 +9,11 @@ export const config = {
   description: 'User signin endpoint',
   emits: [],
   flows: [],
-  // responseSchema: {
-  //   200: z.object({
-  //     message: z.string(),
-  //     user: z.object()
-  //   })
-  // }
 };
 
 export const handler = async (req, { emit, logger }) => {
   try{
-  logger.info('User signin attempted', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
+  logger.info('Processing user signin request', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
   
   const {email, password} = req.body || {};
   const result = await AuthService.login(email, password);
