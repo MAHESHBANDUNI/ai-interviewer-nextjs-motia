@@ -44,7 +44,7 @@ export default withAuth(
     if (isPublicRoute(pathname)) return NextResponse.next();
 
     // 3. Check interview links
-    if (pathname.startsWith("/candidate/interviews")) {
+    if (pathname.startsWith("/candidate/interview")) {
       if (!token) {
         const signinUrl = new URL("/auth/signin", req.url);
         return NextResponse.redirect(signinUrl);

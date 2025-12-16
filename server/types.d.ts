@@ -15,11 +15,14 @@ declare module 'motia' {
     'ProcessGreeting': EventHandler<{ timestamp: string; appName: string; greetingPrefix: string; requestId: string }, never>
     'HelloAPI': ApiRouteHandler<Record<string, unknown>, ApiResponse<200, { message: string; status: string; appName: string }>, { topic: 'process-greeting'; data: { timestamp: string; appName: string; greetingPrefix: string; requestId: string } }>
     'GetTTSAudio': ApiRouteHandler<Record<string, unknown>, unknown, never>
+    'StartCandidateInterviewSession': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GetInterviewDetails': ApiRouteHandler<Record<string, unknown>, unknown, never>
+    'GetCandidateInterviewsDetails': ApiRouteHandler<Record<string, unknown>, unknown, never>
+    'GenerateInterviewProfile': EventHandler<never, never>
+    'EndCandidateInterviewSession': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'generate.candidate.interview.profile'; data: never }>
     'StartInterviewSession': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GenerateResponse': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GenerateInterviewQuestion': ApiRouteHandler<Record<string, unknown>, unknown, never>
-    'GenerateInterviewProfile': EventHandler<never, never>
     'GenerateFeedback': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'EndInterviewSession': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'generate.interview.profile'; data: never }>
     'GetCandidateDetails': ApiRouteHandler<Record<string, unknown>, unknown, never>

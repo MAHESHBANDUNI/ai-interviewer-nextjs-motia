@@ -19,6 +19,14 @@ export const handler = async(req, {emit, logger}) =>{
         logger.info('Processing get interview details request', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
         const interviewId = await req?.pathParams?.id;
         const userId = await req?.user?.userId;
+        if(!interviewId || !userId){
+          return {
+            status: 400,
+            body: {
+              error: 'Missing fields'
+            }
+          }
+        }
         const result = await CandidateService.getInterviewDetails(interviewId, userId);
         if(!result){
             logger.error('Failed to get interview details');

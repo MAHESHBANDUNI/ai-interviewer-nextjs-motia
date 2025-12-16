@@ -269,7 +269,7 @@ export default function HomePage() {
         if(!session?.user?.id) return;
         setLoading(true);
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/candidate/interview/list`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/candidate/interviews/list`, {
                 method: 'GET',
                 headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`}
             });
@@ -391,7 +391,7 @@ export default function HomePage() {
     };
 
     const handleJoinMeeting =(interviewId) =>{
-      router.push(`/candidate/interviews/${interviewId}`);
+      router.push(`/candidate/interview/${interviewId}`);
     }
 
     if (loading) {

@@ -1,14 +1,14 @@
-import { authMiddleware } from "../../../../../middlewares/auth.middleware";
-import { errorHandlerMiddleware } from "../../../../../middlewares/errorHandler.middleware";
-import { CandidateService } from "../../../../../services/candidate/candidate.service";
+import { CandidateService } from "../../../../services/candidate/candidate.service";
+import { errorHandlerMiddleware } from "../../../../middlewares/errorHandler.middleware";
+import { authMiddleware } from "../../../../middlewares/auth.middleware";
 
 export const config = {
-    name: 'EndInterviewSession',
+    name: 'EndCandidateInterviewSession',
     type: 'api',
-    path: '/api/candidate/interview/session/end',
+    path: '/api/candidate/interview/end',
     method: 'POST',
     description: 'End interview session endpoint',
-    emits: ['generate.interview.profile'],
+    emits: ['generate.candidate.interview.profile'],
     flows: [],
     middleware: [errorHandlerMiddleware, authMiddleware]
 }
@@ -17,8 +17,16 @@ export const handler = async (req,{emit, logger}) => {
     try{
         logger.info('Processing end interview session request', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp : new Date().toISOString() })
         const userId = await req?.user?.userId;
-        const { interviewId, completionMin } = req.body;
-        const result = await CandidateService.endInterviewSession({userId, interviewId, completionMin});
+        const { interviewId, completionMin, interviewConversation } = req.body;
+        if(!interviewId || !userId  || !completionMin || !interviewConversation){
+          return {
+            status: 400,
+            body: {
+              error: 'Missing fields'
+            }
+          }
+        }
+        const result = await CandidateService.endInterview({userId, interviewId, completionMin, interviewConversation});
         if(!result){
             logger.error('Failed to end interview session');
             return {
@@ -32,10 +40,10 @@ export const handler = async (req,{emit, logger}) => {
         // Emit event for interview processing if required
         if (emit) {
           await emit({
-            topic: 'generate.interview.profile',
+            topic: 'generate.candidate.interview.profile',
             data: {
               candidateId: userId,
-              interviewId: interviewId,
+              interviewId: interviewId
             }
           });
         }

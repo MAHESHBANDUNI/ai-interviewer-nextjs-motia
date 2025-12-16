@@ -4,11 +4,11 @@ import { errorHandlerMiddleware } from "../../../../middlewares/errorHandler.mid
 import { authMiddleware } from "../../../../middlewares/auth.middleware";
 
 export const config = {
-    name: 'GetCandidateInterviewsDetails',
+    name: 'StartCandidateInterviewSession',
     type : 'api',
-    path : '/api/candidate/interviews/list',
-    method: 'GET',
-    description: 'Get candidate interviews details endpoint',
+    path : '/api/candidate/interview/start',
+    method: 'POST',
+    description: 'Start interview session endpoint',
     emits: [],
     flows: [],
     middleware: [errorHandlerMiddleware, authMiddleware]
@@ -16,9 +16,10 @@ export const config = {
 
 export const handler = async(req, {emit, logger}) =>{
     try{
-        logger.info('Processing get candidate interviews request', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
+        logger.info('Processing start interview session request', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
         const userId = await req?.user?.userId;
-        if(!userId){
+        const interviewId = req?.body?.interviewId;
+        if(!interviewId || !userId){
           return {
             status: 400,
             body: {
@@ -26,22 +27,22 @@ export const handler = async(req, {emit, logger}) =>{
             }
           }
         }
-        const result = await CandidateService.getCandidateInterviews(userId);
+        const result = await CandidateService.startInterview({interviewId, userId, logger});
         if(!result){
-            logger.error('Failed to retrieve interviews list');
-            throw new Error('Failed to retrieve interviews list',{status: 400})
+            logger.error('Failed to start interview session');
+            throw new Error('Failed to start interview session',{status: 400})
         }
         return {
           status: 200,
           body: {
-            message: 'Interview list retrieved successfully',
-            interviews: result
+            message: 'Interview session started successfully',
+            data: result
           }
         };
     }
     catch (error) {
       if (logger) {
-        logger.error('Failed to retrieve interviews list', { error: error.message, status: error.status });
+        logger.error('Failed to start interview session', { error: error.message, status: error.status });
       }
       return {
         status: error.status || 500,
