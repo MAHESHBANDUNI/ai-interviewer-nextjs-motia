@@ -85,6 +85,7 @@ const [recordingUrl, setRecordingUrl] = useState(null);
     if (!startCalledRef.current && !isInterviewStarted) { 
       startCalledRef.current = true;
       startProctoring();
+      handleStartInterview();
     }
   }, []);
 
@@ -270,37 +271,37 @@ const [recordingUrl, setRecordingUrl] = useState(null);
 
   const handleStartInterview = async () => {
     try{
-    if (interviewStartedRef.current) return;
-    interviewStartedRef.current = true;
+      if (interviewStartedRef.current) return;
+      interviewStartedRef.current = true;
 
-    // 1. Get Vapi assistantId
-    const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/candidate/interview/start`, {
-      method: "POST",
-      headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`},
-      body: JSON.stringify({
-        interviewId: interviewDetails?.interviewId
-      })
-    });
+      // 1. Get Vapi assistantId
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/candidate/interview/start`, {
+        method: "POST",
+        headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`},
+        body: JSON.stringify({
+          interviewId: interviewDetails?.interviewId
+        })
+      });
 
-    if (!response.ok) {
-      console.error("Failed to start interview session");
+      if (!response.ok) {
+        console.error("Failed to start interview session");
+      }
+      const res = await response.json();
+      const assistantId = res?.data?.assistantId;
+      await ensureMicPermission();
+
+      // 2. Init Vapi
+      const vapi = new Vapi(process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY);
+      vapiRef.current = vapi;
+
+      registerVapiListeners();
+
+      vapiRef.current.start(assistantId);
     }
-    const res = await response.json();
-    const assistantId = res?.data?.assistantId;
-    await ensureMicPermission();
-
-    // 2. Init Vapi
-    const vapi = new Vapi(process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY);
-    vapiRef.current = vapi;
-
-    registerVapiListeners();
-
-    vapiRef.current.start(assistantId);
-  }
-  catch(error){
-    console.error("Failed to start interview:", err);
-    handleVapiFailure();
-  }
+    catch(error){
+      console.error("Failed to start interview:", err);
+      handleVapiFailure();
+    }
   };
 
   const registerVapiListeners = () => {
@@ -345,6 +346,10 @@ const [recordingUrl, setRecordingUrl] = useState(null);
     // ❌ Handle disconnect / error
     vapi.on("disconnect", handleVapiFailure);
     vapi.on("error", handleVapiFailure);
+
+    vapi.on("message",(message) => {
+      console.log('Conversation: ',message);
+    })
 
     // 🧠 Optional: detect natural end
     vapi.on("end", () => {
