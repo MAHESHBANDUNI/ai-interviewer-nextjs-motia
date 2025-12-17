@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 export default function ResumeViewer({ fileName }) {
   const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
-  const pdfUrl = `${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/candidates/resume/view?file=${encodeURIComponent(fileName)}`;
+  const pdfUrl = `/api/admin/candidate/resume-view?file=${encodeURIComponent(fileName)}`;
 
   useEffect(() => {
     if (!pdfUrl) return;

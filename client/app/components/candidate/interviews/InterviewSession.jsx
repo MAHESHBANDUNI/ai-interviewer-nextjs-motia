@@ -7,6 +7,21 @@ import { useSession } from 'next-auth/react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { errorToast, successToast } from '../../ui/toast';
 
+function stripJSON(text = "") {
+  return text.replace(/<json>[\s\S]*?<\/json>/g, "").trim();
+}
+
+function extractJSON(text = "") {
+  const match = text.match(/<json>([\s\S]*?)<\/json>/);
+  if (!match) return null;
+  try {
+    return JSON.parse(match[1]);
+  } catch {
+    return null;
+  }
+}
+
+
 const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }) => {
   const {data: session} = useSession();
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -31,21 +46,14 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }
   const [candidateProfile, setCandidateProfile] = useState('');
   const [assemblyAIToken, setAssemblyAIToken] = useState('');
 
-  const [interviewConversation, setInterviewConversation] = useState([{
-    interviewId: interviewDetails?.interviewId,
-    content: '',
-    candidateAnswer: '',
-    aiFeedback: '',
-    correct: null,
-    difficultyLevel: null,
-    askedAt: new Date().toISOString()
-  }]);
+  const [interviewConversation, setInterviewConversation] = useState([]);
   
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const containerRef = useRef(null);
   const timerRef = useRef(null);
   const hasSubmittedRef = useRef(false);
+  const lastProcessedIndexRef = useRef(1);
 
   const socket = useRef(null);
   const audioContext = useRef(null);
@@ -55,10 +63,13 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }
 
   const vapiRef = useRef(null);
   const interviewStartedRef = useRef(false);
+  const assistantBufferRef = useRef("");
+  const lastSpeakerRef = useRef(null);
 
   const [liveTranscript, setLiveTranscript] = useState([]);
-const fullTranscriptRef = useRef([]);
-const [recordingUrl, setRecordingUrl] = useState(null);
+  const transcriptContainerRef = useRef(null);
+  const fullTranscriptRef = useRef([]);
+  const [recordingUrl, setRecordingUrl] = useState(null);
 
   const [transcript, setTranscript] = useState("");
 
@@ -158,11 +169,17 @@ const [recordingUrl, setRecordingUrl] = useState(null);
   }, []);
 
   useEffect(() => {
-    if (fullTranscriptRef.current) {
-      fullTranscriptRef.current.scrollTop =
-        fullTranscriptRef.current.scrollHeight;
+    if (transcriptContainerRef.current) {
+      transcriptContainerRef.current.scrollTop =
+        transcriptContainerRef.current.scrollHeight;
     }
   }, [liveTranscript]);
+
+  useEffect(() => {
+    if(interviewConversation){
+      console.log("Updated Conversation: ",interviewConversation);
+    }
+  },[interviewConversation])
 
   // Enter fullscreen mode
   const enterFullscreen = useCallback(async () => {
@@ -304,94 +321,231 @@ const [recordingUrl, setRecordingUrl] = useState(null);
     }
   };
 
+  const flushAssistantBuffer = () => {
+    if (!assistantBufferRef.current) return;
+
+    setLiveTranscript((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        speaker: "assistant",
+        text: assistantBufferRef.current,
+        timestamp: Date.now()
+      }
+    ]);
+
+    assistantBufferRef.current = "";
+  };
+
   const registerVapiListeners = () => {
     const vapi = vapiRef.current;
 
     vapi.on("speech-start", () => setMicOpen(false));
     vapi.on("speech-end", () => setMicOpen(true));
+    // vapi.on("speech-end", () => {
+    //   flushAssistantBuffer();
+    // });
 
-    vapiRef.current.on("assistant-speech-end", () => {
-      vapiRef.current.enableAudioInput();
-    });
 
     // 🎙 Capture transcript
-    vapi.on("transcript", (t) => {
-      if (!t.isFinal) return;
 
-      const entry = {
-        speaker: t.role, // "assistant" | "user"
-        text: t.text,
-        timestamp: Date.now()
-      };
+//     vapi.on("message", (message) => {
+//   if (message.type !== "transcript") return;
+//   if (!message.transcript?.trim()) return;
 
-      fullTranscriptRef.current.push(entry);
+//   // Gemini control JSON (assistant only)
+//   if (message.role !== "assistant") return;
 
-      setLiveTranscript(prev => [...prev, entry]);
-    });
+//   const match = message.transcript.match(/<json>([\s\S]*?)<\/json>/);
+//   if (!match) return;
 
-    // 🛠 Tool calls (SAVE INTERVIEW TURN)
-    // vapi.on("tool-call", async (call) => {
-    //   if (call.name !== "log_interview_turn") return;
+//   try {
+//     const payload = extractJSON(turn.content);
+//     if (!payload) return;
 
-    //   await fetch("/api/interview/turn", {
-    //     method: "POST",
-    //     headers: { "Content-Type": "application/json" },
-    //     body: JSON.stringify({
-    //       interviewId: interviewDetails?.interviewId,
-    //       ...call.arguments
-    //     })
-    //   });
+//     switch (payload.type) {
+//       case "question":
+//         handleQuestion(payload);
+//         break;
+
+//       case "evaluation":
+//         handleEvaluation(payload);
+//         queueMicrotask(() =>
+//           updateVapiMemoryFromConversation(
+//             [...fullTranscriptRef.current]
+//           )
+//         );
+//         break;
+
+//       case "end_interview":
+//         handleEndInterview();
+//         break;
+//     }
+//   } catch (err) {
+//     console.error("Invalid Gemini JSON:", err);
+//   }
+// });
+
+
+// vapi.on("message", (message) => {
+//   if (message.type !== "conversation-update") return;
+
+//   const conversation = message.conversation || [];
+
+//   console.log("Canonical conversation:", conversation);
+
+//   // Transcript (UI only)
+//   setLiveTranscript(
+//     conversation
+//       .slice(1) // skip system
+//       .map((item, idx) => ({
+//         id: idx + 1,
+//         speaker: item.role,
+//         text: stripJSON(item.content)
+//       }))
+//   );
+
+//   // Logic (ONLY assistant turns)
+//   for (
+//     let i = lastProcessedIndexRef.current;
+//     i < conversation.length;
+//     i++
+//   ) {
+//     const turn = conversation[i];
+//     if (turn.role !== "assistant") continue;
+
+//     const payload = extractJSON(turn.content);
+//     if (!payload) continue;
+
+//     switch (payload.type) {
+//       case "question":
+//         handleQuestion(payload);
+//         break;
+//       case "evaluation":
+//         handleEvaluation(payload);
+//         queueMicrotask(() =>
+//           updateVapiMemoryFromConversation(
+//             [...interviewConversation]
+//           )
+//         );
+//         break;
+//       case "end_interview":
+//         handleAutoSubmit();
+//         break;
+//     }
+//   }
+
+//   lastProcessedIndexRef.current = conversation.length;
+// });
+
+    // vapi.on("message", (message) => {
+    //     if (message.type !== "conversation-update") return;
+
+    //     console.log("Received conversation update:", message);
+
+    //     const conversation = message.conversation.filter((item) => item.role !== 'system') || [];
+
+    //     setLiveTranscript(
+    //         conversation
+    //           .map((item) => ({
+    //             id: liveTranscript.length + 1,
+    //             speaker: item.role, // assistant | user
+    //             text: stripJSON(item.content),
+    //             timestamp: Date.now()
+    //           }))
+    //       );
+    //     fullTranscriptRef.current = conversation
     // });
+
+    // Transcript generation
+    vapi.on("message", (message) => {
+      if (message.type !== "transcript") return;
+      if (message.transcriptType !== "final") return;
+    
+      console.log("Received transcript:", message);
+    
+      setLiveTranscript((prev) => {
+        // If no previous transcripts, create first item
+        if (prev.length === 0) {
+          return [{
+            id: crypto.randomUUID(),
+            speaker: message.role,
+            text: message.transcript,
+            timestamp: Date.now()
+          }];
+        }
+      
+        // Check if last item has same role as current message
+        const lastItem = prev[prev.length - 1];
+        if (lastItem.speaker === message.role) {
+          // Append to last item
+          return [
+            ...prev.slice(0, -1),
+            {
+              ...lastItem,
+              text: lastItem.text + " " + message.transcript,
+              timestamp: Date.now()
+            }
+          ];
+        }
+      
+        // Create new item with different role
+        return [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            speaker: message.role,
+            text: message.transcript,
+            timestamp: Date.now()
+          }
+        ];
+      });
+    });
 
     // ❌ Handle disconnect / error
     vapi.on("disconnect", handleVapiFailure);
     vapi.on("error", handleVapiFailure);
 
-    vapi.on("message",(message) => {
-      console.log('Conversation: ',message);
-    })
-
     // 🧠 Optional: detect natural end
     vapi.on("end", () => {
-      handleEndInterview();
+      handleAutoSubmit();
     });
 
-    // 🛠 Tool calls
     vapi.on("tool-call", handleToolCall);
   };
 
   const handleEndInterview = async () => {
+    console.log("ending interview...");
     if (hasSubmittedRef.current) return;
     hasSubmittedRef.current = true;
 
-    try {
-      vapiRef.current?.stop();
-    } catch {}
-
     const completionMin =
-      (interviewDetails.durationMin * 60 - timeRemainingRef.current) / 60;
+      (interviewDetails?.durationMin * 60 - timeRemainingRef.current) / 60;
 
-    // 1. End interview session
-    await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/candidate/interview/end`, {
-      method: "POST",
-      headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`},
-      body: JSON.stringify({
-        interviewId: interviewDetails.interviewId,
-        completionMin,
-        interviewConversation: interviewConversation
-      })
-    });
+    console.log("calling end interview...");
 
-    // 2. Save replay
-    // await fetch("/api/interview/replay", {
-    //   method: "POST",
-    //   headers: { "Content-Type": "application/json" },
-    //   body: JSON.stringify({
-    //     interviewId: interviewDetails.interviewId,
-    //     transcript: fullTranscriptRef.current,
-    //     audioUrl: vapiRef.current?.getRecordingUrl()
-    //   })
-    // });
+    try{
+      // 1. End interview session
+      console.log("entered ending interview...");
+      const response =await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/candidate/interview/end`, {
+        method: "POST",
+        headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`},
+        body: JSON.stringify({
+          interviewId: interviewDetails?.interviewId,
+          completionMin,
+          interviewConversation: interviewConversation
+        })
+      });
+      if (!response.ok){
+        console.error("Failed to end interview session");
+      }
+      const res = await response.json();
+      console.log("Interview ended: ",res);
+      errorToast('Interview ended successfully');
+    }
+    catch(error){
+      console.error("Failed to end interview:", error);
+    }
 
     // 3. Cleanup UI
     exitFullscreen();
@@ -400,142 +554,175 @@ const [recordingUrl, setRecordingUrl] = useState(null);
   };
 
   const handleVapiFailure = async () => {
+    console.log("vapi failure...");
     if (hasSubmittedRef.current) return;
   
     console.error("Vapi disconnected — auto ending interview");
   
-    // await handleEndInterview();
+    await handleAutoSubmit();
   };
-  
-  // useEffect(() => {
-  //   handleStartInterview();
-  
-  //   return () => {
-  //     try {
-  //       vapiRef.current?.stop();
-  //     } catch {}
-  //   };
-  // }, []);
 
-const handleToolCall = async (call) => {
-  setInterviewConversation((prev) => {
-    const updated = [...prev];
-
+  const handleToolCall = async (call) => {
+    console.log("🛠 Tool call received:", call);
+  
+    if (!call?.name || !call?.arguments) return;
+  
     switch (call.name) {
-      // 🧠 After AI asks a question
+    
+      // ─────────────────────────────────────────────
+      // 1️⃣ QUESTION ASKED
+      // ─────────────────────────────────────────────
       case "log_question_metadata": {
         const {
           question,
-          difficultyLevel
-        } = call.arguments;
-
-        // Create new question turn
-        updated.push({
-          interviewId: interviewDetails?.interviewId,
-          content: question,
-          candidateAnswer: '',
-          aiFeedback: '',
-          correct: null,
           difficultyLevel,
-          askedAt: new Date().toISOString()
-        });
-
-        return updated;
+          section
+        } = call.arguments;
+      
+        if (!question) return;
+      
+        setInterviewConversation((prev) => [
+          ...prev,
+          {
+            interviewId: interviewDetails?.interviewId,
+            question,
+            section,
+            difficultyLevel,
+            candidateAnswer: "",
+            correct: null,
+            aiFeedback: "",
+            askedAt: new Date().toISOString()
+          }
+        ]);
+      
+        return;
       }
-
-      // 🧠 After candidate answers & AI evaluates
+    
+      // ─────────────────────────────────────────────
+      // 2️⃣ ANSWER EVALUATED
+      // ─────────────────────────────────────────────
       case "log_candidate_evaluation": {
         const {
+          question,
           candidateAnswer,
           correct,
           aiFeedback
         } = call.arguments;
-
-        // Find last unanswered question
-        for (let i = updated.length - 1; i >= 0; i--) {
-          if (updated[i].candidateAnswer === '') {
-            updated[i] = {
-              ...updated[i],
-              candidateAnswer,
-              correct,
-              aiFeedback
-            };
-            break;
+      
+        setInterviewConversation((prev) => {
+          const updated = [...prev];
+        
+          for (let i = updated.length - 1; i >= 0; i--) {
+            if (
+              updated[i].question === question &&
+              updated[i].candidateAnswer === ""
+            ) {
+              updated[i] = {
+                ...updated[i],
+                candidateAnswer,
+                correct,
+                aiFeedback
+              };
+              break;
+            }
           }
-        }
-
-        // 🚀 AFTER evaluation → update Vapi memory
-        queueMicrotask(() => {
-          updateVapiMemoryFromConversation(updated);
+        
+          return updated;
         });
-
-        return updated;
+      
+        updateVapiMemoryFromConversation(interviewConversation);
+        return;
       }
-
+    
+      // ─────────────────────────────────────────────
+      // 3️⃣ END INTERVIEW (MANDATORY)
+      // ─────────────────────────────────────────────
+      case "end_interview": {
+        console.log("🏁 Interview completed:", call.arguments?.reason);
+      
+        if (!hasSubmittedRef.current) {
+          hasSubmittedRef.current = true;
+          await handleAutoSubmit();
+        }
+      
+        return;
+      }
+    
       default:
-        return prev;
+        console.warn("⚠️ Unknown tool call:", call.name);
+        return;
     }
+  };
+
+function handleQuestion(data) {
+  setInterviewConversation((prev) => [
+    ...prev,
+    {
+      interviewId: interviewDetails.interviewId,
+      content: data.question,
+      candidateAnswer: "",
+      aiFeedback: "",
+      correct: null,
+      difficultyLevel: data.difficultyLevel,
+      askedAt: new Date().toISOString()
+    }
+  ]);
+}
+
+function handleEvaluation(data) {
+  setInterviewConversation((prev) => {
+    const updated = [...prev];
+    for (let i = updated.length - 1; i >= 0; i--) {
+      if (updated[i].candidateAnswer === "") {
+        updated[i] = {
+          ...updated[i],
+          candidateAnswer: data.candidateAnswer,
+          correct: data.correct,
+          aiFeedback: data.aiFeedback
+        };
+        break;
+      }
+    }
+    return updated;
   });
-};
+}
 
 function updateVapiMemoryFromConversation(conversation) {
-  const lastSix = conversation.slice(-2);
+  const remaining = timeRemainingRef.current;
+  const remainingDuration = (remaining / 60).toFixed(2);
+  const lastTwo = conversation.slice(-2);
 
-  const messages = lastSix.flatMap((turn) => {
-    const msgs = [];
-
-    if (turn.content) {
-      msgs.push({
-        role: "assistant",
-        content: `${turn.content}\n(Difficulty: ${turn.difficultyLevel})`
-      });
-    }
-
-    if (turn.candidateAnswer) {
-      msgs.push({
-        role: "user",
-        content: `${turn.candidateAnswer}\n(Correct: ${turn.correct})`
-      });
-    }
-
-    return msgs;
-  });
+  const contextLines = lastTwo
+    .map((turn, i) => {
+      return `
+Turn ${i + 1}:
+Question: ${turn.content}
+Candidate Answer: ${turn.candidateAnswer || "N/A"}
+Correct: ${turn.correct ?? "N/A"}
+Difficulty: ${turn.difficultyLevel ?? "N/A"}
+`;
+    })
+    .join("\n");
 
   vapiRef.current?.send({
-    type: "conversation-update",
-    messages: [
-      {
-        role: "system",
-        content: `
+    type: "input_text",
+    text: `
 INTERVIEW CONTEXT (LAST 2 TURNS):
 
-${messages
-  .slice(-2)
-  .map((m, i) => `${i + 1}. ${m.role.toUpperCase()}: ${m.content}`)
-  .join("\n\n")}
+${contextLines}
 
 Rules:
 - Adjust difficulty using correctness
 - Avoid repeating questions
 - Ask ONE question next
 
-
 TIME CONTEXT:
-- interviewDuration: ${interviewDetails?.durationMin}     // Total session duration
-- remainingDuration: ${remainingDuration}     // Remaining time in the session
-
-### Session Timing Rules:
-Use "interviewDuration" and "remainingDuration" to:
-- Pace question difficulty
-- Decide when to shift sections
-- Ensure the interview completes all sections before time runs out
-- Adjust depth based on how much time is left
+- interviewDuration: ${interviewDetails?.durationMin}
+- remainingDuration: ${remainingDuration}
 `
-      }
-    ]
   });
 }
-
+  
   // Handle fullscreen changes
   const handleFullscreenChange = useCallback(() => {
     const fullscreenElement = document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
@@ -549,11 +736,11 @@ Use "interviewDuration" and "remainingDuration" to:
 
   // Handle submit
   const handleSubmit = useCallback(async () => {
+    console.log("submitting interview...");
     setIsSubmitting(true);
     await handleEndInterview();
     await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate submission
     
-    stopStreaming();
     stopProctoring();
     exitFullscreen();
     onInterviewEnd();
@@ -563,6 +750,7 @@ Use "interviewDuration" and "remainingDuration" to:
 
   // Auto submit when time ends
   const handleAutoSubmit = useCallback(async () => {
+    console.log("auto-submitting interview...");
     if (hasSubmittedRef.current) return;
     hasSubmittedRef.current = true;
     setIsAutomaticallySubmitting(true);
@@ -720,7 +908,7 @@ Use "interviewDuration" and "remainingDuration" to:
 
                   {/* Phone Button - only small screens */}
                   <button
-                    onClick={() => handleStartInterview()}
+                    onClick={() => handleAutoSubmit()}
                     className="cursor-pointer rounded-full p-2 xs:p-2.5 sm:p-3 md:p-4 transition-all duration-200 shadow-lg backdrop-blur-sm bg-red-500/90 hover:bg-red-600 text-white border border-red-400"
                   >
                     <Phone className="w-3 h-3 xs:w-4 xs:h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 rotate-135" />
@@ -790,7 +978,7 @@ Use "interviewDuration" and "remainingDuration" to:
 
               {/* Scrollable Conversation Area */}
               <div
-                ref={fullTranscriptRef}
+                ref={transcriptContainerRef}
                 className="flex-1 overflow-y-auto space-y-3 pr-2"
               >
                 {liveTranscript.map((item, index) => (

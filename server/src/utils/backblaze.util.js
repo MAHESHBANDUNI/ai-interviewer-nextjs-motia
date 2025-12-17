@@ -266,7 +266,6 @@ export const getSignedUrl=async({fileName,expiresInSeconds = 3600}) => {
     // Build the signed URL manually
     return resumeUrl;
     } catch (err) {
-    console.error("Error generating B2 signed URL:", err);
     throw new ApiError("Could not generate Backblaze signed URL",500);
   }
 }

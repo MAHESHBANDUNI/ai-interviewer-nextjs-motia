@@ -7,7 +7,7 @@ export const config = {
     name: 'CancelInterview',
     type : 'api',
     path : '/api/admin/interview/cancel',
-    method: 'POST',
+    method: 'PUT',
     description: 'Cancel interview endpoint',
     emits: [],
     flows: [],
@@ -18,8 +18,17 @@ export const handler = async(req, {emit, logger}) => {
     try{
         logger.info('Processing cancel interview request', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
         const userId = await req?.user?.userId;
-        const {interviewId} = await req.body;
-        const result = await AdminService.cancelInterview(userId, interviewId);
+        const interviewId = await req?.body?.interviewId;
+        const cancellationReason = await req.body.cancellationReason;
+        if(!interviewId || !userId){
+          return {
+            status: 400,
+            body: {
+              error: 'Missing fields'
+            }
+          }
+        }
+        const result = await AdminService.cancelInterview({userId, interviewId, cancellationReason});
         if(!result){
           logger.error('Failed to cancel interview');
           return {

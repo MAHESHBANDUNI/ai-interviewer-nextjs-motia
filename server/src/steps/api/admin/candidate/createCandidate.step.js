@@ -18,7 +18,6 @@ export const handler = async (req, { emit, logger, state }) => {
   try {
     logger.info('Processing create new candidate request', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
     const userId = req?.user?.userId;
-    logger.info('Req: ',req)
 
     // Extract form fields from request body
     const email = req.body.email || req.body.get?.('email');

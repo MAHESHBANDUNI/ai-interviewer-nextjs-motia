@@ -14,8 +14,7 @@ export default function CandidateDetailsModal({
   setCandidateDetailsModalOpen,
   candidate
 }) {
-  console.log('NNN',candidate);
-  const [candidateId, setCandiddateId]= useState(candidate?.candidateId);
+  const [candidateId, setCandidateId]= useState(candidate?.candidateId);
   const [activeSection, setActiveSection] = useState("ResumeProfile");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 

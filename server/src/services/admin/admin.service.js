@@ -5,12 +5,11 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { sendScheduledInterviewMail, sendRescheduledInterviewMail } from "../../utils/email.util";
 import { ApiError } from "../../utils/apiError.util";
 import bcrypt from 'bcrypt';
-import PdfParse from "pdf-parse";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY1);
 
 const geminiModel = genAI.getGenerativeModel({
-  model: "gemini-2.5-flash",
+  model: "gemini-2.5-flash-lite",
 });
 
 function toTitleCase(str) {
@@ -43,7 +42,7 @@ const formatDate = (dateString) => {
 
 export const AdminService = {
 
-  async checkAdminAuth({userId}){
+  async checkAdminAuth(userId){
     const admin = await prisma.user.findFirst({
       where:{
         userId: userId,
@@ -57,7 +56,7 @@ export const AdminService = {
   },
 
   async getAnalytics ({userId}) {
-    await this.checkAdminAuth({userId});
+    await this.checkAdminAuth(userId);
     const candidatesCount = await prisma.candidate.count();
     const interviewsCount = await prisma.interview.count();
 
@@ -194,7 +193,7 @@ export const AdminService = {
   },
 
   async createCandidate({email, firstName, lastName, resumeUrl, phoneNumber, userId}) {
-    await this.checkAdminAuth({userId});
+    await this.checkAdminAuth(userId);
     const customUUID = crypto.randomUUID();
     const hashedPassword = await bcrypt.hash(`${firstName}@123`, 10);
 
@@ -226,7 +225,7 @@ export const AdminService = {
   },
 
   async getAllCandidates({userId}) {
-    await this.checkAdminAuth({userId});
+    await this.checkAdminAuth(userId);
     const candidates = await prisma.candidate.findMany({
       include: {
         resumeProfile: {
@@ -243,7 +242,7 @@ export const AdminService = {
   },
 
   async deleteCandidate({candidateId, userId}) {
-    await this.checkAdminAuth({userId});
+    await this.checkAdminAuth(userId);
     const existingCandidate = await prisma.candidate.findFirst({
       where: {
         candidateId: candidateId
@@ -282,7 +281,7 @@ export const AdminService = {
   },
 
   async getCandidateInterviews({candidateId, userId, interviewId}) {
-    await this.checkAdminAuth({userId});
+    await this.checkAdminAuth(userId);
 
     const existingCandidate = await prisma.candidate.findFirst({
       where: {
@@ -353,7 +352,7 @@ export const AdminService = {
   },
 
   async getCandidateResumeProfile({candidateId, userId}) {
-    await this.checkAdminAuth({userId});
+    await this.checkAdminAuth(userId);
     const existingCandidate = await prisma.candidate.findFirst({
       where: {
         candidateId: candidateId
@@ -394,7 +393,7 @@ export const AdminService = {
     return candidateResumeProfile;
   },
 
-  async parseCandidateResume({ candidateId, resumeUrl, logger }) {
+  async parseCandidateResume({ candidateId, resumeUrl }) {
     function getFilenameFromUrl(url) {
       const parts = url.split('/');
       return parts.pop() || parts.pop();
@@ -443,7 +442,7 @@ export const AdminService = {
       }
     ],
     "educationSummary": String?,
-    "certifications": Json?,
+    "certifications": Array<String>?,
     "projects": [
       {
         "name": String,
@@ -474,7 +473,6 @@ export const AdminService = {
         try {
           return JSON.parse(output);
         } catch (err) {
-          logger.warn("Gemini JSON parse attempt #1 failed. Trying cleanup…");
 
           const cleaned = output
             .replace(/\n/g, " ")
@@ -503,7 +501,6 @@ export const AdminService = {
       });
 
       if (!matchedJobArea) {
-        logger.warn(`No matching jobArea found for: ${structured.jobAreaId}`);
         throw new ApiError("Invalid or unmatched jobAreaId from parsed resume", 400);
       }
 
@@ -524,13 +521,12 @@ export const AdminService = {
       return { success: true, resumeProfile: savedProfile };
 
     } catch (error) {
-      logger.error("Resume parsing failed:", error);
       throw new ApiError(400, `Failed to parse resume: ${error}`);
     }
   },
 
   async getAllInterviews({userId}) {
-    await this.checkAdminAuth({userId});
+    await this.checkAdminAuth(userId);
     const interviews = await prisma.interview.findMany({
       include: {
         candidate: {
@@ -554,7 +550,7 @@ export const AdminService = {
   },
 
   async scheduleInterview({datetime, duration, candidateId, userId}){
-    await this.checkAdminAuth({userId});
+    await this.checkAdminAuth(userId);
     if( !candidateId || !datetime || !duration){
         throw new ApiError("Missing fields",400);
     }
@@ -608,7 +604,7 @@ export const AdminService = {
   },
 
   async rescheduleInterview({candidateId, userId, interviewId, newDatetime, oldDatetime, duration}){
-    await this.checkAdminAuth({userId});
+    await this.checkAdminAuth(userId);
     if( !candidateId || !newDatetime || !duration || !interviewId || !oldDatetime){
         throw new ApiError('Missing fields',400)
     }
@@ -654,11 +650,12 @@ export const AdminService = {
     }
   },
 
-  async cancelInterview(interviewId, cancellationReason, userId){
-    await this.checkAdminAuth({userId});
+  async cancelInterview({interviewId, userId, cancellationReason}){
+    await this.checkAdminAuth(userId);
     const existingInterview = await prisma.interview.findFirst({
       where: {
-        interviewId: interviewId
+        interviewId: interviewId,
+        status: {in: ['PENDING','RESCHEDULED']}
       }
     })
 

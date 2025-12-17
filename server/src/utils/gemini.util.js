@@ -9,7 +9,7 @@ if (!GEMINI_KEY) {
 const ai = new GoogleGenerativeAI(GEMINI_KEY);
 
 export async function callGemini(prompt) {
-  const model = ai.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const model = ai.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
   const response = await model.generateContent(prompt);
   return response.response;

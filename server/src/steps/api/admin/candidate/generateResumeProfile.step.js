@@ -11,15 +11,16 @@ export const config = {
 }
 
 export const handler = async(input, context) => {
+  const { emit, logger, state } = context || {};
   try{ 
       logger.info('Processing candidate resume generation request', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
-      const { emit, logger, state } = context || {};
+      
       let {resumeUrl, candidateId} = input;
       if(!resumeUrl || !candidateId){
         logger.error('Failed to parse candidate resume. Missing fields.');
         return ;
       }
-        const result = await AdminService.parseCandidateResume({candidateId, resumeUrl, logger});
+        const result = await AdminService.parseCandidateResume({candidateId, resumeUrl});
         if(!result){
             logger.error('Failed to parse candidate resume');
             return {
