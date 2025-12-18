@@ -2,7 +2,7 @@
 
 import AddInterviewForm from "./AddInterviewForm";
 import InterviewTable from "./InterviewTable";
-import { ChevronDown, Search, X } from "lucide-react";
+import { ChevronDown, Search, X, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { successToast, errorToast } from "@/app/components/ui/toast";
 import { useSession } from "next-auth/react";
@@ -21,8 +21,11 @@ export default function Interview() {
   const [showCancelInterviewModal, setShowCancelInterviewModal] = useState(false);
   const [interviewDetailsModalOpen, setInterviewDetailsModalOpen] = useState(false);
   const [showRescheduleInterviewModalOpen, setShowRescheduleInterviewModalOpen] = useState(false);
-
   const [isFormOpen, setIsFormOpen] = useState(false);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const statusRef = useRef(null);
   const positionRef = useRef(null);
@@ -38,6 +41,61 @@ export default function Interview() {
     
     return matchesSearch && matchesStatus;
   });
+
+  // Pagination calculations
+  const totalItems = filteredInterviews.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  
+  // Get current page items
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentInterviews = filteredInterviews.slice(indexOfFirstItem, indexOfLastItem);
+  
+  // Generate page numbers for display
+  const getPageNumbers = () => {
+    const pageNumbers = [];
+    const maxVisiblePages = 5;
+    
+    if (totalPages <= maxVisiblePages) {
+      // Show all pages if total pages is less than max visible
+      for (let i = 1; i <= totalPages; i++) {
+        pageNumbers.push(i);
+      }
+    } else {
+      // Show limited pages with ellipsis
+      if (currentPage <= 3) {
+        // Near the beginning
+        for (let i = 1; i <= 4; i++) {
+          pageNumbers.push(i);
+        }
+        pageNumbers.push('...');
+        pageNumbers.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        // Near the end
+        pageNumbers.push(1);
+        pageNumbers.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) {
+          pageNumbers.push(i);
+        }
+      } else {
+        // In the middle
+        pageNumbers.push(1);
+        pageNumbers.push('...');
+        pageNumbers.push(currentPage - 1);
+        pageNumbers.push(currentPage);
+        pageNumbers.push(currentPage + 1);
+        pageNumbers.push('...');
+        pageNumbers.push(totalPages);
+      }
+    }
+    
+    return pageNumbers;
+  };
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedStatus]);
 
   // Handle clicks outside dropdowns
   const handleClickOutside = (event) => {
@@ -207,8 +265,20 @@ export default function Interview() {
     }
   };
 
+  // Pagination handlers
+  const handlePageChange = (pageNumber) => {
+    if (pageNumber >= 1 && pageNumber <= totalPages && pageNumber !== currentPage) {
+      setCurrentPage(pageNumber);
+    }
+  };
+
+  const handleItemsPerPageChange = (value) => {
+    setItemsPerPage(Number(value));
+    setCurrentPage(1); // Reset to first page when changing items per page
+  };
+
   return (
-    <div className="max-w-screen-2xl  bg-gradient-to-br from-slate-50 to-blue-50/30 mx-auto p-6 space-y-6" ref={containerRef}>
+    <div className="max-w-screen-2xl bg-gradient-to-br from-slate-50 to-blue-50/30 mx-auto p-6 space-y-6" ref={containerRef}>
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
@@ -244,24 +314,40 @@ export default function Interview() {
             Schedule Interview
           </button>
         </div>
-        
       </div>
 
       {/* Results Count */}
-      {interviewsList.length > 0 && <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-600">
-          {filteredInterviews.length > 0
-          ? <>Showing <span className="font-semibold">{filteredInterviews.length}</span> interviews</>
-          : "No interviews found."}
-          {/* {hasActiveFilters && " (filtered)"} */}
-        </p>
-      </div>
-    }
+      {interviewsList.length > 0 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-gray-600">
+            {filteredInterviews.length > 0
+            ? <>Showing <span className="font-semibold">{indexOfFirstItem + 1}-{Math.min(indexOfLastItem, totalItems)}</span> of <span className="font-semibold">{totalItems}</span> interviews</>
+            : "No interviews found."}
+          </p>
+          
+          {/* Items per page selector - hidden on small screens */}
+          <div className="hidden sm:flex items-center space-x-2">
+            <span className="text-sm text-gray-600">Show:</span>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => handleItemsPerPageChange(e.target.value)}
+              className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
+            >
+              <option value="5">5</option>
+              <option value="10">10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+            <span className="text-sm text-gray-600">per page</span>
+          </div>
+        </div>
+      )}
 
       {interviewsList && (
         <div className={`bg-white overflow-hidden ${interviewsList.length>0 && 'rounded-xl border border-gray-200 shadow-sm'}`}>
           <InterviewTable 
-            interviews={filteredInterviews}
+            interviews={currentInterviews}
             loading={loading}
             error={error}
             handleCancelInterviewClick={(interviewId) => handleCancelInterviewClick(interviewId)}
@@ -270,6 +356,115 @@ export default function Interview() {
             selectedInterviewId={selectedInterviewId}
             setSelectedInterviewId={setSelectedInterviewId}
           />
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-3 bg-white rounded-xl border border-gray-200 shadow-sm">
+          {/* Mobile items per page selector */}
+          <div className="sm:hidden flex items-center space-x-2 w-full justify-center">
+            <span className="text-sm text-gray-600">Show:</span>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => handleItemsPerPageChange(e.target.value)}
+              className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
+            >
+              <option value="5">5</option>
+              <option value="10">10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+            <span className="text-sm text-gray-600">per page</span>
+          </div>
+
+          <div className="text-sm text-gray-600">
+            Page <span className="font-semibold">{currentPage}</span> of <span className="font-semibold">{totalPages}</span>
+          </div>
+
+          <div className="flex items-center space-x-1">
+            {/* First page button */}
+            <button
+              onClick={() => handlePageChange(1)}
+              disabled={currentPage === 1}
+              className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              aria-label="First page"
+            >
+              <ChevronsLeft className="w-4 h-4" />
+            </button>
+
+            {/* Previous page button */}
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              aria-label="Previous page"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            {/* Page numbers */}
+            <div className="flex items-center space-x-1">
+              {getPageNumbers().map((pageNum, index) => (
+                pageNum === '...' ? (
+                  <span key={`ellipsis-${index}`} className="px-3 py-1 text-gray-400">
+                    ...
+                  </span>
+                ) : (
+                  <button
+                    key={pageNum}
+                    onClick={() => handlePageChange(pageNum)}
+                    className={`px-3 py-1 rounded-lg border transition-colors ${
+                      currentPage === pageNum
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'border-gray-300 hover:bg-gray-50 text-gray-700'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                )
+              ))}
+            </div>
+
+            {/* Next page button */}
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              aria-label="Next page"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+
+            {/* Last page button */}
+            <button
+              onClick={() => handlePageChange(totalPages)}
+              disabled={currentPage === totalPages}
+              className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              aria-label="Last page"
+            >
+              <ChevronsRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Page jump - hidden on small screens */}
+          <div className="hidden md:flex items-center space-x-2">
+            <span className="text-sm text-gray-600">Go to:</span>
+            <input
+              type="number"
+              min="1"
+              max={totalPages}
+              value={currentPage}
+              onChange={(e) => {
+                const page = parseInt(e.target.value);
+                if (page >= 1 && page <= totalPages) {
+                  handlePageChange(page);
+                }
+              }}
+              className="w-16 text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
+            />
+          </div>
         </div>
       )}
 
