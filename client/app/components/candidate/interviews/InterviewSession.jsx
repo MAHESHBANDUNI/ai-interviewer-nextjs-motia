@@ -923,7 +923,7 @@ TIME CONTEXT:
               {/* Scrollable Conversation Area */}
               <div
                 ref={transcriptContainerRef}
-                className="overflow-y-auto space-y-3 pr-2 max-h-[400px]"
+                className="overflow-y-auto space-y-3 pr-2 min-h-[400px] max-h-[400px]"
               >
                 {liveTranscript.map((item, index) => (
                   <div
