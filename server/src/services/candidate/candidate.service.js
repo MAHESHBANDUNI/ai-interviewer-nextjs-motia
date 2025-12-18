@@ -1021,18 +1021,6 @@ Only after that may you proceed with the first interview question, following all
             attemptedAt: attemptedAt,
           }
         });
-
-        // await prisma.interviewQuestion.createMany({
-        //   data: interviewConversation.map((q, index) => ({
-        //     interviewId,
-        //     content: q.content,
-        //     aiFeedback: q.aiFeedback,
-        //     candidateAnswer: q.candidateAnswer,
-        //     correct: q.correct,
-        //     difficultyLevel: q.difficultyLevel,
-        //     askedAt: q.askedAt
-        //   }))
-        // }); 
       
         if(!updatedInterview){
           throw new ApiError("Error updating the interview status", 400);
@@ -1041,13 +1029,12 @@ Only after that may you proceed with the first interview question, following all
         return { message: "Interview completed successfully" };
       }
       catch(error){
-        logger.error("Error 1:", error);
         throw new ApiError(`Failed to end interview session: ${error.message}`, 500);
       }
     },
 
     async generateCandidateInterviewProfile({ candidateId, interviewId, interviewConversation, logger }){
-      const response = await this.evaluateAnswer(candidateId, interviewId, interviewConversation, logger);
+      const interviewQuestions = await this.evaluateAnswer(candidateId, interviewId, interviewConversation, logger);
         const candidate = await prisma.candidate.findFirst({
           where: {
             candidateId: candidateId,
@@ -1097,7 +1084,7 @@ RESUME PROFILE
 ${JSON.stringify(candidate.resumeProfile, null, 2)}
   
 ========================================
-INTERVIEW Q/A & FEEDBACK
+INTERVIEW Q/A
 ========================================
 ${JSON.stringify(structuredInterviewData, null, 2)}
   
@@ -1142,13 +1129,15 @@ RULES
 `;
   
         const result = await geminiModel.generateContent(prompt);
-        let output = result.response.text().trim();
+        let output =
+        result?.response?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-        output = output
-          .replace(/^```json/i, "")
-          .replace(/^```/, "")
-          .replace(/```$/, "")
-          .trim();
+        if (!output) {
+          throw new Error("Empty response from Gemini model");
+        }
+      
+        // 5️⃣ Clean + parse
+        output = output.replace(/```json|```/gi, "").trim();
 
         const aiAnalysis = JSON.parse(output);
 
@@ -1167,123 +1156,175 @@ RULES
     return { success: true };
     },
 
-    async evaluateAnswer(candidateId, interviewId, interviewConversation, logger) {
-      try {
-        const candidate = await prisma.candidate.findFirst({
-          where: { candidateId },
-          include: {
-            resumeProfile: true
-          }
-        });
-      
-        if (!candidate || !interviewConversation?.length) return null;
-        const qaPairs = await this.buildQuestionAnswerPairs(interviewConversation);
-      
+async evaluateAnswer(
+  candidateId,
+  interviewId,
+  interviewConversation,
+  logger
+) {
+  try {
+    // 1️⃣ Fetch candidate
+    const candidate = await prisma.candidate.findFirst({
+      where: { candidateId },
+      include: { resumeProfile: true }
+    });
+
+    if (!candidate || !interviewConversation?.length) return null;
+
+    // 2️⃣ Build QA pairs
+    const qaPairs = await this.buildQuestionAnswerPairs(interviewConversation);
+
+    if (!qaPairs?.length) {
+      throw new Error("No question–answer pairs generated");
+    }
+
+    // 3️⃣ Build prompt
 const prompt = `
 You are a senior technical interviewer and hiring evaluator with cross-industry expertise.
 Your task is to objectively evaluate a candidate’s interview performance based ONLY on the
-question–answer pairs provided below.
-
-You must judge correctness, clarity, and depth of understanding for each answer.
+inputs provided. Do NOT assume missing information.
 
 ========================================
-INTERVIEW QUESTION–ANSWER PAIRS
+INPUT DATA
 ========================================
-Each object contains:
-- question: the interviewer’s question
-- candidateAnswer: the candidate’s response
 
+Resume Extract (may be empty):
+${JSON.stringify(candidate?.resumeProfile, null, 2)}
+
+Interview Question–Answer Pairs:
 ${JSON.stringify(qaPairs, null, 2)}
 
 ========================================
-EVALUATION GUIDELINES
+EVALUATION INSTRUCTIONS
 ========================================
-For EACH question:
+For EACH question–answer pair, evaluate independently.
 
-1. Correctness (true / false)
-   - true → the answer is mostly correct and demonstrates understanding
-   - false → the answer is incorrect, misleading, or significantly incomplete
+Assess the candidate’s answer for:
+- Technical correctness
+- Depth and clarity relative to difficulty level
+- Alignment with standard industry expectations
+- Partial correctness should be marked as incorrect
 
-2. Difficulty Level (1–5)
-   Determine difficulty based on the question itself, NOT the candidate’s performance:
-   1 → Very basic / introductory
-   2 → Fundamental knowledge
-   3 → Intermediate professional level
-   4 → Advanced / in-depth
-   5 → Expert / system-level reasoning
+Do NOT rewrite or modify the candidate’s answer.
 
-3. Candidate Answer
-   - Preserve the candidate’s answer exactly as provided
-   - Do NOT rewrite or summarize it
+========================================
+FIELDS TO RETURN (PER QUESTION)
+========================================
+1. content
+   → The original interview question text
+
+2. candidateAnswer
+   → The candidate’s answer (UNCHANGED)
+
+3. correct
+   → boolean
+      true  = technically correct and sufficient
+      false = incorrect, vague, or incomplete
+
+4. difficultyLevel
+   → number from 1–5 (as provided)
+
+5. aiFeedback
+   → ONE short, precise, instructional sentence
+   → 6–8 words maximum
+   → No praise fluff (avoid “Great job”)
+   → Focus on what was right or missing
 
 ========================================
 OUTPUT FORMAT (STRICT)
 ========================================
-Return a JSON ARRAY with ONE object per question,
-in the SAME ORDER as the input.
+Return a VALID JSON ARRAY in the SAME ORDER as input:
 
-Each object MUST have EXACTLY these fields:
 [
   {
-    "content": string,           // the interview question
-    "candidateAnswer": string,   // the candidate’s answer (unchanged)
-    "correct": boolean,          // true or false
-    "difficultyLevel": number    // integer 1–5
+    "content": string,
+    "candidateAnswer": string,
+    "correct": boolean,
+    "difficultyLevel": number,
+    "aiFeedback": string
   }
 ]
 
 ========================================
 STRICT RULES
 ========================================
-- Output JSON ONLY (no text, no markdown, no backticks)
-- Do NOT add, remove, or rename fields
-- Do NOT include explanations or comments
-- Do NOT infer missing answers
-- If an answer is vague or partial → mark "correct": false
-- Ensure the output is valid JSON and parsable
+- Output JSON ONLY
+- No markdown
+- No explanations outside JSON
+- No extra fields
+- Must be valid, parseable JSON
 `;
 
-        const result = await geminiModel.generateContent(prompt);
-        let output = result.response.text().trim();
+    // 4️⃣ Call Gemini
+    const result = await geminiModel.generateContent(prompt);
 
-        output = output
-          .replace(/^```json/i, "")
-          .replace(/^```/, "")
-          .replace(/```$/, "")
-          .trim();
+    let output =
+      result?.response?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-        const evaluations = {
-          content: evaluations.content,
-          candidateAnswer: evaluations.candidateAnswer,
-          correct: evaluations.correct,
-          difficultyLevel: evaluations.difficultyLevel
-        } = JSON.parse(output);
-      
-        // ✅ Create one DB row per question
-        await prisma.interviewQuestion.createMany({
-          data: evaluations.map((q, index) => ({
-            interviewId,
-            content: q.content,
-            candidateAnswer: q.candidateAnswer,
-            correct: q.correct,
-            difficultyLevel: q.difficultyLevel,
-            askedAt: new Date(qaPairs[index].askedAt)
-          }))
-        });
-      
-        return evaluations;
-      } catch (error) {
-        logger.error("Error inner:",error);
-        throw new ApiError("Failed to evaluate answer", 500);
-      }
-    },
+    if (!output) {
+      throw new Error("Empty response from Gemini model");
+    }
 
-    async buildQuestionAnswerPairs(liveTranscript) {
+    // 5️⃣ Clean + parse
+    output = output.replace(/```json|```/gi, "").trim();
+
+    let evaluations;
+    try {
+      evaluations = JSON.parse(output);
+    } catch {
+      throw new Error(`Invalid JSON from model: ${output}`);
+    }
+
+    if (!Array.isArray(evaluations)) {
+      throw new Error("Evaluations is not an array");
+    }
+
+    let interviewQuestions;
+    try{
+    // 6️⃣ Persist interview questions
+    interviewQuestions = await prisma.interviewQuestion.createMany({
+      data: evaluations.map((q, index) => ({
+        interviewId: interviewId,
+        content: q.content,
+        candidateAnswer: q.candidateAnswer,
+        correct: q.correct,
+        difficultyLevel: q.difficultyLevel,
+        aiFeedback: q.aiFeedback,
+        askedAt: new Date(qaPairs[index]?.askedAt ?? new Date())
+      }))
+    });
+    }
+    catch(error){
+      logger?.error?.("Evaluate & persist failed", {
+      message: error.message,
+      stack: error.stack
+    });
+
+    throw new ApiError(
+      error.message || "Failed to evaluate interview answers 1",
+      error.status || 500
+    );
+    }
+    return interviewQuestions;
+  } catch (error) {
+    logger?.error?.("Evaluate & persist failed", {
+      message: error.message,
+      stack: error.stack
+    });
+
+    throw new ApiError(
+      error.message || "Failed to evaluate interview answers",
+      error.status || 500
+    );
+  }
+},
+
+    async buildQuestionAnswerPairs(interviewConversation) {
       const qaPairs = [];
     
-      for (let i = 0; i < liveTranscript.length - 1; i++) {
-        const current = liveTranscript[i];
-        const next = liveTranscript[i + 1];
+      for (let i = 0; i < interviewConversation.length - 1; i++) {
+        const current = interviewConversation[i];
+        const next = interviewConversation[i + 1];
       
         if (
           current.speaker === "assistant" &&
@@ -1297,6 +1338,6 @@ STRICT RULES
         }
       }
       return qaPairs;
-    }
+    },
 
   };

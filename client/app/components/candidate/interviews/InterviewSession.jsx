@@ -3,167 +3,127 @@ import Vapi from '@vapi-ai/web';
 
 import { Mic, MicOff, Shield, Clock, AlertCircle, Fullscreen, CheckCircle2, X, AlertTriangle , UserX, Timer, Phone, Maximize } from 'lucide-react';
 
+
 import { useSession } from 'next-auth/react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { errorToast, successToast } from '../../ui/toast';
-
-function stripJSON(text = "") {
-  return text.replace(/<json>[\s\S]*?<\/json>/g, "").trim();
-}
-
-function extractJSON(text = "") {
-  const match = text.match(/<json>([\s\S]*?)<\/json>/);
-  if (!match) return null;
-  try {
-    return JSON.parse(match[1]);
-  } catch {
-    return null;
-  }
-}
-
 
 const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }) => {
   const {data: session} = useSession();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const timeRemainingRef = useRef(Number(interviewDetails.durationMin) * 60)
   const [timeRemaining, setTimeRemaining] = useState(timeRemainingRef.current)
-  const [currentQuestion, setCurrentQuestion] = useState({});
   const [violations, setViolations] = useState([]);
-  const [userAnswer, setUserAnswer] = useState({});
-  const [micStream, setMicStream] = useState(null);
   const [micOpen, setMicOpen] = useState(false);
-  const [questionsOver, setQuestionsOver] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [logViolationModalOpen, setLogViolationModalOpen] = useState(false);
   const [showEndInterviewModal, setShowEndInterviewModal] = useState(false);
-  const [isAutomaticallySubmitting, setIsAutomaticallySubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [fullscreenTimer, setFullscreenTimer] = useState(30);
-  const [aiInterviewerInput, setAiInterviewerInput] = useState('');
   const audioRef = useRef(null);
-  const voicePauseTimeout = useRef(null);
-  const [loadingVoiceResponse, setLoadingVoiceResponse] = useState(false);
-  const [isInterviewStarted, setIsInterviewStarted] = useState(false);
-  const [candidateProfile, setCandidateProfile] = useState('');
-  const [assemblyAIToken, setAssemblyAIToken] = useState('');
-  const conversationSample = [
+
+const conversationSample = [
   {
     id: "51aa5945-e43f-4fb6-b212-0c2fa1cc646b",
-    speaker: "user",
-    text: "Hi, can you help me with JavaScript?",
+    speaker: "assistant",
+    text: "Hi, thanks for joining today. Can you briefly introduce yourself as a frontend developer?",
     timestamp: "2025-12-15T05:00:00.000Z"
   },
   {
     id: "8b6c8c4f-9d63-4f47-8a1a-9c1c3bda1a01",
-    speaker: "assistant",
-    text: "Of course! What do you need help with?",
+    speaker: "user",
+    text: "Sure! I’m a frontend developer with experience in React, JavaScript, and modern CSS.",
     timestamp: "2025-12-15T05:00:05.000Z"
   },
   {
     id: "c7cfe3a6-41c3-4f63-bc68-2fdcbd4a1c12",
-    speaker: "user",
-    text: "I need sample conversation data for my chat app.",
+    speaker: "assistant",
+    text: "Great. Can you explain the difference between `let`, `const`, and `var` in JavaScript?",
     timestamp: "2025-12-15T05:00:15.000Z"
   },
   {
     id: "e91a2b44-7f91-4c4f-9d7b-8e0b93c6f221",
-    speaker: "assistant",
-    text: "Sure, I can generate an example conversation for you.",
+    speaker: "user",
+    text: "`var` is function-scoped, while `let` and `const` are block-scoped. `const` prevents reassignment.",
     timestamp: "2025-12-15T05:00:22.000Z"
   },
   {
     id: "3b9c7a7e-1c32-4f1e-a7c2-7c99b40df002",
-    speaker: "user",
-    text: "Great! I need around 15 messages.",
+    speaker: "assistant",
+    text: "Good. How do you manage state in a React application?",
     timestamp: "2025-12-15T05:00:30.000Z"
   },
   {
     id: "9fdad1d1-b78b-4d61-a7f4-6f77a98bcb11",
-    speaker: "assistant",
-    text: "No problem. I’ll include realistic timestamps and IDs.",
+    speaker: "user",
+    text: "For local state I use useState and useReducer, and for global state I use Context or Redux.",
     timestamp: "2025-12-15T05:00:38.000Z"
   },
   {
     id: "1c8c5b4a-4f62-44dd-8e5f-0a1c87a3d333",
-    speaker: "user",
-    text: "Please make sure it alternates between user and assistant.",
+    speaker: "assistant",
+    text: "How do you optimize performance in a frontend application?",
     timestamp: "2025-12-15T05:00:45.000Z"
   },
   {
     id: "6d9e2c5f-2a54-4c8a-8a66-7c9e6eaf9222",
-    speaker: "assistant",
-    text: "Got it. Alternating speakers makes the UI easier to test.",
+    speaker: "user",
+    text: "I use memoization, code splitting, lazy loading, and avoid unnecessary re-renders.",
     timestamp: "2025-12-15T05:00:52.000Z"
   },
   {
     id: "b84f17c1-9a3f-46d1-a3fd-3f6b0f1b1444",
-    speaker: "user",
-    text: "Should timestamps be numbers or ISO strings?",
+    speaker: "assistant",
+    text: "Can you explain how the browser rendering process works?",
     timestamp: "2025-12-15T05:01:00.000Z"
   },
   {
     id: "2a7c4e5d-1c25-4a9f-9e3a-7d9a6f88a555",
-    speaker: "assistant",
-    text: "ISO strings are usually better for readability and debugging.",
+    speaker: "user",
+    text: "The browser parses HTML and CSS, builds the DOM and CSSOM, creates the render tree, then paints.",
     timestamp: "2025-12-15T05:01:08.000Z"
   },
   {
     id: "7f3b1a9c-3b6d-4e42-8b7e-91b0c3a16666",
-    speaker: "user",
-    text: "That makes sense.",
+    speaker: "assistant",
+    text: "Nice explanation. How do you handle API errors on the frontend?",
     timestamp: "2025-12-15T05:01:15.000Z"
   },
   {
     id: "4a6f9c8d-71e3-4c35-bf3e-9a8f14b97777",
-    speaker: "assistant",
-    text: "You can always convert them to Date objects when needed.",
+    speaker: "user",
+    text: "I use try/catch, show user-friendly messages, and log errors for debugging.",
     timestamp: "2025-12-15T05:01:22.000Z"
   },
   {
     id: "e1a3b4c6-9f44-4b9e-9d2a-3e6f8c2a8888",
-    speaker: "user",
-    text: "Thanks, this will help a lot.",
+    speaker: "assistant",
+    text: "Do you have experience with testing frontend applications?",
     timestamp: "2025-12-15T05:01:30.000Z"
   },
   {
     id: "5c7a1f92-5c42-4f89-9d18-6f0c2d0a9999",
-    speaker: "assistant",
-    text: "Happy to help! Let me know if you need anything else.",
+    speaker: "user",
+    text: "Yes, I use Jest and React Testing Library for unit and integration tests.",
     timestamp: "2025-12-15T05:01:38.000Z"
   },
   {
     id: "9b2c1f44-0e67-4e32-bd41-7f2a1cbbbbbb",
     speaker: "assistant",
-    text: "Good luck with your chat app 🚀",
+    text: "Excellent. That’s all from my side. Thanks for your time!",
     timestamp: "2025-12-15T05:01:45.000Z"
   }
 ];
-
-  const [interviewConversation, setInterviewConversation] = useState([]);
   
   const videoRef = useRef(null);
-  const streamRef = useRef(null);
   const containerRef = useRef(null);
   const timerRef = useRef(null);
   const hasSubmittedRef = useRef(false);
-  const lastProcessedIndexRef = useRef(1);
-
-  const socket = useRef(null);
-  const audioContext = useRef(null);
-  const mediaStream = useRef(null);
-  const processorRef = useRef(null);
-  const cancelRecordingRef = useRef(false);
 
   const vapiRef = useRef(null);
   const interviewStartedRef = useRef(false);
-  const assistantBufferRef = useRef("");
-  const lastSpeakerRef = useRef(null);
 
-  const [liveTranscript, setLiveTranscript] = useState([]);
+  const [liveTranscript, setLiveTranscript] = useState(conversationSample);
   const transcriptContainerRef = useRef(null);
-  const fullTranscriptRef = useRef([]);
-  const [recordingUrl, setRecordingUrl] = useState(null);
-
-  const [transcript, setTranscript] = useState("");
 
   const startCalledRef = useRef(false);
 
@@ -185,24 +145,13 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }
   }, []);
 
   useEffect(() => {
-    if (!startCalledRef.current && !isInterviewStarted) { 
+    if (!startCalledRef.current) { 
       startCalledRef.current = true;
       enterFullscreen();
       startProctoring();
       handleStartInterview();
     }
   }, []);
-
-  // Initialize fullscreen and proctoring
-  // useEffect(() => {
-  //   enterFullscreen();
-  //     // toggleMic();
-
-  //   return () => {
-  //     setMicOpen(false);
-  //     exitFullscreen();
-  //   };
-  // }, []);
 
   // Timer effect
   useEffect(() => {
@@ -213,7 +162,7 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }
       if (timeRemainingRef.current <= 0) {
         clearInterval(timerRef.current);
         setTimeRemaining(0);
-        handleAutoSubmit();
+        handleSubmit();
         return;
       }
     
@@ -221,7 +170,7 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }
     }, 1000);
 
     } else {
-      handleAutoSubmit();
+      handleSubmit();
     }
 
     return () => clearInterval(timerRef.current);
@@ -231,8 +180,8 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }
     if(violations.length > 3){
       setIsFullscreen(true);
       setLogViolationModalOpen(false);
-      setIsAutomaticallySubmitting(true);
-      handleAutoSubmit();
+      setIsSubmitting(true);
+      handleSubmit();
     }
   },[violations])
 
@@ -247,8 +196,8 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }
     if (fullscreenTimer === 0) {
       setIsFullscreen(true);
       setLogViolationModalOpen(false);
-      setIsAutomaticallySubmitting(true);
-      handleAutoSubmit(); 
+      setIsSubmitting(true);
+      handleSubmit(); 
     }
   }, [isFullscreen, fullscreenTimer]);
 
@@ -267,12 +216,6 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }
         transcriptContainerRef.current.scrollHeight;
     }
   }, [liveTranscript]);
-
-  useEffect(() => {
-    if(interviewConversation){
-      console.log("Updated Conversation: ",interviewConversation);
-    }
-  },[interviewConversation])
 
   // Enter fullscreen mode
   const enterFullscreen = useCallback(async () => {
@@ -349,15 +292,6 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }
     setLogViolationModalOpen(true);
   }, []);
 
-  const stopMic = () => {
-    if (micStream) {
-      micStream.getTracks().forEach((track) => track.stop());
-      setMicStream(null);
-    }
-    setMicOpen(false);
-    console.log('🔇 Microphone stopped');
-  };
-
   const startProctoring = useCallback(async () => {
     document.addEventListener('keydown', disableKeyboard);
     document.addEventListener('visibilitychange', detectTabSwitch);
@@ -414,29 +348,11 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }
     }
   };
 
-  const flushAssistantBuffer = () => {
-    if (!assistantBufferRef.current) return;
-
-    setLiveTranscript((prev) => [
-      ...prev,
-      {
-        id: liveTranscript.length + 1,
-        speaker: "assistant",
-        text: assistantBufferRef.current,
-        timestamp: Date.now()
-      }
-    ]);
-
-    assistantBufferRef.current = "";
-  };
-
   const registerVapiListeners = () => {
     const vapi = vapiRef.current;
 
     vapi.on("speech-start", () => setMicOpen(false));
     vapi.on("speech-end", () => setMicOpen(true));
-
-    // vapi.on("message", (m) => console.log("MSG:", m));
 
     // Transcript generation
     vapi.on("message", (message) => {
@@ -481,37 +397,23 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }
       });
     });
 
-    vapi.on("message", (message) => {
-      if(!message || message.type !== "tool-calls") return;
-      console.log("Tool call message received:", message);
-      handleToolCall(message.toolCallList);
-    });
-
     // ❌ Handle disconnect / error
     vapi.on("disconnect", handleVapiFailure);
     vapi.on("error", handleVapiFailure);
 
     // 🧠 Optional: detect natural end
     vapi.on("end", () => {
-      handleAutoSubmit();
+      handleSubmit();
     });
 
-    // vapi.on("tool-calls", (call) => {
-    //   handleToolCall(call);
-    // });
   };
 
   const handleEndInterview = async () => {
-    console.log("ending interview...");
-
     const completionMin =
       (interviewDetails?.durationMin * 60 - timeRemainingRef.current) / 60;
 
-    console.log("calling end interview...");
-
     try{
       // 1. End interview session
-      console.log("entered ending interview...");
       const response =await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/candidate/interview/end`, {
         method: "POST",
         headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`},
@@ -521,151 +423,24 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }
           interviewConversation: liveTranscript
         })
       });
-      console.log("Interview response: ",response);
       if (!response.ok){
         console.error("Failed to end interview session");
       }
       const res = await response.json();
-      console.log("Interview ended: ",res);
       successToast('Interview ended successfully');
     }
     catch(error){
       console.error("Failed to end interview:", error);
     }
-
-    // 3. Cleanup UI
-    exitFullscreen();
-    onInterviewEnd();
-    onClose();
   };
 
   const handleVapiFailure = async () => {
-    console.log("vapi failure...");
     if (hasSubmittedRef.current) return;
   
     console.error("Vapi disconnected — auto ending interview");
   
-    await handleAutoSubmit();
+    await handleSubmit();
   };
-
-  const handleToolCall = async (call) => {
-    console.log("🛠 Tool call received:", call);
-  
-    if (!call?.name || !call?.arguments) return;
-  
-    switch (call.name) {
-    
-      case "log_question_metadata": {
-        const {
-          question,
-          difficultyLevel,
-          section
-        } = call.arguments;
-      
-        if (!question) return;
-      
-        setInterviewConversation((prev) => [
-          ...prev,
-          {
-            interviewId: interviewDetails?.interviewId,
-            question,
-            section,
-            difficultyLevel,
-            candidateAnswer: "",
-            correct: null,
-            aiFeedback: "",
-            askedAt: new Date().toISOString()
-          }
-        ]);
-      
-        return;
-      }
-    
-      case "log_candidate_evaluation": {
-        const {
-          question,
-          candidateAnswer,
-          correct,
-          aiFeedback
-        } = call.arguments;
-      
-        setInterviewConversation((prev) => {
-          const updated = [...prev];
-        
-          for (let i = updated.length - 1; i >= 0; i--) {
-            if (
-              updated[i].question === question &&
-              updated[i].candidateAnswer === ""
-            ) {
-              updated[i] = {
-                ...updated[i],
-                candidateAnswer,
-                correct,
-                aiFeedback
-              };
-              break;
-            }
-          }
-        
-          return updated;
-        });
-      
-        updateVapiMemoryFromConversation(interviewConversation);
-        return;
-      }
-    
-      case "end_interview": {
-        console.log("🏁 Interview completed:", call.arguments?.reason);
-      
-        if (!hasSubmittedRef.current) {
-          hasSubmittedRef.current = true;
-          await handleAutoSubmit();
-        }
-      
-        return;
-      }
-    
-      default:
-        console.warn("⚠️ Unknown tool call:", call.name);
-        return;
-    }
-  };
-
-function updateVapiMemoryFromConversation(conversation) {
-  const remaining = timeRemainingRef.current;
-  const remainingDuration = (remaining / 60).toFixed(2);
-  const lastTwo = conversation.slice(-2);
-
-  const contextLines = lastTwo
-    .map((turn, i) => {
-      return `
-Turn ${i + 1}:
-Question: ${turn.content}
-Candidate Answer: ${turn.candidateAnswer || "N/A"}
-Correct: ${turn.correct ?? "N/A"}
-Difficulty: ${turn.difficultyLevel ?? "N/A"}
-`;
-    })
-    .join("\n");
-
-  vapiRef.current?.send({
-    type: "input_text",
-    text: `
-INTERVIEW CONTEXT (LAST 2 TURNS):
-
-${contextLines}
-
-Rules:
-- Adjust difficulty using correctness
-- Avoid repeating questions
-- Ask ONE question next
-
-TIME CONTEXT:
-- interviewDuration: ${interviewDetails?.durationMin}
-- remainingDuration: ${remainingDuration}
-`
-  });
-}
   
   // Handle fullscreen changes
   const handleFullscreenChange = useCallback(() => {
@@ -679,39 +454,29 @@ TIME CONTEXT:
   }, [enterFullscreen, logViolation]);
 
   // Handle submit
-  const handleSubmit = useCallback(async () => {
-    console.log("submitting interview...");
+  const handleSubmit = async() => {
+    setShowEndInterviewModal(false);
     setIsSubmitting(true);
+    if (vapiRef.current) {
+      console.log("Stopping Vapi call...");
+      vapiRef.current.stop();
+      vapiRef.current = null;
+    }
     await handleEndInterview();
     await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate submission
     
     stopProctoring();
+    setIsSubmitting(false);
     exitFullscreen();
     onInterviewEnd();
-    setShowEndInterviewModal(false);
     onClose();
-  }, [exitFullscreen, onInterviewEnd]);
-
-  // Auto submit when time ends
-  const handleAutoSubmit = useCallback(async () => {
-    console.log("auto-submitting interview...");
-    if (hasSubmittedRef.current) return;
-    hasSubmittedRef.current = true;
-    setIsAutomaticallySubmitting(true);
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    await handleSubmit();
-    setIsAutomaticallySubmitting(false);
-  }, [handleSubmit]);
+  };
 
   // Format time
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const toggleMic = () => {
-    setMicOpen((v) => !v);
   };
 
   const getTimeColor = () => {
@@ -748,23 +513,13 @@ TIME CONTEXT:
                 </div>
 
                 {/* Status badge - responsive visibility */}
-                <div className={`px-1.5 py-0.5 xs:px-2 xs:py-1 sm:px-3 sm:py-1.5 rounded-full text-[10px] xs:text-xs sm:text-sm font-semibold border transition-all flex-shrink-0 ${
-                  isInterviewStarted 
-                    ? 'text-red-700 bg-red-50 border-red-200 shadow-sm' 
-                    : 'text-emerald-700 bg-emerald-50 border-emerald-200'
-                } hidden xs:flex ml-1 xs:ml-2`}>
-                  {isInterviewStarted ? (
+                <div className={`px-1.5 py-0.5 xs:px-2 xs:py-1 sm:px-3 sm:py-1.5 rounded-full text-[10px] xs:text-xs sm:text-sm font-semibold border transition-all flex-shrink-0 
+                  text-red-700 bg-red-50 border-red-200 shadow-sm hidden xs:flex ml-1 xs:ml-2`}>
                     <span className="flex items-center space-x-1 xs:space-x-1.5">
                       <span className="w-1.5 h-1.5 bg-red-600 rounded-full animate-pulse"></span>
                       <span className="hidden sm:inline">REC</span>
                       <span className="hidden md:inline">ORDING</span>
                     </span>
-                  ) : (
-                    <span className="flex items-center space-x-1 xs:space-x-1.5">
-                      <CheckCircle2 className="w-2.5 h-2.5 xs:w-3 xs:h-3" />
-                      <span className="hidden sm:inline">SECURE</span>
-                    </span>
-                  )}
                 </div>
               </div>
             </div>
@@ -1124,7 +879,7 @@ TIME CONTEXT:
                     Back
                   </button>
                   <button
-                    onClick={()=> {handleAutoSubmit();}}
+                    onClick={()=> {handleSubmit();}}
                     className="cursor-pointer px-3 xs:px-4 py-1.5 xs:py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-xs xs:text-sm"
                   >
                     Proceed
@@ -1136,7 +891,7 @@ TIME CONTEXT:
         )}
 
         {/* Automatic submission */}
-        {isAutomaticallySubmitting && (
+        {isSubmitting && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-2 xs:p-3 sm:p-4 cursor-progress">
             <div className="bg-white backdrop-blur-md rounded-lg xs:rounded-xl sm:rounded-2xl p-4 xs:p-6 sm:p-8 max-w-xs xs:max-w-sm sm:max-w-md w-full shadow-xl border border-slate-200">
               <div className="w-12 h-12 xs:w-16 xs:h-16 sm:w-20 sm:h-20 bg-blue-50 rounded-lg xs:rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-4 xs:mb-6 shadow-inner animate-pulse">

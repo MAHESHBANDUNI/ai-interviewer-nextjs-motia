@@ -243,9 +243,9 @@ export default function InterviewProfile({ candidateId}) {
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { 
-      weekday: 'long', 
+      weekday: 'short', 
       year: 'numeric', 
-      month: 'long', 
+      month: 'short', 
       day: 'numeric' 
     });
   };
@@ -262,52 +262,62 @@ export default function InterviewProfile({ candidateId}) {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         {/* Header Section */}
-        <div className="bg-white rounded-2xl shadow-xl p-6 mb-8 animate-fade-in">
-          <div className="flex flex-col lg:flex-row items-center lg:items-start justify-between gap-6">
-            <div className="flex items-center gap-6">
+        <div className="bg-white rounded-2xl shadow-xl p-4 sm:p-6 mb-6 sm:mb-8 animate-fade-in">
+          <div className="flex flex-col md:flex-row items-start justify-between gap-4 sm:gap-6">
+            {/* Candidate Info Section */}
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6 w-full lg:w-auto">
+              {/* Avatar */}
               <div className="flex-shrink-0">
-                <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-lg">
-                  {interviews[0]?.candidate?.firstName[0]}{interviews[0]?.candidate?.lastName[0]}
+                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white text-lg sm:text-xl font-bold shadow-lg">
+                  {interviews[0]?.candidate?.firstName?.[0] || ''}{interviews[0]?.candidate?.lastName?.[0] || ''}
                 </div>
               </div>
-              <div>
-                <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-1">
-                  {interviews[0]?.candidate?.firstName} {interviews[0]?.candidate?.lastName}
+
+              {/* Candidate Details */}
+              <div className="text-center sm:text-left flex-1">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-1">
+                  {interviews[0]?.candidate?.firstName || 'N/A'} {interviews[0]?.candidate?.lastName || ''}
                 </h1>
-                <p className="text-gray-600 mb-3">Interview Performance Analysis</p>
-                <div className="flex flex-wrap gap-4">
-                  <div className="flex items-center gap-2 text-gray-700">
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <p className="text-gray-600 mb-2 sm:mb-3 text-sm sm:text-base">Interview Performance Analysis</p>
+
+                {/* Stats */}
+                <div className="flex flex-wrap justify-center sm:justify-start gap-2 sm:gap-4">
+                  <div className="flex items-center gap-1 sm:gap-2 text-gray-700 text-xs sm:text-sm">
+                    <svg className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/>
                     </svg>
-                    <span className="text-sm">{interviews.length} Interview{interviews.length > 1 ? 's' : ''}</span>
+                    <span>{interviews.length} Interview{interviews.length !== 1 ? 's' : ''}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-gray-700">
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+
+                  <div className="flex items-center gap-1 sm:gap-2 text-gray-700 text-xs sm:text-sm">
+                    <svg className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
                     </svg>
-                    <span className="text-sm">Latest Score: {interviews[0]?.interviewProfile?.performanceScore || 'N/A'}</span>
+                    <span>Latest: {interviews[0]?.interviewProfile?.performanceScore || 'N/A'}</span>
                   </div>
                 </div>
               </div>
             </div>
-            
-            {/* Interview Selector */}
-            <div className="flex-shrink-0">
-              <select 
-                value={selectedInterview?.interviewId || ''}
-                onChange={(e) => {
-                  const interview = interviews.find(i => i.interviewId === e.target.value);
-                  setSelectedInterview(interview);
-                }}
-                className="bg-white border border-gray-300 rounded-xl px-4 py-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                {interviews.map((interview) => (
-                  <option key={interview.interviewId} value={interview.interviewId} className="bg-white group-hover:bg-gray-100">
-                    {formatDate(interview.scheduledAt)} - {interview.status.charAt(0).toUpperCase() + interview.status.slice(1).toLowerCase()}
-                  </option>
-                ))}
-              </select>
+
+            {/* Interview Selector - Mobile stacked, Desktop inline */}
+            <div className="flex-shrink-0 w-full sm:w-auto mt-4 sm:mt-0">
+              <div className="w-auto sm:w-auto flex flex-row items-center sm:items-end gap-1.5 sm:gap-1.5">
+                <p className="text-gray-800 text-sm sm:text-base whitespace-nowrap p-2 font-semibold">Dated:</p>
+                <select 
+                  value={selectedInterview?.interviewId || ''}
+                  onChange={(e) => {
+                    const interview = interviews.find(i => i.interviewId === e.target.value);
+                    setSelectedInterview(interview);
+                  }}
+                  className="w-full sm:w-auto bg-white border border-gray-300 rounded-xl px-3 sm:px-4 py-2 text-gray-700 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-[150px]"
+                >
+                  {interviews.map((interview) => (
+                    <option key={interview.interviewId} value={interview.interviewId}>
+                      {formatDate(interview.scheduledAt)}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
         </div>
