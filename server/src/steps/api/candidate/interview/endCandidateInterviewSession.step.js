@@ -27,6 +27,7 @@ export const handler = async (req,{emit, logger}) => {
           }
         }
         const result = await CandidateService.endInterview({userId, interviewId, completionMin, interviewConversation});
+        logger.info("result: ",result);
         if(!result){
             logger.error('Failed to end interview session');
             return {
@@ -43,7 +44,8 @@ export const handler = async (req,{emit, logger}) => {
             topic: 'generate.candidate.interview.profile',
             data: {
               candidateId: userId,
-              interviewId: interviewId
+              interviewId: interviewId,
+              interviewConversation: interviewConversation
             }
           });
         }

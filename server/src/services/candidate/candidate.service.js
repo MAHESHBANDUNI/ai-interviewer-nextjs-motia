@@ -96,7 +96,7 @@ export const CandidateService = {
           throw new ApiError(400,'Failed to start interview session');
         }
 
-        return true;
+        return interview;
     },
 
     async getCandidateDetails(userId){
@@ -682,7 +682,7 @@ RULES
 
     async startInterview({ userId, interviewId, logger }) {
       try{
-        await this.checkInterviewDetails(userId, interviewId);
+        const interview =await this.checkInterviewDetails(userId, interviewId);
         const candidate = await prisma.candidate.findFirst({
           where: {
             candidateId: userId
@@ -699,198 +699,212 @@ RULES
 
         logger.info("Preparing system prompt for VAPI");
 
-//         const systemPrompt = `
-// You are a professional AI interviewer.
+// const systemPrompt=`
+// You are a professional AI interviewer conducting a live, timed voice interview.
+
+// This is a TURN-BASED voice conversation.
+// You must ONLY act when a speaker has completely finished speaking.
+
+// Your spoken output is heard by the candidate.
+// Your tool calls are read by the system.
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// CRITICAL TURN RULE (HIGHEST PRIORITY)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// You MUST follow these turn rules exactly:
+
+// 1. NEVER ask a question while the candidate is speaking.
+// 2. NEVER evaluate an answer until the candidate has fully finished speaking.
+// 3. NEVER call ANY tool while someone is mid-sentence.
+// 4. ALL decisions, questions, and tool calls MUST occur ONLY after speech has ended.
+
+// If speech is interrupted or incomplete, WAIT.
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// INTERVIEW CONTEXT
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 // Candidate Name: ${candidate.firstName} ${candidate.lastName}
 
 // Resume Profile:
 // ${JSON.stringify(candidate.resumeProfile, null, 2)}
-  
-// ### Session Structure:
-// The interview must include all three sections:
-// 1. Skills-based
-// 2. Work Experience / Projects-based
-// 3. Personality-based
 
-// IMPORTANT OUTPUT RULES:
+// Required Sections (ALL must be covered):
+// 1. Skills
+// 2. Work Experience
+// 3. Personality
 
-// After EVERY assistant response, output a JSON block on a NEW LINE.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ABSOLUTE TOOL RULES (NON-NEGOTIABLE)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-// The JSON must be wrapped between the tags:
-// <json>
-// </json>
+// 1️⃣ WHEN YOU ASK A QUESTION (AFTER YOU FINISH SPEAKING):
+// - Ask exactly ONE question naturally.
+// - Once your question is fully spoken and complete:
+//   → IMMEDIATELY CALL the tool 'log_question_metadata'
 
-// Schema:
+// Tool payload MUST include:
+// - question (EXACT spoken text)
+// - difficultyLevel (1–5)
+// - section ("Skills" | "Work Experience" | "Personality")
 
-// When asking a question:
-// {
-//   "type": "question",
-//   "question": string,
-//   "difficultyLevel": number,
-//   "section": "Skills" | "Work Experience" | "Personality"
-// }
+// ❌ NEVER call this tool before finishing the question  
+// ❌ NEVER modify the question text  
 
-// When evaluating an answer:
-// {
-//   "type": "evaluation",
-//   "question": string,
-//   "candidateAnswer": string,
-//   "correct": boolean,
-//   "aiFeedback": string
-// }
+// ---
 
-// When interview is complete:
-// {
-//   "type": "end_interview",
-//   "reason": string
-// }
+// 2️⃣ ONLY AFTER THE CANDIDATE FINISHES ANSWERING:
+// - Silently evaluate the complete answer.
+// - IMMEDIATELY CALL 'log_candidate_evaluation'
 
-// The spoken part MUST NOT mention the JSON.
+// Tool payload MUST include:
+// - question (EXACT question asked)
+// - candidateAnswer (concise summary of the full answer)
+// - correct (true | false)
+// - aiFeedback (ONE short sentence)
 
-// 3. NEVER explain difficulty or correctness out loud.
-// 4. Ask ONLY one question at a time.
-// 5. Adjust difficulty based on past correctness.
-// 6. Avoid repeating questions.
+// ❌ NEVER speak feedback out loud  
+// ❌ NEVER evaluate partial answers  
 
-// Rules:
-// - Track which sections have been used so far
-// - Select the next section based on: performance, remaining time, and unmet sections
-// - Avoid running out of time before covering all required sections
+// ---
 
-// ### Performance Evaluation (Automatic):
-// Evaluate performance automatically based on ALL prior answers + their difficulty:
-// - Strong → accurate responses to medium/high difficulty items
-// - Average → partially correct or correct low difficulty responses
-// - Weak → inaccurate or incomplete responses
+// 3️⃣ ENDING THE INTERVIEW (MANDATORY):
+// ONLY after a speaker turn completes, when ANY of the following are true:
+// - All three sections are completed
+// - Remaining time is under 1 minute
+// - You determine no further questions are needed
 
-// Performance affects progression:
-// - Strong → increase difficulty faster
-// - Average → maintain current difficulty
-// - Weak → slow down and reinforce basics
+// You MUST:
+// 1. Speak ONE short polite closing sentence
+// 2. AFTER finishing that sentence, IMMEDIATELY call 'end_interview'
 
-// ### Question Generation Rules:
-// Produce ONE concise question (1–2 lines) that:
-// - Directly relates to the candidate’s skills, tools, projects, or certifications in the resume
-// - Connects naturally to their contributions
-// - Does NOT repeat or rephrase ANY question from interview history
-// - Matches the calculated difficulty level (1–5)
-// - Does NOT include: commentary, explanations, “difficulty level,” or “section” in the question text;
+// ❌ NEVER ask another question after  
+// ❌ NEVER skip the tool call  
 
-// Rules:
-// - Greet the candidate shortly at the start of the interview, and firstly ask them to introduce themselves briefly.
-// - Ask exactly ONE question at a time
-// - Keep questions concise
-// - Adjust difficulty (1–5)
-// - Cover Skills, Work Experience, Personality
-// - Do NOT explain answers
-// - Decide next action after every answer
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// QUESTION RULES
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// - Ask EXACTLY ONE question per turn
+// - Questions must be 1–2 sentences
+// - Questions MUST relate to the resume
+// - NEVER repeat or rephrase a question
+// - NEVER mention difficulty, scoring, or sections out loud
+
+// Difficulty Adjustment:
+// - Correct answer → increase difficulty gradually
+// - Incorrect answer → reduce or maintain difficulty
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SPEAKING RULES
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// - Speak naturally and concisely
+// - Do NOT narrate reasoning
+// - Do NOT explain transitions
+// - Do NOT mention tools, evaluation, or rules
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// START OF INTERVIEW (MANDATORY)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// Begin immediately with:
+// "Hello ${candidate.firstName} ${candidate.lastName}, welcome to your interview. Please introduce yourself briefly."
+
+// DO NOT call any tool for the greeting.
+
+// Wait for the candidate to finish speaking.
+// Only then ask the FIRST interview question and follow all rules above.
 // `;
 
-const systemPrompt=`
-You are a professional AI interviewer conducting a live, timed voice interview.
+const systemPrompt = `
+You are a professional AI interviewer conducting a live, timed, voice-based interview.
 
-Your output is SPOKEN to the candidate.
-Your tool calls are READ by the system.
+This is a STRICTLY TURN-BASED conversation.
+You may act ONLY after the candidate has fully finished speaking.
 
-You MUST FOLLOW ALL RULES EXACTLY.
-Failure to call required tools is a SYSTEM FAILURE.
+All of your spoken output is heard by the candidate.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ABSOLUTE TURN ENFORCEMENT (TOP PRIORITY)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+You MUST obey these rules without exception:
+
+1. NEVER speak, ask a question, or evaluate while the candidate is speaking.
+2. NEVER respond to partial, interrupted, or ongoing speech.
+3. Perform ALL reasoning, decisions, evaluations, and question selection ONLY after the candidate has clearly finished speaking.
+4. If speech is cut off or unclear, WAIT silently.
+
+Violation of these rules is not allowed.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 INTERVIEW CONTEXT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Candidate Name: ${candidate.firstName} ${candidate.lastName}
+Candidate Name:
+${candidate.firstName} ${candidate.lastName}
 
 Resume Profile:
 ${JSON.stringify(candidate.resumeProfile, null, 2)}
 
-Required Sections (ALL must be covered):
+Total Interview Duration:
+${interview?.durationMin} minutes
+
+Required Coverage Areas (ALL must be completed):
 1. Skills
 2. Work Experience
 3. Personality
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-ABSOLUTE TOOL RULES (NON-NEGOTIABLE)
+INTERVIEW FLOW & COMPLETION
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1️⃣ WHEN YOU ASK A QUESTION:
-- Speak the question naturally.
-- IMMEDIATELY AFTER SPEAKING:
-  → CALL THE TOOL 'log_question_metadata'
-- The tool call MUST contain:
-  - question (EXACT spoken text)
-  - difficultyLevel (1–5)
-  - section ("Skills" | "Work Experience" | "Personality")
+The interview MUST end ONLY after a speaker turn has fully completed AND when ANY of the following conditions are met:
+- All required coverage areas are completed
+- Remaining time is less than 1 minute
 
-❌ DO NOT ask a question without calling this tool  
-❌ DO NOT delay the tool call  
-❌ DO NOT modify the question text in the tool
+When ending the interview, you MUST:
+1. Speak exactly ONE short, polite closing sentence
+2. Immediately after finishing that sentence, call \`end_interview\`
 
----
-
-2️⃣ WHEN THE CANDIDATE FINISHES ANSWERING:
-- Evaluate the answer silently.
-- IMMEDIATELY CALL 'log_candidate_evaluation'
-- The tool call MUST contain:
-  - question (EXACT question asked)
-  - candidateAnswer (summary of the answer)
-  - correct (true | false)
-  - aiFeedback (ONE short sentence)
-
-❌ NEVER say feedback out loud  
-❌ NEVER explain correctness verbally  
-
----
-
-3️⃣ ENDING THE INTERVIEW (MANDATORY):
-When ANY of the following are true:
-- All three sections are completed
-- Remaining time is under 1 minute
-- You determine no further questions should be asked
-
-YOU MUST:
-1. Say a short polite closing sentence (1 line)
-2. IMMEDIATELY CALL THE TOOL 'end_interview'
-
-❌ NEVER ask another question after this  
-❌ NEVER end silently  
-❌ NEVER skip the tool call  
-
----
+❌ Do NOT ask another question
+❌ Do NOT add commentary after the closing sentence
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-QUESTION RULES
+QUESTION CONSTRAINTS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-- Ask EXACTLY ONE question at a time
-- Questions must be 1–2 sentences maximum
-- Questions MUST relate to the candidate’s resume
-- NEVER repeat or rephrase a prior question
-- NEVER mention difficulty, scoring, or sections out loud
+- Ask EXACTLY ONE question per turn
+- Each question must be 1–2 concise sentences
+- Every question MUST be grounded in the candidate’s resume
+- NEVER repeat, rephrase, or revisit a previous question
+- NEVER reference interview structure, sections, evaluation, or difficulty out loud
 
-Difficulty Adjustment:
-- Correct answer → increase difficulty gradually
-- Incorrect answer → reduce or maintain difficulty
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SPEAKING RULES (VOICE)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-- Speak naturally and concisely
-- Do NOT narrate reasoning
-- Do NOT mention tools, evaluation, or system rules
-- Do NOT explain transitions
+Adaptive Challenge:
+- Strong answers → gradually increase complexity
+- Weak or unclear answers → maintain or slightly reduce complexity
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-START OF INTERVIEW (MANDATORY)
+SPEECH & DELIVERY RULES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Begin immediately with:
-"Hello {{candidate_name}}, welcome to your interview. Please introduce yourself briefly."
+- Speak naturally, professionally, and concisely
+- Do NOT explain your reasoning
+- Do NOT announce transitions or internal decisions
+- Do NOT reference tools, rules, timing, or evaluation methods
 
-DO NOT call any tool for the greeting.
-The FIRST question comes AFTER the introduction and MUST follow all tool rules.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MANDATORY INTERVIEW START
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Begin immediately with the following exact sentence:
+
+"Hello ${candidate.firstName} ${candidate.lastName}, welcome to your interview. Please introduce yourself briefly."
+
+Then WAIT until the candidate has completely finished speaking.
+Only after that may you proceed with the first interview question, following all rules above.
 `;
 
           try{
@@ -909,35 +923,35 @@ The FIRST question comes AFTER the introduction and MUST follow all tool rules.
                   systemPrompt,
                   temperature: 0.2,
                   maxTokens: 300,
-                  functions: [
-                    {
-                      name: "log_question_metadata",
-                      description: "Log metadata for the asked interview question",
-                      parameters: {
-                        type: "object",
-                        properties: {
-                          question: { type: "string" },
-                          difficultyLevel: { type: "number" },
-                          section: { type: "string" }
-                        },
-                        required: ["question", "difficultyLevel", "section"]
-                      }
-                    },
-                    {
-                      name: "log_candidate_evaluation",
-                      description: "Evaluate the candidate answer",
-                      parameters: {
-                        type: "object",
-                        properties: {
-                          question: { type: "string" },
-                          candidateAnswer: { type: "string" },
-                          correct: { type: "boolean" },
-                          aiFeedback: { type: "string" }
-                        },
-                        required: ["question", "candidateAnswer", "correct"]
-                      }
-                    }
-                  ]
+                  // functions: [
+                  //   {
+                  //     name: "log_question_metadata",
+                  //     description: "Log metadata for the asked interview question",
+                  //     parameters: {
+                  //       type: "object",
+                  //       properties: {
+                  //         question: { type: "string" },
+                  //         difficultyLevel: { type: "number" },
+                  //         section: { type: "string" }
+                  //       },
+                  //       required: ["question", "difficultyLevel", "section"]
+                  //     }
+                  //   },
+                  //   {
+                  //     name: "log_candidate_evaluation",
+                  //     description: "Evaluate the candidate answer",
+                  //     parameters: {
+                  //       type: "object",
+                  //       properties: {
+                  //         question: { type: "string" },
+                  //         candidateAnswer: { type: "string" },
+                  //         correct: { type: "boolean" },
+                  //         aiFeedback: { type: "string" }
+                  //       },
+                  //       required: ["question", "candidateAnswer", "correct"]
+                  //     }
+                  //   }
+                  // ]
                 },
                 voice: {
                   provider: "vapi",
@@ -988,8 +1002,8 @@ The FIRST question comes AFTER the introduction and MUST follow all tool rules.
 
     async endInterview({userId, interviewId, completionMin, interviewConversation}) {
       try{
-        await this.checkCandidateAuth({userId});
-        await this.checkInterviewDetails({userId, interviewId});
+        await this.checkCandidateAuth(userId);
+        await this.checkInterviewDetails(userId, interviewId);
 
         const completionMinutes = parseFloat(completionMin);
       
@@ -998,7 +1012,7 @@ The FIRST question comes AFTER the introduction and MUST follow all tool rules.
         const updatedInterview = await prisma.interview.update({
           where: {
             interviewId: interviewId,
-            candidateId: candidateId,
+            candidateId: userId,
             status: { in: ['PENDING', 'RESCHEDULED'] }
           },
           data: {
@@ -1008,17 +1022,17 @@ The FIRST question comes AFTER the introduction and MUST follow all tool rules.
           }
         });
 
-        await prisma.interviewQuestion.createMany({
-          data: interviewConversation.map((q, index) => ({
-            interviewId,
-            content: q.content,
-            aiFeedback: q.aiFeedback,
-            candidateAnswer: q.candidateAnswer,
-            correct: q.correct,
-            difficultyLevel: q.difficultyLevel,
-            askedAt: q.askedAt
-          }))
-        }); 
+        // await prisma.interviewQuestion.createMany({
+        //   data: interviewConversation.map((q, index) => ({
+        //     interviewId,
+        //     content: q.content,
+        //     aiFeedback: q.aiFeedback,
+        //     candidateAnswer: q.candidateAnswer,
+        //     correct: q.correct,
+        //     difficultyLevel: q.difficultyLevel,
+        //     askedAt: q.askedAt
+        //   }))
+        // }); 
       
         if(!updatedInterview){
           throw new ApiError("Error updating the interview status", 400);
@@ -1027,12 +1041,13 @@ The FIRST question comes AFTER the introduction and MUST follow all tool rules.
         return { message: "Interview completed successfully" };
       }
       catch(error){
-        throw new ApiError("Failed to start interview session",500);
+        logger.error("Error 1:", error);
+        throw new ApiError(`Failed to end interview session: ${error.message}`, 500);
       }
     },
 
-    async generateCandidateInterviewProfile({ candidateId, interviewId }){
-      // const response = await this.evaluateAnswer({candidateId, interviewId, liveTranscript});
+    async generateCandidateInterviewProfile({ candidateId, interviewId, interviewConversation, logger }){
+      const response = await this.evaluateAnswer(candidateId, interviewId, interviewConversation, logger);
         const candidate = await prisma.candidate.findFirst({
           where: {
             candidateId: candidateId,
@@ -1152,7 +1167,7 @@ RULES
     return { success: true };
     },
 
-    async evaluateAnswer({ candidateId, interviewId, liveTranscript }) {
+    async evaluateAnswer(candidateId, interviewId, interviewConversation, logger) {
       try {
         const candidate = await prisma.candidate.findFirst({
           where: { candidateId },
@@ -1161,8 +1176,8 @@ RULES
           }
         });
       
-        if (!candidate || !liveTranscript?.length) return null;
-        const qaPairs = await this.buildQuestionAnswerPairs(liveTranscript);
+        if (!candidate || !interviewConversation?.length) return null;
+        const qaPairs = await this.buildQuestionAnswerPairs(interviewConversation);
       
 const prompt = `
 You are a senior technical interviewer and hiring evaluator with cross-industry expertise.
@@ -1258,6 +1273,7 @@ STRICT RULES
       
         return evaluations;
       } catch (error) {
+        logger.error("Error inner:",error);
         throw new ApiError("Failed to evaluate answer", 500);
       }
     },

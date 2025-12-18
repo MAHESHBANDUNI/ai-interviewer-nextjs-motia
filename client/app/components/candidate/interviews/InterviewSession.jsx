@@ -45,6 +45,98 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }
   const [isInterviewStarted, setIsInterviewStarted] = useState(false);
   const [candidateProfile, setCandidateProfile] = useState('');
   const [assemblyAIToken, setAssemblyAIToken] = useState('');
+  const conversationSample = [
+  {
+    id: "51aa5945-e43f-4fb6-b212-0c2fa1cc646b",
+    speaker: "user",
+    text: "Hi, can you help me with JavaScript?",
+    timestamp: "2025-12-15T05:00:00.000Z"
+  },
+  {
+    id: "8b6c8c4f-9d63-4f47-8a1a-9c1c3bda1a01",
+    speaker: "assistant",
+    text: "Of course! What do you need help with?",
+    timestamp: "2025-12-15T05:00:05.000Z"
+  },
+  {
+    id: "c7cfe3a6-41c3-4f63-bc68-2fdcbd4a1c12",
+    speaker: "user",
+    text: "I need sample conversation data for my chat app.",
+    timestamp: "2025-12-15T05:00:15.000Z"
+  },
+  {
+    id: "e91a2b44-7f91-4c4f-9d7b-8e0b93c6f221",
+    speaker: "assistant",
+    text: "Sure, I can generate an example conversation for you.",
+    timestamp: "2025-12-15T05:00:22.000Z"
+  },
+  {
+    id: "3b9c7a7e-1c32-4f1e-a7c2-7c99b40df002",
+    speaker: "user",
+    text: "Great! I need around 15 messages.",
+    timestamp: "2025-12-15T05:00:30.000Z"
+  },
+  {
+    id: "9fdad1d1-b78b-4d61-a7f4-6f77a98bcb11",
+    speaker: "assistant",
+    text: "No problem. I’ll include realistic timestamps and IDs.",
+    timestamp: "2025-12-15T05:00:38.000Z"
+  },
+  {
+    id: "1c8c5b4a-4f62-44dd-8e5f-0a1c87a3d333",
+    speaker: "user",
+    text: "Please make sure it alternates between user and assistant.",
+    timestamp: "2025-12-15T05:00:45.000Z"
+  },
+  {
+    id: "6d9e2c5f-2a54-4c8a-8a66-7c9e6eaf9222",
+    speaker: "assistant",
+    text: "Got it. Alternating speakers makes the UI easier to test.",
+    timestamp: "2025-12-15T05:00:52.000Z"
+  },
+  {
+    id: "b84f17c1-9a3f-46d1-a3fd-3f6b0f1b1444",
+    speaker: "user",
+    text: "Should timestamps be numbers or ISO strings?",
+    timestamp: "2025-12-15T05:01:00.000Z"
+  },
+  {
+    id: "2a7c4e5d-1c25-4a9f-9e3a-7d9a6f88a555",
+    speaker: "assistant",
+    text: "ISO strings are usually better for readability and debugging.",
+    timestamp: "2025-12-15T05:01:08.000Z"
+  },
+  {
+    id: "7f3b1a9c-3b6d-4e42-8b7e-91b0c3a16666",
+    speaker: "user",
+    text: "That makes sense.",
+    timestamp: "2025-12-15T05:01:15.000Z"
+  },
+  {
+    id: "4a6f9c8d-71e3-4c35-bf3e-9a8f14b97777",
+    speaker: "assistant",
+    text: "You can always convert them to Date objects when needed.",
+    timestamp: "2025-12-15T05:01:22.000Z"
+  },
+  {
+    id: "e1a3b4c6-9f44-4b9e-9d2a-3e6f8c2a8888",
+    speaker: "user",
+    text: "Thanks, this will help a lot.",
+    timestamp: "2025-12-15T05:01:30.000Z"
+  },
+  {
+    id: "5c7a1f92-5c42-4f89-9d18-6f0c2d0a9999",
+    speaker: "assistant",
+    text: "Happy to help! Let me know if you need anything else.",
+    timestamp: "2025-12-15T05:01:38.000Z"
+  },
+  {
+    id: "9b2c1f44-0e67-4e32-bd41-7f2a1cbbbbbb",
+    speaker: "assistant",
+    text: "Good luck with your chat app 🚀",
+    timestamp: "2025-12-15T05:01:45.000Z"
+  }
+];
 
   const [interviewConversation, setInterviewConversation] = useState([]);
   
@@ -75,7 +167,7 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }
 
   const startCalledRef = useRef(false);
 
-    const startVideoStream = async () => {
+  const startVideoStream = async () => {
     const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
     if (videoRef.current) {
       videoRef.current.srcObject = videoStream;
@@ -95,21 +187,22 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }
   useEffect(() => {
     if (!startCalledRef.current && !isInterviewStarted) { 
       startCalledRef.current = true;
+      enterFullscreen();
       startProctoring();
       handleStartInterview();
     }
   }, []);
 
   // Initialize fullscreen and proctoring
-  useEffect(() => {
-    enterFullscreen();
-      // toggleMic();
+  // useEffect(() => {
+  //   enterFullscreen();
+  //     // toggleMic();
 
-    return () => {
-      setMicOpen(false);
-      exitFullscreen();
-    };
-  }, []);
+  //   return () => {
+  //     setMicOpen(false);
+  //     exitFullscreen();
+  //   };
+  // }, []);
 
   // Timer effect
   useEffect(() => {
@@ -327,7 +420,7 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }
     setLiveTranscript((prev) => [
       ...prev,
       {
-        id: crypto.randomUUID(),
+        id: liveTranscript.length + 1,
         speaker: "assistant",
         text: assistantBufferRef.current,
         timestamp: Date.now()
@@ -342,133 +435,19 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }
 
     vapi.on("speech-start", () => setMicOpen(false));
     vapi.on("speech-end", () => setMicOpen(true));
-    // vapi.on("speech-end", () => {
-    //   flushAssistantBuffer();
-    // });
 
-
-    // 🎙 Capture transcript
-
-//     vapi.on("message", (message) => {
-//   if (message.type !== "transcript") return;
-//   if (!message.transcript?.trim()) return;
-
-//   // Gemini control JSON (assistant only)
-//   if (message.role !== "assistant") return;
-
-//   const match = message.transcript.match(/<json>([\s\S]*?)<\/json>/);
-//   if (!match) return;
-
-//   try {
-//     const payload = extractJSON(turn.content);
-//     if (!payload) return;
-
-//     switch (payload.type) {
-//       case "question":
-//         handleQuestion(payload);
-//         break;
-
-//       case "evaluation":
-//         handleEvaluation(payload);
-//         queueMicrotask(() =>
-//           updateVapiMemoryFromConversation(
-//             [...fullTranscriptRef.current]
-//           )
-//         );
-//         break;
-
-//       case "end_interview":
-//         handleEndInterview();
-//         break;
-//     }
-//   } catch (err) {
-//     console.error("Invalid Gemini JSON:", err);
-//   }
-// });
-
-
-// vapi.on("message", (message) => {
-//   if (message.type !== "conversation-update") return;
-
-//   const conversation = message.conversation || [];
-
-//   console.log("Canonical conversation:", conversation);
-
-//   // Transcript (UI only)
-//   setLiveTranscript(
-//     conversation
-//       .slice(1) // skip system
-//       .map((item, idx) => ({
-//         id: idx + 1,
-//         speaker: item.role,
-//         text: stripJSON(item.content)
-//       }))
-//   );
-
-//   // Logic (ONLY assistant turns)
-//   for (
-//     let i = lastProcessedIndexRef.current;
-//     i < conversation.length;
-//     i++
-//   ) {
-//     const turn = conversation[i];
-//     if (turn.role !== "assistant") continue;
-
-//     const payload = extractJSON(turn.content);
-//     if (!payload) continue;
-
-//     switch (payload.type) {
-//       case "question":
-//         handleQuestion(payload);
-//         break;
-//       case "evaluation":
-//         handleEvaluation(payload);
-//         queueMicrotask(() =>
-//           updateVapiMemoryFromConversation(
-//             [...interviewConversation]
-//           )
-//         );
-//         break;
-//       case "end_interview":
-//         handleAutoSubmit();
-//         break;
-//     }
-//   }
-
-//   lastProcessedIndexRef.current = conversation.length;
-// });
-
-    // vapi.on("message", (message) => {
-    //     if (message.type !== "conversation-update") return;
-
-    //     console.log("Received conversation update:", message);
-
-    //     const conversation = message.conversation.filter((item) => item.role !== 'system') || [];
-
-    //     setLiveTranscript(
-    //         conversation
-    //           .map((item) => ({
-    //             id: liveTranscript.length + 1,
-    //             speaker: item.role, // assistant | user
-    //             text: stripJSON(item.content),
-    //             timestamp: Date.now()
-    //           }))
-    //       );
-    //     fullTranscriptRef.current = conversation
-    // });
+    // vapi.on("message", (m) => console.log("MSG:", m));
 
     // Transcript generation
     vapi.on("message", (message) => {
       if (message.type !== "transcript") return;
       if (message.transcriptType !== "final") return;
     
-      console.log("Received transcript:", message);
-    
       setLiveTranscript((prev) => {
         // If no previous transcripts, create first item
         if (prev.length === 0) {
           return [{
-            id: crypto.randomUUID(),
+            id: liveTranscript.length + 1,
             speaker: message.role,
             text: message.transcript,
             timestamp: Date.now()
@@ -493,13 +472,19 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }
         return [
           ...prev,
           {
-            id: crypto.randomUUID(),
+            id: liveTranscript.length + 1,
             speaker: message.role,
             text: message.transcript,
             timestamp: Date.now()
           }
         ];
       });
+    });
+
+    vapi.on("message", (message) => {
+      if(!message || message.type !== "tool-calls") return;
+      console.log("Tool call message received:", message);
+      handleToolCall(message.toolCallList);
     });
 
     // ❌ Handle disconnect / error
@@ -511,13 +496,13 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }
       handleAutoSubmit();
     });
 
-    vapi.on("tool-call", handleToolCall);
+    // vapi.on("tool-calls", (call) => {
+    //   handleToolCall(call);
+    // });
   };
 
   const handleEndInterview = async () => {
     console.log("ending interview...");
-    if (hasSubmittedRef.current) return;
-    hasSubmittedRef.current = true;
 
     const completionMin =
       (interviewDetails?.durationMin * 60 - timeRemainingRef.current) / 60;
@@ -533,15 +518,16 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }
         body: JSON.stringify({
           interviewId: interviewDetails?.interviewId,
           completionMin,
-          interviewConversation: interviewConversation
+          interviewConversation: liveTranscript
         })
       });
+      console.log("Interview response: ",response);
       if (!response.ok){
         console.error("Failed to end interview session");
       }
       const res = await response.json();
       console.log("Interview ended: ",res);
-      errorToast('Interview ended successfully');
+      successToast('Interview ended successfully');
     }
     catch(error){
       console.error("Failed to end interview:", error);
@@ -569,9 +555,6 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }
   
     switch (call.name) {
     
-      // ─────────────────────────────────────────────
-      // 1️⃣ QUESTION ASKED
-      // ─────────────────────────────────────────────
       case "log_question_metadata": {
         const {
           question,
@@ -598,9 +581,6 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }
         return;
       }
     
-      // ─────────────────────────────────────────────
-      // 2️⃣ ANSWER EVALUATED
-      // ─────────────────────────────────────────────
       case "log_candidate_evaluation": {
         const {
           question,
@@ -634,9 +614,6 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }
         return;
       }
     
-      // ─────────────────────────────────────────────
-      // 3️⃣ END INTERVIEW (MANDATORY)
-      // ─────────────────────────────────────────────
       case "end_interview": {
         console.log("🏁 Interview completed:", call.arguments?.reason);
       
@@ -653,39 +630,6 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }
         return;
     }
   };
-
-function handleQuestion(data) {
-  setInterviewConversation((prev) => [
-    ...prev,
-    {
-      interviewId: interviewDetails.interviewId,
-      content: data.question,
-      candidateAnswer: "",
-      aiFeedback: "",
-      correct: null,
-      difficultyLevel: data.difficultyLevel,
-      askedAt: new Date().toISOString()
-    }
-  ]);
-}
-
-function handleEvaluation(data) {
-  setInterviewConversation((prev) => {
-    const updated = [...prev];
-    for (let i = updated.length - 1; i >= 0; i--) {
-      if (updated[i].candidateAnswer === "") {
-        updated[i] = {
-          ...updated[i],
-          candidateAnswer: data.candidateAnswer,
-          correct: data.correct,
-          aiFeedback: data.aiFeedback
-        };
-        break;
-      }
-    }
-    return updated;
-  });
-}
 
 function updateVapiMemoryFromConversation(conversation) {
   const remaining = timeRemainingRef.current;
@@ -864,8 +808,8 @@ TIME CONTEXT:
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto min-h-0">
-          <div className="flex flex-col lg:flex-row gap-4 p-4 max-w-[100vw] lg:max-w-7xl mx-auto">
+        <main className="flex-1 min-h-0 overflow-hidden">
+          <div className="flex flex-col lg:flex-row gap-4 p-4 max-w-[100vw] lg:max-w-7xl mx-auto h-full min-h-0">
           {/* Left Column - Video & AI */}
           <div className="flex-1 flex flex-col gap-4 min-h-0">
             {/* Video Section */}
@@ -908,7 +852,7 @@ TIME CONTEXT:
 
                   {/* Phone Button - only small screens */}
                   <button
-                    onClick={() => handleAutoSubmit()}
+                    onClick={() => setShowEndInterviewModal(true)}
                     className="cursor-pointer rounded-full p-2 xs:p-2.5 sm:p-3 md:p-4 transition-all duration-200 shadow-lg backdrop-blur-sm bg-red-500/90 hover:bg-red-600 text-white border border-red-400"
                   >
                     <Phone className="w-3 h-3 xs:w-4 xs:h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 rotate-135" />
@@ -979,7 +923,7 @@ TIME CONTEXT:
               {/* Scrollable Conversation Area */}
               <div
                 ref={transcriptContainerRef}
-                className="flex-1 overflow-y-auto space-y-3 pr-2"
+                className="overflow-y-auto space-y-3 pr-2 max-h-[400px]"
               >
                 {liveTranscript.map((item, index) => (
                   <div

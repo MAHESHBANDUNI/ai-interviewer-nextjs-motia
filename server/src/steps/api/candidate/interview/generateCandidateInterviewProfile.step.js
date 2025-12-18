@@ -11,8 +11,8 @@ export const config = {
 export const handler = async (input, {emit, logger, state}) => {
     try{
         logger.info('Processing interview profile generation request', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp : new Date().toISOString() })
-        const { candidate, interviewId } = input;
-        const result = await CandidateService.generateCandidateInterviewProfile({ candidate, interviewId });
+        const { candidateId, interviewId, interviewConversation } = input;
+        const result = await CandidateService.generateCandidateInterviewProfile({ candidateId, interviewId, interviewConversation, logger });
         if(!result){
             logger.error('Failed to generate interview profile');
             return {
