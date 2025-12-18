@@ -233,6 +233,9 @@ export const AdminService = {
             jobArea: true
           }
         },
+      },
+      orderBy: {
+        createdAt: 'desc'
       }
     });
     if(candidates.length < 1){
@@ -337,6 +340,9 @@ export const AdminService = {
                     lastName: true
                 }
             }
+        },
+        orderBy: {
+          scheduledAt: 'desc'
         }
     })
 

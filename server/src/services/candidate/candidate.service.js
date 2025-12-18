@@ -132,6 +132,7 @@ export const CandidateService = {
                 status: true,
                 cancelledAt: true,
                 cancellationReason: true,
+                attemptedAt: true,
                 candidate: {
                   select:{
                     candidateId: true,

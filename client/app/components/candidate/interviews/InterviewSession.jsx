@@ -122,7 +122,7 @@ const conversationSample = [
   const vapiRef = useRef(null);
   const interviewStartedRef = useRef(false);
 
-  const [liveTranscript, setLiveTranscript] = useState(conversationSample);
+  const [liveTranscript, setLiveTranscript] = useState([]);
   const transcriptContainerRef = useRef(null);
 
   const startCalledRef = useRef(false);

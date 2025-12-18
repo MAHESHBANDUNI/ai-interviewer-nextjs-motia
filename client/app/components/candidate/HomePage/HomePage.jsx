@@ -833,6 +833,27 @@ export default function HomePage() {
                                                 </div>
                                             )}
 
+                                            {/* Performance Preview - Placeholder for No Data */}
+                                            {!interview.interviewProfile &&
+                                                <>
+                                                    <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                                            <div>
+                                                                <h4 className="text-sm font-medium text-gray-900 mb-2">
+                                                                    Performance Summary
+                                                                </h4>
+                                                                <p className="text-sm text-gray-600 italic">
+                                                                    Performance data is being processed and will be available soon.
+                                                                </p>
+                                                            </div>
+                                                            {/* <div className="text-sm text-gray-500">
+                                                                Check back later for detailed analytics
+                                                            </div> */}
+                                                        </div>
+                                                    </div>
+                                                </>    
+                                            }
+
                                         </div>
                                     </div>
                                 ))}

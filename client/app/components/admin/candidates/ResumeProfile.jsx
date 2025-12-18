@@ -30,7 +30,7 @@ export default function ResumeProfile({ candidateId }) {
     }
     };
   
-  if (loading) {
+  if (loading || !candidateResumeProfile) {
     return (
       <div className="h-full bg-white flex flex-col items-center justify-center space-y-12 p-8">
       
@@ -216,18 +216,15 @@ export default function ResumeProfile({ candidateId }) {
       </div>
     );
   }
-  
-  if (!candidateResumeProfile) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-red-500 text-xl">Processing resume profile....</div>
-        </div>
-      </div>
-    );
-  }
 
   const { candidate, experienceSummary, technicalSkills, projects, certifications, educationSummary } = candidateResumeProfile;
+
+  const tabData = {
+    experience: experienceSummary.length > 0,
+    skills: Object.keys(technicalSkills).length > 0,
+    projects: projects.length > 0,
+    certifications: certifications.length > 0,
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4 sm:px-6 lg:px-8">
@@ -267,19 +264,21 @@ export default function ResumeProfile({ candidateId }) {
 
         {/* Navigation Tabs */}
         <div className="flex overflow-x-auto gap-2 mb-8 pb-2 scrollbar-hide">
-          {['experience', 'skills', 'projects', 'certifications'].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`cursor-pointer px-6 py-3 rounded-full font-semibold transition-all duration-300 whitespace-nowrap ${
-                activeTab === tab
-                  ? 'bg-blue-600 text-white shadow-lg transform scale-105'
-                  : 'bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-600'
-              }`}
-            >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </button>
-          ))}
+          {['experience', 'skills', 'projects', 'certifications']
+            .filter(tab => tabData[tab]) // Only show tabs with data
+            .map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`cursor-pointer px-6 py-3 rounded-full font-semibold transition-all duration-300 whitespace-nowrap ${
+                  activeTab === tab
+                    ? 'bg-blue-600 text-white shadow-lg transform scale-105'
+                    : 'bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-600'
+                }`}
+              >
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </button>
+            ))}
         </div>
 
         {/* Content Sections */}
