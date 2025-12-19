@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "postinstall": "motia install",
+    "postinstall": "motia install && prisma generate",
     "dev": "motia dev --port 8000",
     "start": "motia start",
     "generate-types": "motia generate-types",
