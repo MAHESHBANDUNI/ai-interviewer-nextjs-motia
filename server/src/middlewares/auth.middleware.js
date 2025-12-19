@@ -1,9 +1,15 @@
+
 import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma';
 import { ApiError } from '../utils/apiError.util';
 
 export const authMiddleware = async (req, ctx, next) => {
   try {
+ 
+    if (req.method === "OPTIONS") {
+      return next();
+    }
+
     const authHeader = req.headers.authorization || '';
     if (!authHeader.startsWith('Bearer ')) {
       throw new ApiError(401, 'Not authorized, no token');
@@ -16,13 +22,15 @@ export const authMiddleware = async (req, ctx, next) => {
       throw new ApiError(401, 'Invalid token');
     }
 
-    const freshUser = await prisma.user.findFirst({ where: { userId: decoded.userId } });
+    const freshUser = await prisma.user.findFirst({
+      where: { userId: decoded.userId }
+    });
+
     if (!freshUser) {
       throw new ApiError(401, 'User belonging to this token no longer exists');
     }
 
-    req.user = freshUser; // Attach user to request object
-
+    req.user = freshUser;
     return await next();
   } catch (error) {
     ctx.logger.error("Auth error", { error });

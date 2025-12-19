@@ -868,7 +868,6 @@ The interview MUST end ONLY after a speaker turn has fully completed AND when AN
 
 When ending the interview, you MUST:
 1. Speak exactly ONE short, polite closing sentence
-2. Immediately after finishing that sentence, call \`end_interview\`
 
 ❌ Do NOT ask another question
 ❌ Do NOT add commentary after the closing sentence
@@ -1058,6 +1057,8 @@ Only after that may you proceed with the first interview question, following all
           }
         })
 
+        logger.info("Questions: ",candidate?.interviews[0]?.questions);
+
         const structuredInterviewData = {
           interviewMeta: {
             candidate: {
@@ -1141,6 +1142,7 @@ RULES
         output = output.replace(/```json|```/gi, "").trim();
 
         const aiAnalysis = JSON.parse(output);
+        logger.info("aiAnalysis: ",aiAnalysis);
 
         await prisma.interviewProfile.create({
           data: {
@@ -1174,6 +1176,8 @@ async evaluateAnswer(
 
     // 2️⃣ Build QA pairs
     const qaPairs = await this.buildQuestionAnswerPairs(interviewConversation);
+
+    logger.info("QA pairs: ",qaPairs);
 
     if (!qaPairs?.length) {
       throw new Error("No question–answer pairs generated");
@@ -1279,6 +1283,8 @@ STRICT RULES
     if (!Array.isArray(evaluations)) {
       throw new Error("Evaluations is not an array");
     }
+
+    logger.info("evaluations: ",evaluations);
 
     let interviewQuestions;
     try{

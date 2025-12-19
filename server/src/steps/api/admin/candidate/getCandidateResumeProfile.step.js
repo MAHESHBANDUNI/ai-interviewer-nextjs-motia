@@ -2,6 +2,7 @@ import {z} from 'zod';
 import {AdminService} from '../../../../services/admin/admin.service'
 import { authMiddleware } from '../../../../middlewares/auth.middleware';
 import { errorHandlerMiddleware } from '../../../../middlewares/errorHandler.middleware';
+import { corsMiddleware } from '../../../../middlewares/cors.middleware';
 
 export const config = {
     name: 'GetCandidateResumeProfile',
@@ -11,7 +12,7 @@ export const config = {
     description: 'Get candidate resume profile endpoint',
     emits: [],
     flows: [],
-    middleware: [errorHandlerMiddleware, authMiddleware]
+    middleware: [corsMiddleware, errorHandlerMiddleware, authMiddleware]
 }
 
 export const handler = async(req, {emit, logger}) => {

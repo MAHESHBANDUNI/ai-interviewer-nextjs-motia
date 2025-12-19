@@ -1,4 +1,5 @@
 import { authMiddleware } from "../../../../../middlewares/auth.middleware";
+import { corsMiddleware } from "../../../../../middlewares/cors.middleware";
 import { errorHandlerMiddleware } from "../../../../../middlewares/errorHandler.middleware";
 import { CandidateService } from "../../../../../services/candidate/candidate.service";
 
@@ -10,7 +11,7 @@ export const config = {
     description: 'Generate interview question endpoint',
     emits: [],
     flows: [],
-    middleware: [errorHandlerMiddleware, authMiddleware]
+    middleware: [corsMiddleware, errorHandlerMiddleware, authMiddleware]
 }
 
 export const handler = async (req,{emit, logger}) => {

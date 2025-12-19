@@ -1,3 +1,4 @@
+import { corsMiddleware } from "../../../middlewares/cors.middleware";
 import { errorHandlerMiddleware } from "../../../middlewares/errorHandler.middleware";
 import { CandidateService } from "../../../services/candidate/candidate.service";
 
@@ -9,7 +10,7 @@ export const config = {
     description: 'Get TTS audio endpoint',
     emits: [],
     flows: [],
-    middleware: [errorHandlerMiddleware]
+    middleware: [corsMiddleware, errorHandlerMiddleware]
 }
 
 export const handler = async (req,{emit, logger}) => {

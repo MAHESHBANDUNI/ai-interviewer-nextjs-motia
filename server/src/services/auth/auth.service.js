@@ -4,7 +4,7 @@ import tokenGeneration from "../../utils/jwtToken.util";
 import {ApiError} from "../../utils/apiError.util";
 
 export const AuthService = {
-  async login(email, password) {
+  async signin(email, password) {
     const user = await prisma.user.findUnique({
       where: { email: email },
       include: {
