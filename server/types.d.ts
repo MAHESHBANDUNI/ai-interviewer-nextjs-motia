@@ -16,11 +16,12 @@ declare module 'motia' {
     'StartCandidateInterviewSession': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GetInterviewDetails': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GetCandidateInterviewsDetails': ApiRouteHandler<Record<string, unknown>, unknown, never>
-    'GenerateInterviewProfile': EventHandler<never, never>
+    'GenerateCandidateInterviewProfile': EventHandler<never, never>
     'EndCandidateInterviewSession': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'generate.candidate.interview.profile'; data: never }>
     'StartInterviewSession': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GenerateResponse': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GenerateInterviewQuestion': ApiRouteHandler<Record<string, unknown>, unknown, never>
+    'GenerateInterviewProfile': EventHandler<never, never>
     'GenerateFeedback': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'EndInterviewSession': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'generate.interview.profile'; data: never }>
     'GetCandidateDetails': ApiRouteHandler<Record<string, unknown>, unknown, never>

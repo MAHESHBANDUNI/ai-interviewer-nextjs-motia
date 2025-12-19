@@ -1,7 +1,7 @@
 import { CandidateService } from "../../../../services/candidate/candidate.service";
 
 export const config = {
-    name: 'GenerateInterviewProfile',
+    name: 'GenerateCandidateInterviewProfile',
     type: 'event',
     description: 'Generates interview profile in the background',
     subscribes: ['generate.candidate.interview.profile'],
