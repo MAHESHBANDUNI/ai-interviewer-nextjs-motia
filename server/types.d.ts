@@ -24,6 +24,8 @@ declare module 'motia' {
     'GenerateFeedback': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'EndInterviewSession': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'generate.interview.profile'; data: never }>
     'GetCandidateDetails': ApiRouteHandler<Record<string, unknown>, unknown, never>
+    'UserSignup': ApiRouteHandler<Record<string, unknown>, unknown, never>
+    'UserLogin': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GetAssemblyAIToken': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'SendScheduledInterviewMail': EventHandler<never, never>
     'SendRescheduledInterviewMail': EventHandler<never, never>
@@ -39,8 +41,6 @@ declare module 'motia' {
     'DeleteCandidate': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'CreateCandidate': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'generate.resume.profile'; data: never }>
     'GetAnalytics': ApiRouteHandler<Record<string, unknown>, unknown, never>
-    'UserLogin': ApiRouteHandler<Record<string, unknown>, unknown, never>
-    'UserSignup': ApiRouteHandler<Record<string, unknown>, unknown, never>
   }
     
 }

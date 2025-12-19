@@ -589,7 +589,7 @@ export const AdminService = {
     const mailDetails = {
       candidateEmail: candidate.email,
       candidateName: candidate.firstName+' '+candidate.lastName,
-      loginUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/auth/signin`,
+      loginUrl: `${process.env.CLIENT_SERVER_URL}/auth/signin`,
       candidatePassword: `${candidate.firstName}@123`,
       meetingTime: formatDate(interview.scheduledAt)
     }
@@ -636,7 +636,7 @@ export const AdminService = {
     const mailDetails = {
       candidateEmail: candidate.email,
       candidateName: candidate.firstName+' '+candidate.lastName,
-      loginUrl: `${process.env.NEXT_PUBLIC_BASE_URL}/auth/signin`,
+      loginUrl: `${process.env.CLIENT_SERVER_URL}/auth/signin`,
       meetingTime: formatDate(updatedInterview.scheduledAt),
       oldMeetingTime: formatDate(oldDatetime)
     }
