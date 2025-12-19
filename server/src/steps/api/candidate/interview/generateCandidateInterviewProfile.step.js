@@ -4,7 +4,7 @@ export const config = {
     name: 'GenerateCandidateInterviewProfile',
     type: 'event',
     description: 'Generates interview profile in the background',
-    subscribes: ['generate.candidate.interview.profile'],
+    subscribes: ['generate-candidate-interview-profile'],
     emits: []
 }
 

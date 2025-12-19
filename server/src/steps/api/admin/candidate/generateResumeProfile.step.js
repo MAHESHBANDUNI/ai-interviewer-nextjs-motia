@@ -5,7 +5,7 @@ export const config = {
     name: 'GenerateResumeProfile',
     type : 'event',
     description: 'Generates resume profile in the background',
-    subscribes: ['generate.resume.profile'],
+    subscribes: ['generate-resume-profile'],
     emits: [],
     flows: ['candidate-onboarding-flow'],
 }

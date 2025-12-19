@@ -10,7 +10,7 @@ export const config = {
   path: '/api/admin/candidate/create',
   method: 'POST',
   description: 'Create candidate endpoint',
-  emits: ['generate.resume.profile'],
+  emits: ['generate-resume-profile'],
   flows: ['candidate-onboarding-flow'],
   middleware: [corsMiddleware, errorHandlerMiddleware, authMiddleware]
 };
@@ -48,7 +48,7 @@ export const handler = async (req, { emit, logger, state }) => {
     // Emit event for resume processing if required
     if (emit) {
       await emit({
-        topic: 'generate.resume.profile',
+        topic: 'generate-resume-profile',
         data: {
           candidateId: result?.newCandidate?.candidateId,
           resumeUrl: result?.newCandidate?.resumeUrl,

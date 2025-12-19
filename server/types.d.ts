@@ -17,21 +17,21 @@ declare module 'motia' {
     'GetInterviewDetails': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GetCandidateInterviewsDetails': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GenerateCandidateInterviewProfile': EventHandler<never, never>
-    'EndCandidateInterviewSession': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'generate.candidate.interview.profile'; data: never }>
+    'EndCandidateInterviewSession': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'generate-candidate-interview-profile'; data: never }>
     'StartInterviewSession': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GenerateResponse': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GenerateInterviewQuestion': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GenerateInterviewProfile': EventHandler<never, never>
     'GenerateFeedback': ApiRouteHandler<Record<string, unknown>, unknown, never>
-    'EndInterviewSession': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'generate.interview.profile'; data: never }>
+    'EndInterviewSession': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'generate-interview-profile'; data: never }>
     'GetCandidateDetails': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'UserSignup': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'UserLogin': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GetAssemblyAIToken': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'SendScheduledInterviewMail': EventHandler<never, never>
     'SendRescheduledInterviewMail': EventHandler<never, never>
-    'ScheduleInterview': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'schedule.interview.mail'; data: never }>
-    'RescheduleInterview': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'reschedule.interview.mail'; data: never }>
+    'ScheduleInterview': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'schedule-interview-mail'; data: never }>
+    'RescheduleInterview': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'reschedule-interview-mail'; data: never }>
     'GetAllInterviews': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'CancelInterview': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GetCandidateResumeProfile': ApiRouteHandler<Record<string, unknown>, unknown, never>
@@ -40,7 +40,7 @@ declare module 'motia' {
     'GetAllCandidates': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GenerateResumeProfile': EventHandler<never, never>
     'DeleteCandidate': ApiRouteHandler<Record<string, unknown>, unknown, never>
-    'CreateCandidate': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'generate.resume.profile'; data: never }>
+    'CreateCandidate': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'generate-resume-profile'; data: never }>
     'GetAnalytics': ApiRouteHandler<Record<string, unknown>, unknown, never>
   }
     

@@ -4,7 +4,7 @@ import {AdminService} from '../../../../services/admin/admin.service'
 export const config = {
     name: 'SendScheduledInterviewMail',
     type : 'event',
-    subscribes: ['schedule.interview.mail'],
+    subscribes: ['schedule-interview-mail'],
     emits: [],
     flows: ['interview-scheduling-flow']
 }

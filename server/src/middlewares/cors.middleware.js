@@ -1,9 +1,7 @@
 export const corsMiddleware = async (req, ctx, next) => {
   const origin = req.headers?.origin;
 
-  const allowedOrigins = [
-    process.env.CLIENT_SERVER_URL
-  ].filter(Boolean);
+  const allowedOrigins = [process.env.CLIENT_SERVER_URL];
 
   const corsHeaders = {
     "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",

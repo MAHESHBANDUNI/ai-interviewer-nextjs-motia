@@ -9,7 +9,7 @@ export const config = {
     path: '/api/candidate/interview/end',
     method: 'POST',
     description: 'End interview session endpoint',
-    emits: ['generate.candidate.interview.profile'],
+    emits: ['generate-candidate-interview-profile'],
     flows: [],
     middleware: [corsMiddleware, errorHandlerMiddleware, authMiddleware]
 }
@@ -41,7 +41,7 @@ export const handler = async (req,{emit, logger}) => {
         // Emit event for interview processing if required
         if (emit) {
           await emit({
-            topic: 'generate.candidate.interview.profile',
+            topic: 'generate-candidate-interview-profile',
             data: {
               candidateId: userId,
               interviewId: interviewId,

@@ -10,7 +10,7 @@ export const config = {
     path : '/api/admin/interview/schedule',
     method: 'POST',
     description: 'Schedule interview endpoint',
-    emits: ['schedule.interview.mail'],
+    emits: ['schedule-interview-mail'],
     flows: ['interview-scheduling-flow'],
     middleware: [corsMiddleware, errorHandlerMiddleware, authMiddleware]
 }
@@ -32,7 +32,7 @@ export const handler = async(req, {emit, logger}) => {
         }
         if (emit) {
           await emit({
-            topic: 'schedule.interview.mail',
+            topic: 'schedule-interview-mail',
             data: {
               mailDetails: result
             }

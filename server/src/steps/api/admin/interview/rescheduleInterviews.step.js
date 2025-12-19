@@ -10,7 +10,7 @@ export const config = {
     path : '/api/admin/interview/reschedule',
     method: 'PUT',
     description: 'Reschedule interview endpoint',
-    emits: ['reschedule.interview.mail'],
+    emits: ['reschedule-interview-mail'],
     flows: ['interview-rescheduling-flow'],
     middleware: [corsMiddleware, errorHandlerMiddleware, authMiddleware]
 }
@@ -32,7 +32,7 @@ export const handler = async(req, {emit, logger}) => {
         }
         if (emit) {
           await emit({
-            topic: 'reschedule.interview.mail',
+            topic: 'reschedule-interview-mail',
             data: {
               mailDetails: result
             }
