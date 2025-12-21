@@ -20,6 +20,7 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fullscreenTimer, setFullscreenTimer] = useState(30);
   const audioRef = useRef(null);
+  const liveTranscriptRef = useRef([]);
 
 const conversationSample = [
   {
@@ -354,47 +355,63 @@ const conversationSample = [
     vapi.on("speech-start", () => setMicOpen(false));
     vapi.on("speech-end", () => setMicOpen(true));
 
-    // Transcript generation
     vapi.on("message", (message) => {
       if (message.type !== "transcript") return;
       if (message.transcriptType !== "final") return;
-    
+
       setLiveTranscript((prev) => {
-        // If no previous transcripts, create first item
+        let updated;
+      
+        // First transcript
         if (prev.length === 0) {
-          return [{
-            id: liveTranscript.length + 1,
-            speaker: message.role,
-            text: message.transcript,
-            timestamp: Date.now()
-          }];
-        }
-      
-        // Check if last item has same role as current message
-        const lastItem = prev[prev.length - 1];
-        if (lastItem.speaker === message.role) {
-          // Append to last item
-          return [
-            ...prev.slice(0, -1),
+          updated = [
             {
-              ...lastItem,
-              text: lastItem.text + " " + message.transcript,
-              timestamp: Date.now()
-            }
+              id: 1,
+              speaker: message.role,
+              text: message.transcript,
+              timestamp: Date.now(),
+            },
           ];
-        }
-      
-        // Create new item with different role
-        return [
-          ...prev,
-          {
-            id: liveTranscript.length + 1,
-            speaker: message.role,
-            text: message.transcript,
-            timestamp: Date.now()
+        } else {
+          const lastItem = prev[prev.length - 1];
+        
+          // Same speaker → append
+          if (lastItem.speaker === message.role) {
+            updated = [
+              ...prev.slice(0, -1),
+              {
+                ...lastItem,
+                text: `${lastItem.text} ${message.transcript}`,
+                timestamp: Date.now(),
+              },
+            ];
+          } else {
+            // New speaker → new item
+            updated = [
+              ...prev,
+              {
+                id: prev.length + 1,
+                speaker: message.role,
+                text: message.transcript,
+                timestamp: Date.now(),
+              },
+            ];
           }
-        ];
+      }
+
+       // 🔐 keep ref in sync (critical for silence-end)
+        liveTranscriptRef.current = updated;
+
+        return updated;
       });
+    });
+
+    vapi.on("message", (message) => {
+      if (message.type !== "tool-calls") return;
+    
+      if(message.toolCallList[0].function.name === 'end_interview_session'){
+        handleSubmit();
+      }
     });
 
     // ❌ Handle disconnect / error
@@ -420,7 +437,7 @@ const conversationSample = [
         body: JSON.stringify({
           interviewId: interviewDetails?.interviewId,
           completionMin,
-          interviewConversation: liveTranscript
+          interviewConversation: liveTranscriptRef.current
         })
       });
       if (!response.ok){
@@ -680,7 +697,7 @@ const conversationSample = [
                 ref={transcriptContainerRef}
                 className="overflow-y-auto space-y-3 pr-2 min-h-[400px] max-h-[400px]"
               >
-                {liveTranscript.map((item, index) => (
+                {liveTranscriptRef.current.map((item, index) => (
                   <div
                     key={index}
                     className={`flex ${
