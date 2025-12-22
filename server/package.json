@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "postinstall": "motia install && prisma generate",
-    "dev": "motia dev --port 8080",
+    "dev": "motia dev --port 8000",
     "start": "motia start",
     "generate-types": "motia generate-types",
     "build": "motia build",
-    "clean": "rm -rf dist node_modules python_modules .motia .mermaid"
+    "clean": "rm -rf dist node_modules python_modules .motia .mermaid",
+    "ngrok": "ngrok http --url=resolved-heartily-gnat.ngrok-free.app 8000"
   },
   "keywords": [
     "motia"

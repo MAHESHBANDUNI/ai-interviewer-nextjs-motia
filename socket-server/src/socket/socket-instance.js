@@ -4,7 +4,7 @@ import http from 'http';
 let io = null;
 let socketServer = null;
 
-export function initializeSocket(port = process.env.PORT || 8000) {
+export function initializeSocket(port = process.env.PORT || 8080) {
   return new Promise((resolve, reject) => {
     if (io) {
       console.warn('⚠️ Socket.IO already initialized');

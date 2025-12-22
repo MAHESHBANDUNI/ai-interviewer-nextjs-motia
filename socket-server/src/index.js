@@ -1,7 +1,7 @@
 import { initializeSocket } from './socket/socket-instance.js';
 import redisClient from './utils/redisClient.js';
 
-const SOCKET_PORT = process.env.SOCKET_PORT || 8000;
+const SOCKET_PORT = process.env.SOCKET_PORT || 8080;
 
 initializeSocket(SOCKET_PORT)
   .then((io) => {

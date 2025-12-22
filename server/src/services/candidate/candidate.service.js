@@ -688,12 +688,16 @@ RULES
           where: {
             candidateId: userId,
             interviewId: interviewId,
-            status: {
-              in: ['PENDING', 'RESCHEDULED'],
-            },
           },
           data: {
             status: "ONGOING"
+          },
+          include:{
+            candidate:{
+              include:{
+                resumeProfile: true
+              }
+            }
           }
         });
         if(!updateInterviewStatus){
@@ -937,13 +941,13 @@ INTERVIEW CONTEXT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Candidate Name:
-${candidate.firstName} ${candidate.lastName}
+${updateInterviewStatus?.candidate?.firstName} ${updateInterviewStatus?.candidate?.lastName}
 
 Resume Profile:
-${JSON.stringify(candidate.resumeProfile, null, 2)}
+${JSON.stringify(updateInterviewStatus?.candidate?.resumeProfile, null, 2)}
 
 Total Interview Duration:
-${interview?.durationMin} minutes
+${updateInterviewStatus?.durationMin} minutes
 
 Required Coverage Areas (ALL must be completed):
 1. Skills
@@ -1008,7 +1012,7 @@ MANDATORY INTERVIEW START
 
 Begin immediately with the following exact sentence:
 
-"Hello ${candidate.firstName} ${candidate.lastName}, welcome to your interview. Please introduce yourself briefly."
+"Hello ${updateInterviewStatus?.candidate?.firstName} ${updateInterviewStatus?.candidate?.lastName}, welcome to your interview. Please introduce yourself briefly."
 
 Then WAIT until the candidate has completely finished speaking.
 Only after that may you proceed with the first interview question, following all rules above.
@@ -1065,7 +1069,7 @@ Only after that may you proceed with the first interview question, following all
                   voiceSeconds: 0.5,
                   backoffSeconds: 1.5
                 },
-                firstMessage: `Hello ${candidate.firstName} ${candidate.lastName}, welcome to your interview. Please introduce yourself briefly.`
+                firstMessage: `Hello ${updateInterviewStatus?.candidate?.firstName} ${updateInterviewStatus?.candidate?.lastName}, welcome to your interview. Please introduce yourself briefly.`
               })
             });
 

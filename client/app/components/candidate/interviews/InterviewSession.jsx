@@ -21,6 +21,7 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }
   const audioRef = useRef(null);
   const liveTranscriptRef = useRef([]);
   const socket = useSocket();
+  const lastEmittedMessageRef = useRef(null);
 
 const conversationSample = [
   {
@@ -223,13 +224,13 @@ const conversationSample = [
     setFullscreenTimer(30);
     try {
       if (containerRef.current) {
-        if (containerRef.current.requestFullscreen) {
-          await containerRef.current.requestFullscreen();
-        } else if (containerRef.current.webkitRequestFullscreen) {
-          await containerRef.current.webkitRequestFullscreen();
-        } else if (containerRef.current.msRequestFullscreen) {
-          await containerRef.current.msRequestFullscreen();
-        }
+        // if (containerRef.current.requestFullscreen) {
+        //   await containerRef.current.requestFullscreen();
+        // } else if (containerRef.current.webkitRequestFullscreen) {
+        //   await containerRef.current.webkitRequestFullscreen();
+        // } else if (containerRef.current.msRequestFullscreen) {
+        //   await containerRef.current.msRequestFullscreen();
+        // }
         setIsFullscreen(true);
       }
     } catch (error) {
@@ -239,13 +240,13 @@ const conversationSample = [
 
   // Exit fullscreen
   const exitFullscreen = useCallback(() => {
-    if (document.exitFullscreen) {
-      document.exitFullscreen();
-    } else if (document.webkitExitFullscreen) {
-      document.webkitExitFullscreen();
-    } else if (document.msExitFullscreen) {
-      document.msExitFullscreen();
-    }
+    // if (document.exitFullscreen) {
+    //   document.exitFullscreen();
+    // } else if (document.webkitExitFullscreen) {
+    //   document.webkitExitFullscreen();
+    // } else if (document.msExitFullscreen) {
+    //   document.msExitFullscreen();
+    // }
     setIsFullscreen(false);
   }, []);
 
@@ -355,56 +356,55 @@ const conversationSample = [
     vapi.on("speech-start", () => setMicOpen(false));
     vapi.on("speech-end", () => setMicOpen(true));
 
-    vapi.on("message", (message) => {
-      if (message.type !== "transcript") return;
-      if (message.transcriptType !== "final") return;
+vapi.on("message", (message) => {
+  if (message.type !== "transcript") return;
+  if (message.transcriptType !== "final") return;
 
-      setLiveTranscript((prev) => {
-        let updated;
-      
-        // First transcript
-        if (prev.length === 0) {
-          updated = [
-            {
-              id: 1,
-              speaker: message.role,
-              text: message.transcript,
-              timestamp: Date.now(),
-            },
-          ];
-        } else {
-          const lastItem = prev[prev.length - 1];
-        
-          // Same speaker → append
-          if (lastItem.speaker === message.role) {
-            updated = [
-              ...prev.slice(0, -1),
-              {
-                ...lastItem,
-                text: `${lastItem.text} ${message.transcript}`,
-                timestamp: Date.now(),
-              },
-            ];
-          } else {
-            // New speaker → new item
-            updated = [
-              ...prev,
-              {
-                id: prev.length + 1,
-                speaker: message.role,
-                text: message.transcript,
-                timestamp: Date.now(),
-              },
-            ];
-          }
+  setLiveTranscript((prev) => {
+    let updated = [];
+    const now = Date.now();
+
+    if (prev.length === 0) {
+      updated = [
+        {
+          id: now,
+          speaker: message.role,
+          text: message.transcript,
+          timestamp: now,
+        },
+      ];
+    } else {
+      const lastItem = prev[prev.length - 1];
+
+      if (lastItem.speaker === message.role) {
+        updated = [
+          ...prev.slice(0, -1),
+          {
+            ...lastItem,
+            text: `${lastItem.text} ${message.transcript}`,
+            timestamp: now,
+          },
+        ];
+      } else {
+        updated = [
+          ...prev,
+          {
+            id: now,
+            speaker: message.role,
+            text: message.transcript,
+            timestamp: now,
+          },
+        ];
       }
+    }
 
-       // 🔐 keep ref in sync (critical for silence-end)
-        liveTranscriptRef.current = updated;
+    // 🔐 keep ref in sync
+    liveTranscriptRef.current = updated;
 
-        return updated;
-      });
-    });
+    return updated;
+  });
+});
+
 
     vapi.on("message", (message) => {
       console.log('Message: ',message);
@@ -415,62 +415,61 @@ const conversationSample = [
       }
     });
 
-    vapi.on("message", (message) => {
-      if (message.type !== "conversation-update") return;
-      const fullConversation = message?.conversation;
+    // vapi.on("message", (message) => {
+    //   if (message.type !== "conversation-update") return;
 
-      setLiveTranscript((prev) => {
-        let updated;
+    //   setLiveTranscript((prev) => {
+    //     let updated;
       
-        // First transcript
-        if (prev.length === 0) {
-          updated = [
-            {
-              id: 1,
-              speaker: message.role,
-              text: message.transcript,
-              timestamp: Date.now(),
-            },
-          ];
-        } else {
-          const lastItem = prev[prev.length - 1];
+    //     // First transcript
+    //     if (prev.length === 0) {
+    //       updated = [
+    //         {
+    //           id: 1,
+    //           speaker: message.role,
+    //           text: message.transcript,
+    //           timestamp: Date.now(),
+    //         },
+    //       ];
+    //     } else {
+    //       const lastItem = prev[prev.length - 1];
         
-          // Same speaker → append
-          if (lastItem.speaker === message.role) {
-            updated = [
-              ...prev.slice(0, -1),
-              {
-                ...lastItem,
-                text: `${lastItem.text} ${message.transcript}`,
-                timestamp: Date.now(),
-              },
-            ];
-          } else {
-            // New speaker → new item
-            updated = [
-              ...prev,
-              {
-                id: prev.length + 1,
-                speaker: message.role,
-                text: message.transcript,
-                timestamp: Date.now(),
-              },
-            ];
-          }
-      }
+    //       // Same speaker → append
+    //       if (lastItem.speaker === message.role) {
+    //         updated = [
+    //           ...prev.slice(0, -1),
+    //           {
+    //             ...lastItem,
+    //             text: `${lastItem.text} ${message.transcript}`,
+    //             timestamp: Date.now(),
+    //           },
+    //         ];
+    //       } else {
+    //         // New speaker → new item
+    //         updated = [
+    //           ...prev,
+    //           {
+    //             id: prev.length + 1,
+    //             speaker: message.role,
+    //             text: message.transcript,
+    //             timestamp: Date.now(),
+    //           },
+    //         ];
+    //       }
+    //   }
 
-       // 🔐 keep ref in sync (critical for silence-end)
-        liveTranscriptRef.current = updated;
-        socket.emit('transcript_event', {
-          interviewId: interviewDetails?.interviewId,
-          id: liveTranscriptRef[liveTranscriptRef.length-1].id,
-          text: liveTranscriptRef[liveTranscriptRef.length-1].text,
-          role: liveTranscriptRef[liveTranscriptRef.length-1].role,
-          timestamp: liveTranscriptRef[liveTranscriptRef.length-1].timestamp,
-        })
-        return updated;
-      });
-    });
+    //    // 🔐 keep ref in sync (critical for silence-end)
+    //     liveTranscriptRef.current = updated;
+    //     socket.emit('transcript_event', {
+    //       interviewId: interviewDetails?.interviewId,
+    //       id: liveTranscriptRef.current[liveTranscriptRef.current.length-1].id,
+    //       text: liveTranscriptRef.current[liveTranscriptRef.current.length-1].text,
+    //       role: liveTranscriptRef.current[liveTranscriptRef.current.length-1].role,
+    //       timestamp: liveTranscriptRef.current[liveTranscriptRef.current.length-1].timestamp,
+    //     })
+    //     return updated;
+    //   });
+    // });
 
     // ❌ Handle disconnect / error
     vapi.on("disconnect", handleVapiFailure);
@@ -482,6 +481,26 @@ const conversationSample = [
     });
 
   };
+
+  useEffect(() => {
+    console.log('socket', socket);
+    if (!socket?.connected) return;
+    if (!liveTranscriptRef.current.length) return;
+
+    const last = liveTranscriptRef.current.at(-1);
+    if (last.text === lastEmittedMessageRef.current) return;
+
+    lastEmittedMessageRef.current = last.text;
+    console.log("KKKKKK", last);
+
+    socket.emit("transcript_event", {
+      interviewId: interviewDetails?.interviewId,
+      id: last.id,
+      text: last.text,
+      role: last.speaker,
+      timestamp: last.timestamp,
+    });
+  }, [liveTranscript, socket]);
 
   const handleEndInterview = async () => {
     const completionMin =
@@ -519,13 +538,13 @@ const conversationSample = [
   
   // Handle fullscreen changes
   const handleFullscreenChange = useCallback(() => {
-    const fullscreenElement = document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
-    setIsFullscreen(!!fullscreenElement);
+    // const fullscreenElement = document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
+    // setIsFullscreen(!!fullscreenElement);
     
-    if (!fullscreenElement) {
-      logViolation('Fullscreen exit attempted');
-      enterFullscreen();
-    }
+    // if (!fullscreenElement) {
+    //   logViolation('Fullscreen exit attempted');
+    //   enterFullscreen();
+    // }
   }, [enterFullscreen, logViolation]);
 
   // Handle submit
