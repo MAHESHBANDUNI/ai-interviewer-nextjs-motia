@@ -6,6 +6,7 @@ import InterviewSession from '../../../components/candidate/interviews/Interview
 import { errorToast } from '@/app/components/ui/toast';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import { SocketProvider } from '../../../providers/SocketProvider';
 
 export default function InterviewPage() {
   const [isModalOpen, setIsModalOpen] = useState(true);
@@ -117,12 +118,14 @@ export default function InterviewPage() {
       )}
       
       {interviewStarted && selectedDevices && (
+        <SocketProvider user={session?.user} interviewId={interviewDetails?.interviewId}>
         <InterviewSession
           devices={selectedDevices}
           onInterviewEnd={handleInterviewEnd}
           onClose={handleCloseModal}
           interviewDetails={interviewDetails}
         />
+        </SocketProvider>
       )}
     </div>
   );

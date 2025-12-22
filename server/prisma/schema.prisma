@@ -139,6 +139,7 @@ enum CandidateStatus {
 enum InterviewStatus {
   PENDING
   COMPLETED
+  ONGOING
   CANCELLED
   RESCHEDULED
 }

@@ -1,29 +1,35 @@
 'use client';
 
-import { Download, Trash2, MoreVertical, ChevronDown, Eye, Trash, Mail, Phone, FileText, Calendar, Star, MapPin, Briefcase, Clock, X, User2, CalendarClock, Ellipsis } from 'lucide-react';
+import { Download, Trash2, MoreVertical, ChevronDown, Trash, Mail, Phone, FileText, Calendar, Star, MapPin, Briefcase, Clock, X, FileChartColumn, CalendarClock, Ellipsis, Monitor } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import React from 'react';
 import { format } from 'date-fns';
 
-export default function InterviewTable({ interviews, loading, error, handleCancelInterviewClick, handleInterviewDetailClick, handleRescheduleInterviewClick, selectedInterviewId, setSelectedInterviewId }) {
+export default function InterviewTable({ interviews, loading, error, handleCancelInterviewClick, handleInterviewDetailClick, handleRescheduleInterviewClick, handleLivePreviewClick, selectedInterviewId, setSelectedInterviewId }) {
   const [hoveredRow, setHoveredRow] = useState(null);
 
-  const handleInterviewCancel = (candidateId, e) => {
+  const handleInterviewCancel = (interviewId, e) => {
     e?.preventDefault();
     e?.stopPropagation();
-    handleCancelInterviewClick(candidateId);
+    handleCancelInterviewClick(interviewId);
   };
 
-  const handleInterviewDetail = (candidateId, e) => {
+  const handleInterviewDetail = (interviewId, e) => {
     e?.preventDefault();
     e?.stopPropagation();
-    handleInterviewDetailClick(candidateId);
+    handleInterviewDetailClick(interviewId);
   };
 
-  const handleRescheduleInterview = (candidateId, e) => {
+  const handleRescheduleInterview = (interviewId, e) => {
     e?.preventDefault();
     e?.stopPropagation();
-    handleRescheduleInterviewClick(candidateId);
+    handleRescheduleInterviewClick(interviewId);
+  }
+
+  const handleLivePreview = (interviewId, e) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    handleLivePreviewClick(interviewId);
   }
 
   const getStatusColor = (status) => {
@@ -33,7 +39,7 @@ export default function InterviewTable({ interviews, loading, error, handleCance
       'COMPLETED': 'from-green-500/10 to-green-600/10 text-green-700 border-green-200/50',
       'SCHEDULED': 'from-amber-500/10 to-amber-600/10 text-amber-700 border-amber-200/50',
       'RESCHEDULED': 'from-indigo-500/10 to-indigo-600/10 text-indigo-700 border-indigo-200/50',
-      'ONGOING': 'from-purple-500/10 to-purple-600/10 text-purple-700 border-purple-200/50'
+      'ONGOING': 'from-orange-500/10 to-orange-600/10 text-orange-700 border-orange-200/50'
     };
     return colors[status] || 'from-gray-500/10 to-gray-600/10 text-gray-700 border-gray-200/50';
   };
@@ -45,7 +51,7 @@ export default function InterviewTable({ interviews, loading, error, handleCance
       'COMPLETED': 'from-green-500 to-green-600',
       'SCHEDULED': 'from-amber-500 to-amber-600',
       'RESCHEDULED': 'from-indigo-500 to-indigo-600',
-      'ONGOING': 'from-purple-500 to-purple-600'
+      'ONGOING': 'from-orange-500 to-orange-600'
     };
     return gradients[status] || 'from-gray-500 to-gray-600';
   };
@@ -178,16 +184,29 @@ export default function InterviewTable({ interviews, loading, error, handleCance
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center space-x-2">
                           <button
-                            onClick={(e) => handleInterviewDetail(interview.interviewId, e)}
-                            disabled={['PENDING','RESCHEDULED', 'CANCELLED'].includes(interview.status)}
+                            onClick={(e) => handleLivePreview(interview.interviewId, e)}
+                            disabled={['PENDING','RESCHEDULED', 'CANCELLED','COMPLETED'].includes(interview.status)}
                             className="cursor-pointer group relative p-2.5 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200/60 text-gray-600 
-                              hover:text-white hover:from-blue-500 hover:to-blue-600 hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/25 
+                              hover:text-white hover:from-orange-500 hover:to-orange-600 hover:border-orange-500/50 hover:shadow-lg hover:shadow-orange-500/25 
+                              transition-all duration-300
+                              disabled:opacity-50 disabled:pointer-events-none disabled:saturate-0 disabled:cursor-not-allowed disabled:shadow-none"
+                            title="Live Preview"
+                          >
+                            <Monitor className="w-4 h-4" />
+                            <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10" />
+                          </button>
+
+                          <button
+                            onClick={(e) => handleInterviewDetail(interview.interviewId, e)}
+                            disabled={['PENDING','RESCHEDULED', 'CANCELLED','ONGOING'].includes(interview.status)}
+                            className="cursor-pointer group relative p-2.5 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200/60 text-gray-600 
+                              hover:text-white hover:from-green-500 hover:to-green-600 hover:border-green-500/50 hover:shadow-lg hover:shadow-green-500/25 
                               transition-all duration-300
                               disabled:opacity-50 disabled:pointer-events-none disabled:saturate-0 disabled:cursor-not-allowed disabled:shadow-none"
                             title="View Performance"
                           >
-                            <Eye className="w-4 h-4" />
-                            <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10" />
+                            <FileChartColumn className="w-4 h-4" />
+                            <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-green-500 to-green-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10" />
                           </button>
 
                           <button
@@ -196,18 +215,18 @@ export default function InterviewTable({ interviews, loading, error, handleCance
                               interview.status !== 'PENDING' || new Date(interview.scheduledAt) >= new Date()
                             }
                             className="cursor-pointer group relative p-2.5 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200/60 text-gray-600 
-                              hover:text-white hover:from-green-500 hover:to-green-600 hover:border-green-500/50 hover:shadow-lg hover:shadow-green-500/25 
+                              hover:text-white hover:from-indigo-500 hover:to-indigo-600 hover:border-indigo-500/50 hover:shadow-lg hover:shadow-indigo-500/25 
                               transition-all duration-300
                               disabled:opacity-50 disabled:pointer-events-none disabled:saturate-0 disabled:cursor-not-allowed disabled:shadow-none"
                             title="Reschedule Interview"
                           >
                             <CalendarClock className="w-4 h-4" />
-                            <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-green-500 to-green-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10" />
+                            <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10" />
                           </button>
 
                           <button
                             onClick={(e) => handleInterviewCancel(interview.interviewId, e)}
-                            disabled={['COMPLETED', 'CANCELLED'].includes(interview.status)}
+                            disabled={['COMPLETED', 'CANCELLED','ONGOING'].includes(interview.status)}
                             className="cursor-pointer group relative p-2.5 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200/60 text-gray-600 
                               hover:text-white hover:from-red-500 hover:to-red-600 hover:border-red-500/50 hover:shadow-lg hover:shadow-red-500/25 
                               transition-all duration-300 
@@ -238,6 +257,7 @@ export default function InterviewTable({ interviews, loading, error, handleCance
                 handleInterviewCancel={handleInterviewCancel}
                 handleInterviewDetail={handleInterviewDetail}
                 handleRescheduleInterview={handleRescheduleInterview}
+                handleLivePreview={handleLivePreview}
                 getInitials={getInitials}
                 formatDateTime={formatDateTime}
                 selectedInterviewId={selectedInterviewId}
@@ -335,7 +355,8 @@ const MobileCard = ({
   handleInterviewDetail,
   handleRescheduleInterview,
   setSelectedInterviewId,
-  selectedInterviewId
+  selectedInterviewId,
+  handleLivePreview
   }) => {
     const ellipsisRef = useRef(null);
     const dropdownRef = useRef(null);
@@ -412,13 +433,23 @@ const MobileCard = ({
                   ref={dropdownRef}
                   className="flex flex-col items-center justify-center bg-gray-50 border border-gray-200/60 shadow-lg rounded-lg absolute right-3 z-50"
                 >
+
+                  <button
+                    onClick={(e) => handleLivePreview(interview.interviewId, e)}
+                    disabled={['PENDING','RESCHEDULED', 'CANCELLED','COMPLETED'].includes(interview.status)}
+                    className="cursor-pointer group relative flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:text-gray-900 hover:bg-gray-200 transition-all duration-300 min-h-11 w-full disabled:opacity-50 disabled:pointer-events-none disabled:saturate-0 disabled:cursor-not-allowed disabled:shadow-none"
+                  >
+                    <Monitor className="w-4 h-4 flex-shrink-0" />
+                    <span className="text-sm font-semibold whitespace-nowrap">Live Preview</span>
+                  </button>
+
                   {/* View Profile */}
                   <button
                     onClick={(e) => handleInterviewDetail(interview.interviewId, e)}
-                    disabled={['PENDING', 'CANCELLED'].includes(interview.status)}
+                    disabled={['PENDING', 'CANCELLED','RESCHEDULED','ONGOING'].includes(interview.status)}
                     className="cursor-pointer group relative flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:text-gray-900 hover:bg-gray-200 transition-all duration-300 min-h-11 w-full disabled:opacity-50 disabled:pointer-events-none disabled:saturate-0 disabled:cursor-not-allowed disabled:shadow-none"
                   >
-                    <User2 className="w-4 h-4 flex-shrink-0" />
+                    <FileChartColumn className="w-4 h-4 flex-shrink-0" />
                     <span className="text-sm font-semibold whitespace-nowrap">View Performance</span>
                   </button>
 
@@ -434,7 +465,7 @@ const MobileCard = ({
                   {/* Delete */}
                   <button
                     onClick={(e) => handleInterviewCancel(interview.interviewId, e)}
-                    disabled={['COMPLETED', 'CANCELLED'].includes(interview.status)}
+                    disabled={['COMPLETED', 'CANCELLED','ONGOING'].includes(interview.status)}
                     className="cursor-pointer group relative flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:text-gray-900 hover:bg-gray-200 transition-all duration-300 min-h-11 w-full disabled:opacity-50 disabled:pointer-events-none disabled:saturate-0 disabled:cursor-not-allowed disabled:shadow-none"
                   >
                     <X className="w-4 h-4 flex-shrink-0" />

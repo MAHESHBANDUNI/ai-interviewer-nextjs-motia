@@ -2,11 +2,10 @@
 import Vapi from '@vapi-ai/web';
 
 import { Mic, MicOff, Shield, Clock, AlertCircle, Fullscreen, CheckCircle2, X, AlertTriangle , UserX, Timer, Phone, Maximize } from 'lucide-react';
-
-
 import { useSession } from 'next-auth/react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { errorToast, successToast } from '../../ui/toast';
+import { useSocket } from '../../../providers/SocketProvider';
 
 const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }) => {
   const {data: session} = useSession();
@@ -21,6 +20,7 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }
   const [fullscreenTimer, setFullscreenTimer] = useState(30);
   const audioRef = useRef(null);
   const liveTranscriptRef = useRef([]);
+  const socket = useSocket();
 
 const conversationSample = [
   {
@@ -407,11 +407,69 @@ const conversationSample = [
     });
 
     vapi.on("message", (message) => {
+      console.log('Message: ',message);
       if (message.type !== "tool-calls") return;
     
       if(message.toolCallList[0].function.name === 'end_interview_session'){
         handleSubmit();
       }
+    });
+
+    vapi.on("message", (message) => {
+      if (message.type !== "conversation-update") return;
+      const fullConversation = message?.conversation;
+
+      setLiveTranscript((prev) => {
+        let updated;
+      
+        // First transcript
+        if (prev.length === 0) {
+          updated = [
+            {
+              id: 1,
+              speaker: message.role,
+              text: message.transcript,
+              timestamp: Date.now(),
+            },
+          ];
+        } else {
+          const lastItem = prev[prev.length - 1];
+        
+          // Same speaker → append
+          if (lastItem.speaker === message.role) {
+            updated = [
+              ...prev.slice(0, -1),
+              {
+                ...lastItem,
+                text: `${lastItem.text} ${message.transcript}`,
+                timestamp: Date.now(),
+              },
+            ];
+          } else {
+            // New speaker → new item
+            updated = [
+              ...prev,
+              {
+                id: prev.length + 1,
+                speaker: message.role,
+                text: message.transcript,
+                timestamp: Date.now(),
+              },
+            ];
+          }
+      }
+
+       // 🔐 keep ref in sync (critical for silence-end)
+        liveTranscriptRef.current = updated;
+        socket.emit('transcript_event', {
+          interviewId: interviewDetails?.interviewId,
+          id: liveTranscriptRef[liveTranscriptRef.length-1].id,
+          text: liveTranscriptRef[liveTranscriptRef.length-1].text,
+          role: liveTranscriptRef[liveTranscriptRef.length-1].role,
+          timestamp: liveTranscriptRef[liveTranscriptRef.length-1].timestamp,
+        })
+        return updated;
+      });
     });
 
     // ❌ Handle disconnect / error

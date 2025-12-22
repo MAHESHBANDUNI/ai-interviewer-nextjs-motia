@@ -684,16 +684,20 @@ RULES
     async startInterview({ userId, interviewId, logger }) {
       try{
         const interview =await this.checkInterviewDetails(userId, interviewId);
-        const candidate = await prisma.candidate.findFirst({
+        const updateInterviewStatus = await prisma.interview.update({
           where: {
-            candidateId: userId
+            candidateId: userId,
+            interviewId: interviewId,
+            status: {
+              in: ['PENDING', 'RESCHEDULED'],
+            },
           },
-          include: {
-            resumeProfile: true
+          data: {
+            status: "ONGOING"
           }
         });
-        if(!candidate){
-          throw new ApiError("Candidate not found",400);
+        if(!updateInterviewStatus){
+          throw new ApiError("Failed to start the interview",400);
         }
 
         let assistant = null;
@@ -1100,7 +1104,7 @@ Only after that may you proceed with the first interview question, following all
           where: {
             interviewId: interviewId,
             candidateId: userId,
-            status: { in: ['PENDING', 'RESCHEDULED'] }
+            status: { in: ['PENDING', 'RESCHEDULED','ONGOING'] }
           },
           data: {
             status: 'COMPLETED',

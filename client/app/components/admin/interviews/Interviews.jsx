@@ -8,6 +8,8 @@ import { successToast, errorToast } from "@/app/components/ui/toast";
 import { useSession } from "next-auth/react";
 import CancelInterviewModal from "./CancelInterviewModal";
 import InterviewDetailsModal from "./InterviewDetailsModal";
+import LivePreview from "./LivePreview";
+import { SocketProvider } from "@/app/providers/SocketProvider";
 
 export default function Interview() {
   const [selectedStatus, setSelectedStatus] = useState("Status");
@@ -21,6 +23,7 @@ export default function Interview() {
   const [showCancelInterviewModal, setShowCancelInterviewModal] = useState(false);
   const [interviewDetailsModalOpen, setInterviewDetailsModalOpen] = useState(false);
   const [showRescheduleInterviewModalOpen, setShowRescheduleInterviewModalOpen] = useState(false);
+  const [showLivePreviewModal, setShowLivePreviewModal] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   
   // Pagination state
@@ -224,6 +227,11 @@ export default function Interview() {
     setShowRescheduleInterviewModalOpen(true);
   }
 
+  const handleLivePreviewClick = async (interviewId) => {
+    setSelectedInterviewId(interviewId);
+    setShowLivePreviewModal(true);
+  }
+
   const handleRescheduleInterview = async (formData) => {
     // Get old interview details
     const oldInterviewDetails = interviewsList.find(
@@ -353,6 +361,7 @@ export default function Interview() {
             handleCancelInterviewClick={(interviewId) => handleCancelInterviewClick(interviewId)}
             handleInterviewDetailClick={(interviewId) => handleInterviewDetailClick(interviewId)}
             handleRescheduleInterviewClick={(interviewId) => handleRescheduleInterviewClick(interviewId)}
+            handleLivePreviewClick={(interviewId) => handleLivePreviewClick(interviewId)}
             selectedInterviewId={selectedInterviewId}
             setSelectedInterviewId={setSelectedInterviewId}
           />
@@ -503,6 +512,17 @@ export default function Interview() {
         isRescheduling='true'
         interview={interviewsList.find(i => i.interviewId === selectedInterviewId)}
       />}
+
+      
+      {showLivePreviewModal &&
+        <SocketProvider user={session?.user} interviewId={selectedInterviewId}>
+          <LivePreview
+            user={session?.user}
+            onClose={() => setShowLivePreviewModal(false)}
+            interview={interviewsList.find(i => i.interviewId === selectedInterviewId)}
+          />
+        </SocketProvider>
+      }
     </div>
   );
 }
