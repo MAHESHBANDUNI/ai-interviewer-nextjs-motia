@@ -7,7 +7,7 @@ import { corsMiddleware } from '../../../../middlewares/cors.middleware';
 export const config = {
     name: 'GetAllInterviews',
     type : 'api',
-    path : '/api/admin/interview/list',
+    path : '/api/admin/interviews/list',
     method: 'GET',
     description: 'Get all interviews endpoint',
     emits: [],

@@ -100,7 +100,7 @@ export default function LivePreview({ user, interview, onClose }) {
     }
   ];
 
-  const [liveConversation, setLiveConversation] = useState([]);
+  const [liveConversation, setLiveConversation] = useState(conversationSample);
 
     /**
    * Handle incoming live transcript event
@@ -128,11 +128,13 @@ export default function LivePreview({ user, interview, onClose }) {
   }, []);
 
   useEffect(() => {
+    console.log('Socket: ',socket);
     if (!user || !socket || !interview?.interviewId) return;
 
     // 2️⃣ Receive snapshot (mid-join safe)
     socket.on("interview_snapshot", ({ messages }) => {
       console.log("Older messages: ",messages);
+      if(messages.length === 0) return;
       setLiveConversation(
         messages.sort((a, b) => a.timestamp - b.timestamp)
       );
@@ -162,114 +164,11 @@ export default function LivePreview({ user, interview, onClose }) {
         onClick={onClose}
       />
 
-      {!user || !socket || !interview?.interviewId && 
-        <>
-          <div className="fixed inset-0 flex items-center justify-center overflow-y-auto p-2 sm:p-4">
-            <div 
-              className="pointer-events-auto relative w-full max-w-7xl rounded-2xl shadow-2xl bg-white dark:bg-gray-900 flex flex-col h-auto max-h-[95vh] p-8 sm:p-12"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Header Skeleton */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 animate-pulse"></div>
-                  <div className="space-y-2">
-                    <div className="h-4 w-48 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 animate-pulse rounded"></div>
-                    <div className="h-3 w-32 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 animate-pulse rounded"></div>
-                  </div>
-                </div>
-                <div className="h-10 w-32 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 animate-pulse rounded-lg"></div>
-              </div>
-      
-              {/* Main Content Area */}
-              <div className="flex-1 flex flex-col lg:flex-row gap-6">
-                {/* Video Panel Skeleton */}
-                <div className="flex-1 space-y-4">
-                  <div className="aspect-video rounded-xl bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 animate-pulse relative overflow-hidden">
-                    {/* Animated video placeholder */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="relative">
-                        <div className=" text-center">
-                          <div className="inline-flex items-center gap-3">
-                            <div className="relative">
-                              <div className="w-5 h-5 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
-                            </div>
-                            <div className="text-gray-600 dark:text-gray-400 font-medium animate-pulse">
-                              Connecting to live interview...
-                            </div>
-                          </div>
-                          <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
-                            Please wait while we establish a secure connection
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Controls Skeleton */}
-                  <div className="flex items-center justify-center gap-4 p-4">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <div 
-                        key={i}
-                        className="w-12 h-12 rounded-full bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 animate-pulse"
-                      ></div>
-                    ))}
-                  </div>
-                </div>
-                  
-                {/* Side Panel Skeleton */}
-                <div className="lg:w-80 space-y-6">
-                  {/* Timer */}
-                  <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800">
-                    <div className="h-4 w-24 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 animate-pulse rounded mb-2"></div>
-                    <div className="h-8 w-32 bg-gradient-to-r from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700 animate-pulse rounded"></div>
-                  </div>
-                  
-                  {/* Question */}
-                  <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800">
-                    <div className="h-4 w-32 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 animate-pulse rounded mb-3"></div>
-                    <div className="space-y-2">
-                      <div className="h-3 w-full bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 animate-pulse rounded"></div>
-                      <div className="h-3 w-4/5 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 animate-pulse rounded"></div>
-                      <div className="h-3 w-3/4 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 animate-pulse rounded"></div>
-                    </div>
-                  </div>
-                  
-                  {/* Status */}
-                  <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800">
-                    <div className="h-4 w-28 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 animate-pulse rounded mb-3"></div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-gradient-to-r from-blue-400 to-blue-500 animate-pulse"></div>
-                      <div className="h-3 w-32 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 animate-pulse rounded"></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-                  
-              {/* Loading Message */}
-              {/* <div className=" border-t border-gray-100 dark:border-gray-800 text-center">
-                <div className="inline-flex items-center gap-3">
-                  <div className="relative">
-                    <div className="w-5 h-5 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
-                  </div>
-                  <div className="text-gray-600 dark:text-gray-400 font-medium animate-pulse">
-                    Connecting to interview session...
-                  </div>
-                </div>
-                <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
-                  Please wait while we establish a secure connection
-                </p>
-              </div> */}
-            </div>
-          </div>
-        </>
-      }
-
       {/* Modal Container */}
       {user && socket && interview?.interviewId && <>
       <div className="fixed inset-0 flex items-center justify-center overflow-y-auto p-2 sm:p-4">
         <div 
-          className="pointer-events-auto relative w-full min-w-[95vw] max-w-[95vw] rounded-xl shadow-2xl bg-white dark:bg-gray-900 flex flex-col h-auto min-h-[95vh] max-h-[95vh]"
+          className="pointer-events-auto relative w-full w-[95vw] rounded-xl shadow-2xl bg-white dark:bg-gray-900 flex flex-col h-[95vh] lg:h-[95vh]"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Close Button */}
@@ -314,48 +213,32 @@ export default function LivePreview({ user, interview, onClose }) {
               </div>
               
               {/* Video Controls & Info */}
-              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="mt-4">
                 <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
                   <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Interview Info</h3>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Candidate:</span>
-                      <span className="font-medium">{interview?.candidate?.firstName} {interview?.candidate?.lastName}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Position:</span>
-                      <span className="font-medium">{interview?.candidate?.resumeProfile?.profileTitle}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Status:</span>
-                      <span className="px-2 py-0.5 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 rounded-full text-xs font-medium">
-                        {interview?.status.charAt(0).toUpperCase()}{interview?.status?.slice(1).toLowerCase()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Audio Controls</h3>
-                  <div className="flex items-center gap-3">
-                    <button className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600">
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                    <div className="flex-1">
-                      <div className="h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full overflow-hidden">
-                        <div className="h-full bg-blue-500 w-3/4"></div>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 sm:justify-between gap-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Candidate:</span>
+                        <span className="ml-1 font-medium truncate">{interview?.candidate?.firstName} {interview?.candidate?.lastName}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Position:</span>
+                        <span className="ml-1 font-medium truncate">{interview?.candidate?.resumeProfile?.profileTitle}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600 dark:text-gray-400">Status:</span>
+                        <span className="ml-1 px-2 py-0.5 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 rounded-full text-xs font-medium">
+                          {interview?.status.charAt(0).toUpperCase()}{interview?.status?.slice(1).toLowerCase()}
+                        </span>
                       </div>
                     </div>
-                  </div>
-                </div> */}
+                </div>
               </div>
             </div>
 
             {/* Conversation Section */}
             <div className="lg:w-1/3 w-full flex flex-col">
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-xl flex-1 flex flex-col min-[h-240px] lg:min-h-[400px]">
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-xl flex-1 flex flex-col max-h-[45vh] sm:max-h-[10vh] md:max-h-[36vh] lg:max-h-[90vh]">
                 <div className="flex items-center justify-between pb-3 bg-white dark:bg-gray-800">
                   <h3 className="font-semibold text-gray-800 dark:text-gray-200 text-lg px-2">
                     Interview Conversation
@@ -368,14 +251,14 @@ export default function LivePreview({ user, interview, onClose }) {
                 {/* Scrollable Conversation Area */}
                 <div 
                     ref={transcriptContainerRef}
-                    className="flex-1 overflow-y-auto p-2 space-y-3 max-h-[200px] lg:max-h-[560px]">
+                    className="flex-1 overflow-y-auto p-2 space-y-4">
                   {liveConversation.map((msg) => (
                     <div
                       key={msg.id}
                       className={`flex ${msg.role === "assistant" ? "justify-start" : "justify-end"}`}
                     >
                       <div
-                        className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-sm
+                        className={`max-w-[70%] rounded-2xl px-4 py-3 text-sm shadow-sm
                           ${
                             msg.role === "assistant"
                               ? "bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600"
@@ -423,13 +306,6 @@ export default function LivePreview({ user, interview, onClose }) {
                 </div>
               </div>
               
-              {/* Footer */}
-              {/* <div className="mt-4 text-center">
-                <div className="text-xs text-gray-500 dark:text-gray-400">
-                  <p>This is a preview of the live interview interface.</p>
-                  <p className="mt-1">All updates are in real-time via WebSocket.</p>
-                </div>
-              </div> */}
             </div>
           </div>
         </div>

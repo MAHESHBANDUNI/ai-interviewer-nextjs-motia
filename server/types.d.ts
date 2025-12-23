@@ -32,6 +32,7 @@ declare module 'motia' {
     'SendRescheduledInterviewMail': EventHandler<never, never>
     'ScheduleInterview': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'schedule-interview-mail'; data: never }>
     'RescheduleInterview': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'reschedule-interview-mail'; data: never }>
+    'GetInterviewDetailsByAdmin': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GetAllInterviews': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'CancelInterview': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GetCandidateResumeProfile': ApiRouteHandler<Record<string, unknown>, unknown, never>
@@ -42,7 +43,6 @@ declare module 'motia' {
     'DeleteCandidate': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'CreateCandidate': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'generate-resume-profile'; data: never }>
     'GetAnalytics': ApiRouteHandler<Record<string, unknown>, unknown, never>
-    'GetInterviewDetailsByAdmin': ApiRouteHandler<Record<string, unknown>, unknown, never>
   }
     
 }

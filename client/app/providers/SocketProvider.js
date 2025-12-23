@@ -8,10 +8,12 @@ const SocketContext = createContext(null);
 
 export const SocketProvider = ({ children, user, interviewId, interviewSessionToken }) => {
   const router= useRouter();
+  console.log("interviewSessionToken: ",interviewSessionToken);
+  console.log("user: ",user);
   const [socket, setSocket] = useState(null);
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || !interviewSessionToken) return;
 
     const socketInstance = io(process.env.NEXT_PUBLIC_SOCKET_URL, {
       reconnection: true,

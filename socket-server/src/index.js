@@ -8,6 +8,7 @@ const SOCKET_PORT = process.env.SOCKET_PORT || 8080;
 initializeSocket(SOCKET_PORT).then((io) => {
   io.on('connection', (socket) => {
     const { role, interviewId, userId } = socket.data.user;
+    console.log('User: ', socket.data.user);
 
     // Candidate joins interview
     socket.on('join_candidate', () => {
@@ -37,9 +38,7 @@ initializeSocket(SOCKET_PORT).then((io) => {
     });
 
     // Transcript ingestion
-    socket.on('transcript_event', async ({ id, text, timestamp, interviewDuration }) => {
-      if (role !== 'Candidate') return;
-
+    socket.on('transcript_event', async ({ id, text, role, timestamp, interviewDuration }) => {
       const key = `interview:${interviewId}:messages`;
 
       // TTL only once
@@ -47,7 +46,7 @@ initializeSocket(SOCKET_PORT).then((io) => {
 
       const message = {
         id,
-        role: 'assistant',
+        role,
         text,
         timestamp,
       };
