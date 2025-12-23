@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 
 const SocketContext = createContext(null);
 
-export const SocketProvider = ({ children, user, interviewId }) => {
+export const SocketProvider = ({ children, user, interviewId, interviewSessionToken }) => {
   const router= useRouter();
   const [socket, setSocket] = useState(null);
 
@@ -18,15 +18,18 @@ export const SocketProvider = ({ children, user, interviewId }) => {
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
       transports: ['websocket'],
+      auth: {
+        token: interviewSessionToken,
+      },
     });
 
     const handleConnect = () => {
       console.log('Socket connected:', socketInstance.id);
       if(user?.role === 'Admin'){
-        socketInstance.emit('join_admin', { adminId: user.id, interviewId });
+        socketInstance.emit('join_admin',{});
       }
       if(user?.role === 'Candidate'){
-        socketInstance.emit('join_candidate', { candidateId: user.id, interviewId });
+        socketInstance.emit('join_candidate',{});
       }
     };
 

@@ -7,7 +7,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { errorToast, successToast } from '../../ui/toast';
 import { useSocket } from '../../../providers/SocketProvider';
 
-const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }) => {
+const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails, interviewSessionToken }) => {
   const {data: session} = useSession();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const timeRemainingRef = useRef(Number(interviewDetails.durationMin) * 60)

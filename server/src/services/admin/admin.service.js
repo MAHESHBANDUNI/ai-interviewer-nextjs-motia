@@ -5,6 +5,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { sendScheduledInterviewMail, sendRescheduledInterviewMail } from "../../utils/email.util";
 import { ApiError } from "../../utils/apiError.util";
 import bcrypt from 'bcrypt';
+import socketTokenGeneration from "../../utils/socketToken.util";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY1);
 
@@ -553,6 +554,56 @@ export const AdminService = {
       throw new ApiError('No interview found.',404)
     }
     return interviews;
+  },
+
+  async getInterviewDetailsByAdmin(interviewId, userId){
+      const admin = await prisma.admin.findFirst({
+        where: {
+          adminId: userId
+        },
+        include:{
+            user: {
+              include: {
+                role: true
+              }
+            }
+        }
+      });
+      const interview = await prisma.interview.findFirst({
+        where: {
+          interviewId,
+          adminId: userId
+        },
+        select: {
+          interviewId: true,
+          durationMin: true,
+          status: true,
+          candidate: {
+            select:{
+              candidateId: true,
+              firstName: true,
+              lastName: true,
+              resumeProfile: {
+                select:{
+                  profileTitle: true
+                }
+              }
+            }
+          },
+          admin: {
+            select:{
+              firstName: true,
+              lastName: true
+            }
+          }
+        }
+      });
+      if(!interview){
+          throw new ApiError('Interview not found',400);
+      }
+      
+      const interviewSessionToken = await socketTokenGeneration({ interviewId: interview?.interviewId, durationMin: interview?.durationMin, userId: userId, role: admin?.user?.role?.roleName })
+      return {interview: interview, interviewSessionToken: interviewSessionToken};
   },
 
   async scheduleInterview({datetime, duration, candidateId, userId}){

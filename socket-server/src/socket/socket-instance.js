@@ -1,21 +1,32 @@
 import { Server } from 'socket.io';
 import http from 'http';
+import jwt from 'jsonwebtoken';
+import { createAdapter } from '@socket.io/redis-adapter';
+import { createClient } from 'redis';
+import dotenv from 'dotenv';
+dotenv.config(); // Load .env file
 
 let io = null;
 let socketServer = null;
 
-export function initializeSocket(port = process.env.PORT || 8080) {
-  return new Promise((resolve, reject) => {
+const SOCKET_JWT_SECRET = process.env.SOCKET_JWT_SECRET;
+
+const ALLOWED_ORIGINS =
+  process.env.SOCKET_SERVER_ENV === 'production'
+    ? ['https://app.yourdomain.com', 'https://admin.yourdomain.com']
+    : ['http://localhost:3000', 'http://localhost:3001'];
+
+export async function initializeSocket(port = process.env.PORT || 8080) {
+  return new Promise(async (resolve, reject) => {
     if (io) {
       console.warn('⚠️ Socket.IO already initialized');
       return resolve(io);
     }
 
-    // Dummy HTTP handler for health checks
     const requestHandler = (req, res) => {
       if (req.url === '/') {
         res.writeHead(200, { 'Content-Type': 'text/plain' });
-        res.end('✅ Socket.IO server is alive');
+        res.end('Socket.IO server is alive');
       } else {
         res.writeHead(404);
         res.end();
@@ -26,10 +37,57 @@ export function initializeSocket(port = process.env.PORT || 8080) {
 
     io = new Server(socketServer, {
       cors: {
-        origin: '*',
-        methods: ['GET', 'POST']
+        origin: (origin, callback) => {
+          if (!origin) return callback(null, true);
+          if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+          callback(new Error('CORS not allowed'));
+        },
+        methods: ['GET', 'POST'],
+        credentials: true,
+      },
+      transports: ['websocket'],
+      allowEIO3: false,
+    });
+
+    /* ================================
+       🔐 JWT AUTH (connection-level)
+    ================================= */
+    io.use((socket, next) => {
+      try {
+        const token =
+          socket.handshake.auth?.token ||
+          socket.handshake.headers?.authorization?.split(' ')[1];
+
+        if (!token) return next(new Error('Auth token missing'));
+
+        const payload = jwt.verify(token, SOCKET_JWT_SECRET);
+
+        socket.data.user = {
+          userId: payload.userId,
+          role: payload.role,            // 'candidate' | 'admin'
+          interviewId: payload.interviewId,
+        };
+
+        next();
+      } catch {
+        next(new Error('Invalid or expired token'));
       }
     });
+
+    /* ================================
+       🔁 REDIS ADAPTER (SCALING)
+    ================================= */
+    const pubClient = createClient({ 
+      url: `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT}` 
+    });
+
+    const subClient = pubClient.duplicate();
+
+    await pubClient.connect();
+    await subClient.connect();
+
+    io.adapter(createAdapter(pubClient, subClient));
+    console.log('✅ Redis adapter attached');
 
     socketServer.listen(port, '0.0.0.0', () => {
       console.log(`✅ Socket.IO server running on port ${port}`);
@@ -45,9 +103,7 @@ export function initializeSocket(port = process.env.PORT || 8080) {
 
 export function getSocketInstance() {
   if (!io) {
-    throw new Error(
-      'Socket.IO not initialized. Make sure you only call getSocketInstance in the socket server process.'
-    );
+    throw new Error('Socket.IO not initialized');
   }
   return io;
 }

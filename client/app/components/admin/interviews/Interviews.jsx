@@ -25,6 +25,8 @@ export default function Interview() {
   const [showRescheduleInterviewModalOpen, setShowRescheduleInterviewModalOpen] = useState(false);
   const [showLivePreviewModal, setShowLivePreviewModal] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [interviewDetails, setInterviewDetails] = useState(null);
+  const [interviewSessionToken, setInterviewSessionToken] = useState(null);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -230,6 +232,7 @@ export default function Interview() {
   const handleLivePreviewClick = async (interviewId) => {
     setSelectedInterviewId(interviewId);
     setShowLivePreviewModal(true);
+    await fetchInterviewDetails(interviewId);
   }
 
   const handleRescheduleInterview = async (formData) => {
@@ -284,6 +287,32 @@ export default function Interview() {
     setItemsPerPage(Number(value));
     setCurrentPage(1); // Reset to first page when changing items per page
   };
+
+  const fetchInterviewDetails = async(interviewId) => {
+    if(!interviewId || !session?.user) return ;
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/interview/${interviewId}`,
+       {
+          method: 'GET',
+          headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`}
+        }
+      );
+      if(!response.ok){
+        errorToast('Problem fetching interview details');
+        router.push('/');
+      }
+      if(response.ok){
+        const data = await response.json();
+        const {interview, interviewSessionToken} = data.data;
+        console.log("Interview details fetched: ",interview);
+        setInterviewDetails(interview);
+        setInterviewSessionToken(interviewSessionToken);
+      }
+    }
+    catch(err){
+      console.error("Error fetching interview details: ",err);
+    }
+  }
 
   return (
     <div className="max-w-screen-2xl bg-gradient-to-br from-slate-50 to-blue-50/30 mx-auto p-6 space-y-6" ref={containerRef}>
@@ -514,12 +543,13 @@ export default function Interview() {
       />}
 
       
-      {showLivePreviewModal &&
-        <SocketProvider user={session?.user} interviewId={selectedInterviewId}>
+      {showLivePreviewModal && 
+        <SocketProvider user={session?.user} interviewId={selectedInterviewId} interviewSessionToken={interviewSessionToken}>
           <LivePreview
             user={session?.user}
-            onClose={() => setShowLivePreviewModal(false)}
-            interview={interviewsList.find(i => i.interviewId === selectedInterviewId)}
+            onClose={() => {setShowLivePreviewModal(false);setInterviewDetails(null);setInterviewSessionToken(null);setSelectedInterviewId(null);}}
+            interview={interviewDetails}
+            interviewSessionToken={interviewSessionToken}
           />
         </SocketProvider>
       }
