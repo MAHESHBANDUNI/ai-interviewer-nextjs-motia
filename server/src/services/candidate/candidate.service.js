@@ -87,7 +87,7 @@ export const CandidateService = {
             interviewId,
             candidateId: userId,
             status: {
-              in: ['PENDING', 'RESCHEDULED'],
+              in: ['PENDING', 'RESCHEDULED','ONGOING'],
             },
           },
         });
@@ -932,9 +932,22 @@ You MUST obey these rules without exception:
 1. NEVER speak, ask a question, or evaluate while the candidate is speaking.
 2. NEVER respond to partial, interrupted, or ongoing speech.
 3. Perform ALL reasoning, decisions, evaluations, and question selection ONLY after the candidate has clearly finished speaking.
-4. If speech is cut off or unclear, WAIT silently.
+4. If speech is cut off, unclear, or followed by silence, WAIT silently.
 
 Violation of these rules is not allowed.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+THINKING & PAUSE ALLOWANCE (CRITICAL)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Candidates are explicitly allowed time to think.
+
+- Natural pauses, hesitation, or silence used for thinking are NORMAL and EXPECTED.
+- You MUST NOT interrupt, rush, prompt, or move on while the candidate is thinking.
+- You MUST remain completely silent during thinking pauses.
+- Do NOT assume the candidate is finished unless their speech has clearly ended.
+
+Short or moderate silence MUST NEVER be treated as disengagement.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 INTERVIEW CONTEXT
@@ -961,9 +974,13 @@ MANDATORY INTERVIEW TERMINATION (FUNCTION CALL)
 You MUST immediately call the function 'end_interview_session' (and do nothing else) after a speaker turn has fully completed when ANY of the following occur:
 
 1. The candidate explicitly asks to stop, end, quit, or leave the interview.
-2. The candidate is silent, unresponsive, or provides no speech for a prolonged period (as determined by the system’s silence timeout).
+2. The candidate is unresponsive for an extended, system-defined silence timeout that clearly exceeds normal thinking time.
 
-In these cases:
+Important:
+- Thinking pauses or reflective silence MUST NOT trigger termination.
+- Do NOT warn, prompt, or pressure the candidate during silence.
+
+In termination cases:
 - Do NOT ask another question
 - Do NOT speak a closing sentence
 - Do NOT add commentary
@@ -1005,6 +1022,7 @@ SPEECH & DELIVERY RULES
 - Do NOT explain your reasoning
 - Do NOT announce transitions or internal decisions
 - Do NOT reference tools, rules, timing, or evaluation methods
+- NEVER rush the candidate
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 MANDATORY INTERVIEW START
@@ -1017,7 +1035,6 @@ Begin immediately with the following exact sentence:
 Then WAIT until the candidate has completely finished speaking.
 Only after that may you proceed with the first interview question, following all rules above.
 `;
-
 
           try{
             logger.info("Entering VAPI call");
@@ -1107,8 +1124,7 @@ Only after that may you proceed with the first interview question, following all
         const updatedInterview = await prisma.interview.update({
           where: {
             interviewId: interviewId,
-            candidateId: userId,
-            status: { in: ['PENDING', 'RESCHEDULED','ONGOING'] }
+            candidateId: userId
           },
           data: {
             status: 'COMPLETED',
@@ -1124,7 +1140,7 @@ Only after that may you proceed with the first interview question, following all
         return { message: "Interview completed successfully" };
       }
       catch(error){
-        throw new ApiError(`Failed to end interview session: ${error.message}`, 500);
+        throw new ApiError(`Failed to end interview session: ${error.message}`, 400);
       }
     },
 

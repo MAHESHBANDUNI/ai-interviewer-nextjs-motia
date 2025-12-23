@@ -100,15 +100,17 @@ export default function LivePreview({ user, interview, onClose }) {
     }
   ];
 
-  const [liveConversation, setLiveConversation] = useState(conversationSample);
+  const [liveConversation, setLiveConversation] = useState([]);
 
     /**
    * Handle incoming live transcript event
    * Works for BOTH partial and final messages
    */
   const handleNewConversation = useCallback((event) => {
+    console.log('Event: ',event);
     const { payload } = event;
     console.log("recieved payload: ",payload);
+    if(!payload) return;
 
     setLiveConversation((prev) => {
       const map = new Map(prev.map((m) => [m.id, m]));
@@ -130,6 +132,7 @@ export default function LivePreview({ user, interview, onClose }) {
 
     // 2️⃣ Receive snapshot (mid-join safe)
     socket.on("interview_snapshot", ({ messages }) => {
+      console.log("Older messages: ",messages);
       setLiveConversation(
         messages.sort((a, b) => a.timestamp - b.timestamp)
       );
