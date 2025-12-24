@@ -193,7 +193,7 @@ export default function InterviewPage() {
                       <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800">
                         <div className="h-4 w-28 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 animate-pulse rounded mb-3"></div>
                         <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-gradient-to-r from-blue-400 to-blue-500 animate-pulse"></div>
+                          <div className="w-3 h-3 rounded-full bg-gradient-to-r from-gray-200 to-gray-300 animate-pulse"></div>
                           <div className="h-3 w-32 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 animate-pulse rounded"></div>
                         </div>
                       </div>
