@@ -1,27 +1,38 @@
 'use client';
 
+import { Mic, Camera, Monitor } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 const InterviewCheckModal = ({ isOpen, onClose, onStartInterview }) => {
   const [micPermission, setMicPermission] = useState('pending');
   const [cameraPermission, setCameraPermission] = useState('pending');
+  const [screenPermission, setScreenPermission] = useState('pending');
   const [isChecking, setIsChecking] = useState(true);
   const [audioDevices, setAudioDevices] = useState([]);
   const [videoDevices, setVideoDevices] = useState([]);
   const [selectedAudioDevice, setSelectedAudioDevice] = useState('');
   const [selectedVideoDevice, setSelectedVideoDevice] = useState('');
-  const [isTesting, setIsTesting] = useState(false);
+  const [selectedScreenSource, setSelectedScreenSource] = useState('entire-screen');
+  const [isTestingMicrophone, setIsTestingMicrophone] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
-  const [videoStream, setVideoStream] = useState(null);
-  const [audioStream, setAudioStream] = useState(null);
-  const [activeTab, setActiveTab] = useState('devices');
-
+  const [isScreenPreviewActive, setIsScreenPreviewActive] = useState(false);
+  
+  // Refs for streams and elements
+  const videoStreamRef = useRef(null);
+  const screenStreamRef = useRef(null);
+  const audioStreamRef = useRef(null);
   const videoRef = useRef(null);
+  const screenPreviewRef = useRef(null);
+  
+  // Audio analysis refs
   const audioContextRef = useRef(null);
   const analyserRef = useRef(null);
   const microphoneRef = useRef(null);
   const animationFrameRef = useRef(null);
-
+  
+  // UI state
+  const [activeTab, setActiveTab] = useState('devices');
+  
   const interviewInstructions = [
     "Ensure you are in a quiet, well-lit environment",
     "Make sure your face is clearly visible in the camera",
@@ -34,135 +45,137 @@ const InterviewCheckModal = ({ isOpen, onClose, onStartInterview }) => {
     "Be careful, after exceeding three proctored alerts limit, the interview will be submitted automatically"
   ];
 
- // -------------------------
-  // Audio analysis
-  // -------------------------
+  const screenSourceOptions = [
+    { id: 'entire-screen', label: 'Entire Screen', icon: '🖥️', description: 'Share your entire screen' },
+    { id: 'application-window', label: 'Application Window', icon: '📱', description: 'Share a specific application' },
+    { id: 'browser-tab', label: 'Browser Tab', icon: '🌐', description: 'Share a single browser tab' },
+  ];
+
+  // ======================
+  // Audio Analysis
+  // ======================
   const initAudioAnalysis = useCallback(async (stream) => {
     try {
-      console.log('initAudioAnalysis');
-
-      // close existing audio context if present (fresh start)
+      // Clean up existing audio context
       if (audioContextRef.current) {
         try {
           await audioContextRef.current.close();
         } catch (e) {
-          // ignore
+          // Ignore cleanup errors
         }
-        audioContextRef.current = null;
       }
 
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtx) {
-        console.warn('Web Audio API not supported in this browser.');
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) {
+        console.warn('Web Audio API not supported');
         return;
       }
 
-      const audioContext = new AudioCtx();
+      const audioContext = new AudioContext();
       audioContextRef.current = audioContext;
 
-      // resume (necessary on some browsers until user gesture)
+      // Resume context if suspended
       if (audioContext.state === 'suspended') {
-        try {
-          await audioContext.resume();
-        } catch (err) {
-          console.warn('audioContext resume failed:', err);
-        }
+        await audioContext.resume();
       }
-      console.log('audioContext state after resume:', audioContext.state);
 
       const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 1024;
+      analyser.fftSize = 256;
       analyser.smoothingTimeConstant = 0.8;
       analyserRef.current = analyser;
 
       const micSource = audioContext.createMediaStreamSource(stream);
       microphoneRef.current = micSource;
-
-      // connect source -> analyser (do NOT connect analyser to destination to avoid echo)
       micSource.connect(analyser);
 
       const buffer = new Uint8Array(analyser.frequencyBinCount);
 
-      const update = () => {
+      const updateAudioLevel = () => {
         if (!analyserRef.current) return;
+        
         analyserRef.current.getByteTimeDomainData(buffer);
-
         let sum = 0;
+        
         for (let i = 0; i < buffer.length; i++) {
-          const v = (buffer[i] - 128) / 128;
-          sum += v * v;
+          const amplitude = (buffer[i] - 128) / 128;
+          sum += amplitude * amplitude;
         }
+        
         const rms = Math.sqrt(sum / buffer.length);
-        // scale to 0..100
         const level = Math.min(100, Math.round(rms * 100));
         setAudioLevel(level);
-
-        animationFrameRef.current = requestAnimationFrame(update);
+        
+        if (isTestingMicrophone) {
+          animationFrameRef.current = requestAnimationFrame(updateAudioLevel);
+        }
       };
 
-      // start loop
-      animationFrameRef.current = requestAnimationFrame(update);
+      animationFrameRef.current = requestAnimationFrame(updateAudioLevel);
     } catch (err) {
-      console.error('initAudioAnalysis error', err);
+      console.error('Audio analysis error:', err);
     }
-  }, []);
+  }, [isTestingMicrophone]);
 
   const stopAudioAnalysis = useCallback(async () => {
-    console.log('stopAudioAnalysis');
-
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
     }
 
     if (microphoneRef.current) {
-      try {
-        microphoneRef.current.disconnect();
-      } catch (e) {}
+      microphoneRef.current.disconnect();
       microphoneRef.current = null;
     }
 
     if (analyserRef.current) {
-      try {
-        analyserRef.current.disconnect();
-      } catch (e) {}
+      analyserRef.current.disconnect();
       analyserRef.current = null;
     }
 
     if (audioContextRef.current) {
       try {
-        // closing releases resources
         await audioContextRef.current.close();
-      } catch (e) {}
+      } catch (e) {
+        // Ignore cleanup errors
+      }
       audioContextRef.current = null;
     }
 
     setAudioLevel(0);
   }, []);
 
-  // -------------------------
-  // Permissions & devices
-  // -------------------------
+  // ======================
+  // Permissions & Devices
+  // ======================
   const checkPermissions = useCallback(async () => {
     setIsChecking(true);
     try {
+      // Check microphone
       try {
         const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         setMicPermission('granted');
-        micStream.getTracks().forEach(t => t.stop());
+        micStream.getTracks().forEach(track => track.stop());
       } catch (e) {
         setMicPermission('denied');
       }
 
+      // Check camera
       try {
         const camStream = await navigator.mediaDevices.getUserMedia({ video: true });
         setCameraPermission('granted');
-        camStream.getTracks().forEach(t => t.stop());
+        camStream.getTracks().forEach(track => track.stop());
       } catch (e) {
         setCameraPermission('denied');
       }
+
+      // Check screen sharing
+      if (navigator.mediaDevices && 'getDisplayMedia' in navigator.mediaDevices) {
+        setScreenPermission('granted');
+      } else {
+        setScreenPermission('denied');
+      }
     } catch (err) {
-      console.error('checkPermissions error', err);
+      console.error('Permission check error:', err);
     } finally {
       setIsChecking(false);
     }
@@ -171,13 +184,13 @@ const InterviewCheckModal = ({ isOpen, onClose, onStartInterview }) => {
   const getDevices = useCallback(async () => {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
-      const audioInputs = devices.filter(d => d.kind === 'audioinput');
-      const videoInputs = devices.filter(d => d.kind === 'videoinput');
+      const audioInputs = devices.filter(device => device.kind === 'audioinput');
+      const videoInputs = devices.filter(device => device.kind === 'videoinput');
 
       setAudioDevices(audioInputs);
       setVideoDevices(videoInputs);
 
-      // set defaults only if not already selected
+      // Set defaults if not already selected
       if (!selectedAudioDevice && audioInputs.length > 0) {
         setSelectedAudioDevice(audioInputs[0].deviceId);
       }
@@ -185,196 +198,236 @@ const InterviewCheckModal = ({ isOpen, onClose, onStartInterview }) => {
         setSelectedVideoDevice(videoInputs[0].deviceId);
       }
     } catch (err) {
-      console.error('getDevices error', err);
+      console.error('Device enumeration error:', err);
     }
   }, [selectedAudioDevice, selectedVideoDevice]);
 
-  // -------------------------
-  // Camera preview
-  // -------------------------
+  // ======================
+  // Camera Preview
+  // ======================
   const startCameraPreview = useCallback(async () => {
-    // If no video device selected, try to get any camera
+    if (videoStreamRef.current) return;
+
     try {
-      // stop old stream if present
-      if (videoStream) {
-        videoStream.getTracks().forEach(t => t.stop());
-        setVideoStream(null);
-      }
+      const constraints = selectedVideoDevice
+        ? { 
+            video: { 
+              deviceId: { exact: selectedVideoDevice },
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            } 
+          }
+        : { video: { width: { ideal: 1280 }, height: { ideal: 720 } } };
 
-      // Build constraints: if deviceId exists, try it, otherwise allow default
-      const videoConstraints = selectedVideoDevice
-        ? { deviceId: { exact: selectedVideoDevice }, width: { min: 320, ideal: 1280, max: 1920 }, height: { min: 240, ideal: 720, max: 1080 } }
-        : { width: { min: 320, ideal: 1280, max: 1920 }, height: { min: 240, ideal: 720, max: 1080 } };
-
-      const stream = await navigator.mediaDevices.getUserMedia({ video: videoConstraints });
-
-      setVideoStream(stream);
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      videoStreamRef.current = stream;
 
       if (videoRef.current) {
-        try {
-          videoRef.current.srcObject = stream;
-          // ensure playsInline + autoplay + muted (muted to allow autoplay in browsers)
-          // call play() because sometimes autoPlay is blocked
-          await videoRef.current.play().catch(err => {
-            // If play() is blocked it will be caught here. We'll still have srcObject set and user click can start.
-            console.warn('Video play() blocked:', err);
-          });
-        } catch (err) {
-          console.warn('videoRef assignment/play error:', err);
-        }
+        videoRef.current.srcObject = stream;
+        videoRef.current.muted = true;
+        videoRef.current.playsInline = true;
+        await videoRef.current.play().catch(console.warn);
       }
     } catch (err) {
-      console.error('startCameraPreview error:', err);
+      console.error('Camera preview error:', err);
       setCameraPermission('denied');
     }
-  }, [selectedVideoDevice, videoStream]);
+  }, [selectedVideoDevice]);
 
-  // -------------------------
-  // Microphone test
-  // -------------------------
-  const startMicrophoneTest = useCallback(async () => {
-    if (!selectedAudioDevice) {
-      console.warn('No selectedAudioDevice');
-      return;
+  const stopCameraPreview = useCallback(() => {
+    if (videoStreamRef.current) {
+      videoStreamRef.current.getTracks().forEach(track => track.stop());
+      videoStreamRef.current = null;
     }
+    
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, []);
+
+  // ======================
+  // Screen Share Preview
+  // ======================
+  const startScreenPreview = useCallback(async () => {
+    if (screenStreamRef.current || !screenPreviewRef.current) return;
 
     try {
-      if (audioStream) {
-        audioStream.getTracks().forEach(t => t.stop());
-        setAudioStream(null);
-        await stopAudioAnalysis();
+      const constraints = {
+        video: {
+          displaySurface: selectedScreenSource === 'entire-screen' ? 'monitor' :
+                         selectedScreenSource === 'application-window' ? 'window' : 'browser',
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        },
+        audio: false
+      };
+
+      const stream = await navigator.mediaDevices.getDisplayMedia(constraints);
+      screenStreamRef.current = stream;
+      setIsScreenPreviewActive(true);
+
+      // Set stream to video element
+      screenPreviewRef.current.srcObject = stream;
+      screenPreviewRef.current.muted = true;
+      screenPreviewRef.current.playsInline = true;
+      
+      // Ensure video plays
+      await screenPreviewRef.current.play().catch(console.warn);
+
+      // Handle when user stops sharing via browser UI
+      const videoTrack = stream.getVideoTracks()[0];
+      videoTrack.addEventListener('ended', () => {
+        stopScreenPreview();
+      });
+    } catch (err) {
+      console.error('Screen preview error:', err);
+      // Don't set permission to denied for user cancellation
+      if (err.name !== 'NotAllowedError' && err.name !== 'AbortError') {
+        setScreenPermission('denied');
+      }
+    }
+  }, [selectedScreenSource]);
+
+  const stopScreenPreview = useCallback(() => {
+    if (screenStreamRef.current) {
+      screenStreamRef.current.getTracks().forEach(track => track.stop());
+      screenStreamRef.current = null;
+    }
+    
+    if (screenPreviewRef.current) {
+      screenPreviewRef.current.srcObject = null;
+    }
+    
+    setIsScreenPreviewActive(false);
+  }, []);
+
+  // ======================
+  // Microphone Test
+  // ======================
+  const startMicrophoneTest = useCallback(async () => {
+    if (!selectedAudioDevice || isTestingMicrophone) return;
+
+    try {
+      // Stop existing test if any
+      await stopAudioAnalysis();
+      
+      if (audioStreamRef.current) {
+        audioStreamRef.current.getTracks().forEach(track => track.stop());
+        audioStreamRef.current = null;
       }
 
-      // build audio constraint defensively
-      const audioConstraints = selectedAudioDevice ? { deviceId: { exact: selectedAudioDevice }, echoCancellation: true, noiseSuppression: true } : { echoCancellation: true, noiseSuppression: true };
+      const constraints = selectedAudioDevice
+        ? { audio: { deviceId: { exact: selectedAudioDevice } } }
+        : { audio: true };
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
-      setAudioStream(stream);
-
-      // Log track info for debugging
-      console.log('audio track settings:', stream.getAudioTracks()[0]?.getSettings());
-      console.log('audio track label:', stream.getAudioTracks()[0]?.label);
-
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      audioStreamRef.current = stream;
+      setIsTestingMicrophone(true);
+      
       await initAudioAnalysis(stream);
-      setIsTesting(true);
     } catch (err) {
-      console.error('startMicrophoneTest error:', err);
+      console.error('Microphone test error:', err);
       setMicPermission('denied');
+      setIsTestingMicrophone(false);
     }
-  }, [selectedAudioDevice, audioStream, initAudioAnalysis, stopAudioAnalysis]);
+  }, [selectedAudioDevice, isTestingMicrophone, initAudioAnalysis, stopAudioAnalysis]);
 
-  // -------------------------
-  // Stop all tests / cleanup
-  // -------------------------
-  const stopAllTests = useCallback(async () => {
-    console.log('stopAllTests');
-
-    // if (videoStream) {
-    //   try {
-    //     videoStream.getTracks().forEach(t => t.stop());
-    //   } catch (e) {}
-    //   setVideoStream(null);
-    //   if (videoRef.current) {
-    //     try {
-    //       videoRef.current.srcObject = null;
-    //     } catch (e) {}
-    //   }
-    // }
-
-    if (audioStream) {
-      try {
-        audioStream.getTracks().forEach(t => t.stop());
-      } catch (e) {}
-      setAudioStream(null);
-    }
-
+  const stopMicrophoneTest = useCallback(async () => {
     await stopAudioAnalysis();
-    setIsTesting(false);
-  }, [audioStream, stopAudioAnalysis]);
+    
+    if (audioStreamRef.current) {
+      audioStreamRef.current.getTracks().forEach(track => track.stop());
+      audioStreamRef.current = null;
+    }
+    
+    setIsTestingMicrophone(false);
+    setAudioLevel(0);
+  }, [stopAudioAnalysis]);
 
-  // -------------------------
-  // Request permissions button helper
-  // -------------------------
+  // ======================
+  // Cleanup Functions
+  // ======================
+  const stopAllTests = useCallback(async () => {
+    await stopMicrophoneTest();
+    stopCameraPreview();
+    stopScreenPreview();
+  }, [stopMicrophoneTest, stopCameraPreview, stopScreenPreview]);
+
   const requestPermissions = useCallback(async () => {
     setIsChecking(true);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-      // if we get here, both granted
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: true, 
+        video: true 
+      });
+      
       setMicPermission('granted');
       setCameraPermission('granted');
-      stream.getTracks().forEach(t => t.stop());
+      
+      stream.getTracks().forEach(track => track.stop());
       await getDevices();
     } catch (err) {
-      console.warn('requestPermissions failed:', err);
+      console.warn('Permission request failed:', err);
       await checkPermissions();
     } finally {
       setIsChecking(false);
     }
   }, [getDevices, checkPermissions]);
 
-  // -------------------------
+  // ======================
   // Effects
-  // -------------------------
+  // ======================
   useEffect(() => {
     if (!isOpen) {
-      (async () => { await stopAllTests(); })();
+      stopAllTests();
       return;
     }
 
-    (async () => {
-      await checkPermissions();
-      await getDevices();
-    })();
-    
-    // listen for devicechange (user plugs/unplugs camera/mic)
-    const onDeviceChange = () => {
-      // refresh device list
+    checkPermissions();
+    getDevices();
+
+    const handleDeviceChange = () => {
       getDevices();
     };
-    navigator.mediaDevices.addEventListener('devicechange', onDeviceChange);
+
+    navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
 
     return () => {
-      navigator.mediaDevices.removeEventListener('devicechange', onDeviceChange);
+      navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
+      stopAllTests();
     };
   }, [isOpen, checkPermissions, getDevices, stopAllTests]);
 
-  // When camera permission + selected device change -> start preview
+  // Start camera preview when permission granted and device selected
   useEffect(() => {
-    if (cameraPermission === 'granted' && selectedVideoDevice) {
+    if (cameraPermission === 'granted' && selectedVideoDevice && isOpen) {
       startCameraPreview();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cameraPermission, selectedVideoDevice]);
 
-  // When selected audio device changed while testing -> restart test
-  useEffect(() => {
-    if (isTesting) {
-      // intentionally not awaiting here; startMicrophoneTest handles cleanup
-      startMicrophoneTest();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedAudioDevice]);
+    return () => {
+      stopCameraPreview();
+    };
+  }, [cameraPermission, selectedVideoDevice, isOpen, startCameraPreview, stopCameraPreview]);
 
-  // cleanup on unmount
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      (async () => {
-        await stopAllTests();
-      })();
+      stopAllTests();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [stopAllTests]);
 
-  // -------------------------
-  // Handlers
-  // -------------------------
+  // ======================
+  // Event Handlers
+  // ======================
   const handleStartInterview = () => {
-    // Stop local tests, then pass selected device ids to parent
     stopAllTests();
+    
     if (micPermission === 'granted' && cameraPermission === 'granted') {
       onStartInterview({
         audioDeviceId: selectedAudioDevice,
         videoDeviceId: selectedVideoDevice,
+        screenSharingRequired: true,
+        screenSourceType: selectedScreenSource,
       });
     }
   };
@@ -384,13 +437,18 @@ const InterviewCheckModal = ({ isOpen, onClose, onStartInterview }) => {
     onClose();
   };
 
-  const allPermissionsGranted = micPermission === 'granted' && cameraPermission === 'granted';
+  // ======================
+  // UI Helper Functions
+  // ======================
+  const allPermissionsGranted = micPermission === 'granted' && 
+                                cameraPermission === 'granted' && 
+                                screenPermission === 'granted';
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'granted': return 'bg-blue-100 text-blue-700 border-blue-200';
+      case 'granted': return 'bg-green-100 text-green-700 border-green-200';
       case 'denied': return 'bg-red-100 text-red-700 border-red-200';
-      default: return 'bg-amber-100 text-amber-700 border-amber-200';
+      default: return 'bg-yellow-100 text-yellow-700 border-yellow-200';
     }
   };
 
@@ -411,15 +469,15 @@ const InterviewCheckModal = ({ isOpen, onClose, onStartInterview }) => {
   };
 
   const getAudioLevelColor = (level) => {
-    if (level > 60) return 'bg-red-500';
-    if (level > 30) return 'bg-blue-500';
+    if (level > 70) return 'bg-red-500';
+    if (level > 40) return 'bg-green-500';
     return 'bg-blue-500';
   };
-  
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 z-999" onClick={handleCloseModal}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center p-4 z-5000" onClick={handleCloseModal}>
       <div 
         onClick={(e) => e.stopPropagation()} 
         className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[95vh] overflow-hidden flex flex-col"
@@ -433,9 +491,9 @@ const InterviewCheckModal = ({ isOpen, onClose, onStartInterview }) => {
             </div>
             <button
               onClick={handleCloseModal}
-              className="p-2 hover:bg-white/50 rounded-xl transition-all duration-200 group cursor-pointer"
+              className="p-2 hover:bg-gray-100 rounded-xl transition-all duration-200"
             >
-              <svg className="w-6 h-6 text-gray-500 group-hover:text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-6 h-6 text-gray-500 hover:text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -443,36 +501,40 @@ const InterviewCheckModal = ({ isOpen, onClose, onStartInterview }) => {
 
           {/* Progress Indicators */}
           <div className="flex items-center gap-4 mt-4">
-            <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${micPermission === 'granted' ? 'bg-blue-500' : micPermission === 'denied' ? 'bg-red-500' : 'bg-amber-500'}`} />
-              <span className="text-sm font-medium text-gray-700">Microphone</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${cameraPermission === 'granted' ? 'bg-blue-500' : cameraPermission === 'denied' ? 'bg-red-500' : 'bg-amber-500'}`} />
-              <span className="text-sm font-medium text-gray-700">Camera</span>
-            </div>
+            {['Microphone', 'Camera', 'Screen'].map((device) => (
+              <div key={device} className="flex items-center gap-2">
+                <div className={`w-3 h-3 rounded-full ${
+                  device === 'Microphone' 
+                    ? micPermission === 'granted' ? 'bg-green-500' : micPermission === 'denied' ? 'bg-red-500' : 'bg-yellow-500'
+                    : device === 'Camera'
+                    ? cameraPermission === 'granted' ? 'bg-green-500' : cameraPermission === 'denied' ? 'bg-red-500' : 'bg-yellow-500'
+                    : screenPermission === 'granted' ? 'bg-green-500' : screenPermission === 'denied' ? 'bg-red-500' : 'bg-yellow-500'
+                }`} />
+                <span className="text-sm font-medium text-gray-700">{device}</span>
+              </div>
+            ))}
           </div>
         </div>
 
         {/* Navigation Tabs */}
         <div className="border-b border-gray-100 bg-white">
-          <div className="flex overflow-x-auto">
+          <div className="flex">
             <button
               onClick={() => setActiveTab('devices')}
-              className={`flex-1 min-w-0 px-6 py-4 text-sm font-medium border-b-2 cursor-pointer transition-colors ${
+              className={`flex-1 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === 'devices' 
-                  ? 'm-1 rounded-md text-white bg-blue-600 font-semibold' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700 font-semibold'
+                  ? 'border-blue-500 text-blue-600' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
               Device Setup
             </button>
             <button
               onClick={() => setActiveTab('instructions')}
-              className={`flex-1 min-w-0 px-6 py-4 text-sm font-medium border-b-2 transition-colors cursor-pointer ${
+              className={`flex-1 px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === 'instructions' 
-                  ? 'm-1 rounded-md text-white bg-blue-600 font-semibold' 
-                  : 'border-transparent text-gray-500 hover:text-gray-700 font-semibold'
+                  ? 'border-blue-500 text-blue-600' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
               Instructions
@@ -485,40 +547,39 @@ const InterviewCheckModal = ({ isOpen, onClose, onStartInterview }) => {
           {activeTab === 'devices' && (
             <div className="p-6 space-y-6">
               {/* Media Previews Grid */}
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Camera Preview */}
-                <div className="bg-gray-900 rounded-xl overflow-hidden border border-gray-800 shadow-lg">
-                  <div className="p-4 bg-gray-800/50 backdrop-blur-sm">
+                <div className="bg-gray-900 rounded-xl overflow-hidden border border-gray-800">
+                  <div className="p-4 bg-gray-800/50">
                     <div className="flex items-center justify-between">
                       <h3 className="text-white font-semibold flex items-center gap-2">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
+                        <Camera className='w-5 h-5' />
                         Camera Preview
                       </h3>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(cameraPermission)}`}>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(cameraPermission)}`}>
                         {getStatusIcon(cameraPermission)} {getStatusText(cameraPermission)}
                       </span>
                     </div>
                   </div>
                   <div className="aspect-video bg-black relative">
                     <video 
-                      ref={videoRef} 
-                      autoPlay 
-                      playsInline 
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
                       muted
-                      style={{ width: "100%", height: "100%" }}
+                      className="w-full h-full object-cover"
                     />
                     {cameraPermission !== 'granted' && (
-                      <div className="flex items-center justify-center absolute inset-0 text-white bg-black/80">
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/80">
                         <div className="text-center p-6">
                           <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-3">
-                            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                             </svg>
                           </div>
-                          <p className="text-sm font-medium mb-2">Camera {cameraPermission === 'denied' ? 'Access Denied' : 'Not Active'}</p>
-                          <p className="text-xs text-gray-400">Please grant camera permissions to continue</p>
+                          <p className="text-white text-sm font-medium mb-2">
+                            Camera {cameraPermission === 'denied' ? 'Access Denied' : 'Not Active'}
+                          </p>
                         </div>
                       </div>
                     )}
@@ -526,75 +587,161 @@ const InterviewCheckModal = ({ isOpen, onClose, onStartInterview }) => {
                 </div>
 
                 {/* Microphone Test */}
-                <div className="bg-gray-900 rounded-xl overflow-hidden border border-gray-800 shadow-lg">
-                  <div className="p-4 bg-gray-800/50 backdrop-blur-sm">
+                <div className="bg-gray-900 rounded-xl overflow-hidden border border-gray-800">
+                  <div className="p-4 bg-gray-800/50">
                     <div className="flex items-center justify-between">
                       <h3 className="text-white font-semibold flex items-center gap-2">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                        </svg>
+                        <Mic className='w-5 h-5' />
                         Microphone Test
                       </h3>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(micPermission)}`}>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(micPermission)}`}>
                         {getStatusIcon(micPermission)} {getStatusText(micPermission)}
                       </span>
                     </div>
                   </div>
                   <div className="aspect-video bg-black flex items-center justify-center p-6">
                     {micPermission === 'granted' ? (
-                      <div className="w-full max-w-sm text-center">
+                      <div className="w-full max-w-md text-center">
                         <div className="mb-6">
-                          <div className="w-32 h-32 mx-auto bg-gray-800 rounded-full flex items-center justify-center relative shadow-lg">
-                            {/* Audio visualization rings */}
-                            <div className="absolute inset-0 rounded-full border-2 border-blue-500/30 animate-ping" />
+                          <div className="w-32 h-32 mx-auto bg-gray-800 rounded-full flex items-center justify-center relative">
                             <div 
-                              className="absolute inset-4 rounded-full transition-all duration-75"
+                              className="absolute inset-0 rounded-full transition-all duration-100"
                               style={{ 
                                 backgroundColor: getAudioLevelColor(audioLevel).replace('bg-', 'bg-'),
-                                transform: `scale(${0.8 + audioLevel / 150})`,
-                                opacity: Math.max(0.2, audioLevel / 100)
+                                transform: `scale(${0.7 + audioLevel / 200})`,
+                                opacity: Math.max(0.3, audioLevel / 100)
                               }}
                             />
-                            <svg className="w-12 h-12 text-white relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                            </svg>
+                            <Mic className='w-5 h-5' />
                           </div>
                         </div>
                         
-                        <div className="space-y-3">
-                          <p className="text-white text-sm font-medium">Speak to test your microphone</p>
+                        <div className="space-y-4">
+                          <p className="text-white text-sm font-medium">
+                            {isTestingMicrophone ? 'Speak to test your microphone' : 'Click "Start Test" to begin'}
+                          </p>
                           
-                          <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
+                          <div className="w-full bg-gray-700 rounded-full h-2.5 overflow-hidden">
                             <div 
-                              className={`h-3 rounded-full transition-all duration-75 ${getAudioLevelColor(audioLevel)}`}
+                              className={`h-2.5 rounded-full transition-all duration-100 ${getAudioLevelColor(audioLevel)}`}
                               style={{ width: `${Math.min(100, audioLevel)}%` }}
                             />
                           </div>
                           
                           <div className="flex justify-between text-xs text-gray-400">
                             <span>Quiet</span>
-                            <span className="font-medium">Level: {Math.round(audioLevel)}%</span>
+                            <span className="font-medium">Level: {audioLevel}%</span>
                             <span>Loud</span>
+                          </div>
+                          
+                          <div className="flex gap-3">
+                            <button
+                              onClick={startMicrophoneTest}
+                              disabled={!selectedAudioDevice || isTestingMicrophone}
+                              className="flex-1 px-4 py-2.5 bg-blue-600 rounded-lg text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                              {isTestingMicrophone ? 'Testing...' : 'Start Test'}
+                            </button>
+                            <button
+                              onClick={stopMicrophoneTest}
+                              disabled={!isTestingMicrophone}
+                              className="flex-1 px-4 py-2.5 bg-gray-600 rounded-lg text-white text-sm font-medium hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                              Stop Test
+                            </button>
                           </div>
                         </div>
                       </div>
                     ) : (
-                      <div className="text-center text-white p-6">
-                        <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
-                          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                          </svg>
+                      <div className="text-center p-6">
+                        <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-3">
+                          <Mic className='w-5 h-5' />
                         </div>
-                        <p className="text-sm font-medium mb-1">Microphone {micPermission === 'denied' ? 'Access Denied' : 'Not Active'}</p>
-                        <p className="text-xs text-gray-400">Please grant microphone permissions to test</p>
+                        <p className="text-white text-sm font-medium">
+                          Microphone {micPermission === 'denied' ? 'Access Denied' : 'Not Available'}
+                        </p>
                       </div>
                     )}
+                  </div>
+                </div>
+
+                {/* Screen Sharing Preview */}
+                <div className="lg:col-span-2 bg-gray-900 rounded-xl overflow-hidden border border-gray-800">
+                  <div className="p-4 bg-gray-800/50">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-white font-semibold flex items-center gap-2">
+                        <Monitor className='w-5 h-5' />
+                         Screen Share Preview
+                      </h3>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(screenPermission)}`}>
+                        {getStatusIcon(screenPermission)} {getStatusText(screenPermission)}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="aspect-video bg-black relative">
+                    <video
+                      ref={screenPreviewRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full h-full object-contain bg-black"
+                    />
+                    
+                    {!isScreenPreviewActive && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-white p-6">
+                        <div className="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center mb-4">
+                          <span className="text-2xl"><Monitor className='w-5 h-5'/></span>
+                        </div>
+                        <p className="text-lg font-medium mb-2">Screen Preview</p>
+                        <p className="text-sm text-gray-300 text-center max-w-md">
+                          Click "Start Preview" to select and preview what you'll be sharing during the interview
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="p-4 bg-gray-800 flex flex-col sm:flex-row gap-3">
+                    {/* <div className="flex-1">
+                      <label className="block text-sm font-medium text-white mb-2">
+                        Share Source
+                      </label>
+                      <select
+                        value={selectedScreenSource}
+                        onChange={(e) => setSelectedScreenSource(e.target.value)}
+                        className="w-full p-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
+                        disabled={isScreenPreviewActive}
+                      >
+                        {screenSourceOptions.map((source) => (
+                          <option key={source.id} value={source.id}>
+                            {source.icon} {source.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div> */}
+                    
+                    <div className="flex gap-2 items-end">
+                      <button
+                        onClick={startScreenPreview}
+                        disabled={screenPermission !== 'granted' || isScreenPreviewActive}
+                        className="px-6 py-2.5 bg-blue-600 rounded-lg text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                      >
+                        Start Preview
+                      </button>
+                      <button
+                        onClick={stopScreenPreview}
+                        disabled={!isScreenPreviewActive}
+                        className="px-6 py-2.5 bg-gray-600 rounded-lg text-white text-sm font-medium hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                      >
+                        Stop Preview
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Device Configuration */}
-              <div className="bg-gradient-to-br from-gray-50 to-white rounded-2xl p-6 border border-gray-200 shadow-sm">
+              <div className="bg-white rounded-xl p-6 border border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                   <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -603,7 +750,7 @@ const InterviewCheckModal = ({ isOpen, onClose, onStartInterview }) => {
                   Device Configuration
                 </h3>
                 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-3">
                     <label className="block text-sm font-medium text-gray-700">
                       Camera Selection
@@ -611,7 +758,7 @@ const InterviewCheckModal = ({ isOpen, onClose, onStartInterview }) => {
                     <select
                       value={selectedVideoDevice}
                       onChange={(e) => setSelectedVideoDevice(e.target.value)}
-                      className="w-full p-3.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm transition-all duration-200"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                       disabled={cameraPermission !== 'granted'}
                     >
                       {videoDevices.map((device) => (
@@ -629,7 +776,7 @@ const InterviewCheckModal = ({ isOpen, onClose, onStartInterview }) => {
                     <select
                       value={selectedAudioDevice}
                       onChange={(e) => setSelectedAudioDevice(e.target.value)}
-                      className="w-full p-3.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm transition-all duration-200"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                       disabled={micPermission !== 'granted'}
                     >
                       {audioDevices.map((device) => (
@@ -641,35 +788,11 @@ const InterviewCheckModal = ({ isOpen, onClose, onStartInterview }) => {
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-3 mt-6">
-                  <button
-                    onClick={startMicrophoneTest}
-                    disabled={micPermission !== 'granted' || !selectedAudioDevice || isTesting}
-                    className="cursor-pointer flex-1 px-6 py-3.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md flex items-center justify-center gap-2"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                    </svg>
-                    {isTesting ? 'Testing...' : 'Start Microphone Test'}
-                  </button>
-                  
-                  <button
-                    onClick={stopAllTests}
-                    className="cursor-pointer px-6 py-3.5 bg-gray-600 text-white rounded-xl font-semibold hover:bg-gray-700 transition-all duration-200 shadow-sm hover:shadow-md flex items-center justify-center gap-2"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
-                    </svg>
-                    Stop Tests
-                  </button>
-                </div>
-
                 {!allPermissionsGranted && (
                   <button
                     onClick={requestPermissions}
                     disabled={isChecking}
-                    className="cursor-pointer w-full mt-4 px-6 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md flex items-center justify-center gap-2"
+                    className="w-full mt-6 px-6 py-3.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -683,8 +806,8 @@ const InterviewCheckModal = ({ isOpen, onClose, onStartInterview }) => {
 
           {activeTab === 'instructions' && (
             <div className="p-6">
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                <div className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="p-6 bg-blue-50 border-b border-gray-200">
                   <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                     <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -697,9 +820,9 @@ const InterviewCheckModal = ({ isOpen, onClose, onStartInterview }) => {
                     {interviewInstructions.map((instruction, index) => (
                       <div 
                         key={index} 
-                        className="flex items-start space-x-3 p-4 bg-gray-50 rounded-xl hover:bg-blue-50 transition-colors duration-200 group"
+                        className="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg hover:bg-blue-50 transition-colors"
                       >
-                        <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center group-hover:bg-blue-200 transition-colors duration-200">
+                        <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                           <span className="text-blue-600 text-sm font-bold">{index + 1}</span>
                         </div>
                         <p className="text-gray-700 leading-relaxed text-sm">{instruction}</p>
@@ -718,7 +841,7 @@ const InterviewCheckModal = ({ isOpen, onClose, onStartInterview }) => {
             <button
               onClick={handleCloseModal}
               disabled={isChecking}
-              className="cursor-pointer px-8 py-3.5 bg-white text-gray-700 rounded-xl font-semibold border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md flex items-center justify-center gap-2 order-2 sm:order-1"
+              className="px-8 py-3.5 bg-white text-gray-700 rounded-lg font-semibold border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 order-2 sm:order-1"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -734,28 +857,24 @@ const InterviewCheckModal = ({ isOpen, onClose, onStartInterview }) => {
                 }
               }}
               disabled={!allPermissionsGranted || isChecking}
-              className="cursor-pointer px-8 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md flex items-center justify-center gap-2 order-1 sm:order-2"
+              className="px-8 py-3.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 order-1 sm:order-2"
             >
-              {activeTab === 'instructions' ?
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              :
-              <svg
-                className="w-5 h-5"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7c2 1 4 2 9 2s7-1 9-2v10c-2 1-4 2-9 2s-7-1-9-2V7z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v12" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 10h3M6 13h3M6 16h3" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10h3M15 13h3M15 16h3" />
-              </svg>
-              }
-              {isChecking ? 'Checking Environment...' : activeTab === 'devices' ? 'Read Instructions' : 'Start Interview'}
+              {activeTab === 'instructions' ? (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Start Interview
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                  </svg>
+                  Read Instructions
+                </>
+              )}
             </button>
           </div>
         </div>

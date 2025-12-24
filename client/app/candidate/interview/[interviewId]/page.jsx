@@ -220,7 +220,6 @@ export default function InterviewPage() {
           onInterviewEnd={handleInterviewEnd}
           onClose={handleCloseModal}
           interviewDetails={interviewDetails}
-          interviewSessionToken={interviewSessionToken}
         />
         </SocketProvider>
       )}

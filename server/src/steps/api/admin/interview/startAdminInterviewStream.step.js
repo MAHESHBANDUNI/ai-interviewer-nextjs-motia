@@ -1,15 +1,15 @@
 import { z } from "zod";
-import { CandidateService } from "../../../../services/candidate/candidate.service";
+import { AdminService } from "../../../../services/admin/admin.service";
 import { errorHandlerMiddleware } from "../../../../middlewares/errorHandler.middleware";
 import { authMiddleware } from "../../../../middlewares/auth.middleware";
 import { corsMiddleware } from "../../../../middlewares/cors.middleware";
 
 export const config = {
-    name: 'StartCandidateInterviewSession',
+    name: 'StartAdminInterviewStream',
     type : 'api',
-    path : '/api/candidate/interview/start',
+    path : '/api/admin/interview/stream',
     method: 'POST',
-    description: 'Start interview session endpoint',
+    description: 'Start admin interview stream endpoint',
     emits: [],
     flows: [],
     middleware: [corsMiddleware, errorHandlerMiddleware, authMiddleware]
@@ -17,10 +17,9 @@ export const config = {
 
 export const handler = async(req, {emit, logger}) =>{
     try{
-        logger.info('Processing start interview session request', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
+        logger.info('Processing start admin interview stream request', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
         const userId = await req?.user?.userId;
         const interviewId = req?.body?.interviewId;
-        logger.info("InterviewId: ",interviewId,"Userid: ",userId);
         if(!interviewId || !userId){
           return {
             status: 400,
@@ -29,22 +28,22 @@ export const handler = async(req, {emit, logger}) =>{
             }
           }
         }
-        const result = await CandidateService.startInterview({interviewId, userId, logger});
+        const result = await AdminService.startAdminInterviewStream({interviewId, userId, logger});
         if(!result){
-            logger.error('Failed to start interview session');
-            throw new Error('Failed to start interview session',{status: 400})
+            logger.error('Failed to start admin interview stream');
+            throw new Error('Failed to start admin interview stream',{status: 400})
         }
         return {
           status: 200,
           body: {
-            message: 'Interview session started successfully',
+            message: 'Admin interview stream started successfully',
             data: result
           }
         };
     }
     catch (error) {
       if (logger) {
-        logger.error('Failed to start interview session', { error: error.message, status: error.status });
+        logger.error('Failed to start admin interview stream', { error: error.message, status: error.status });
       }
       return {
         status: error.status || 500,

@@ -6,8 +6,14 @@ import { useSession } from 'next-auth/react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { errorToast, successToast } from '../../ui/toast';
 import { useSocket } from '../../../providers/SocketProvider';
+import {
+  Room,
+  RoomEvent,
+  createLocalTracks,
+  LocalAudioTrack
+} from "livekit-client";
 
-const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails, interviewSessionToken }) => {
+const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }) => {
   const {data: session} = useSession();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const timeRemainingRef = useRef(Number(interviewDetails.durationMin) * 60)
@@ -21,7 +27,11 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails, 
   const audioRef = useRef(null);
   const liveTranscriptRef = useRef([]);
   const socket = useSocket();
-  const lastEmittedMessageRef = useRef(null);
+  const roomRef = useRef(null);
+  const micTrackRef = useRef(null);
+  const assistantAudioTrackRef = useRef(null);
+  const [interviewStreamToken, setInterviewStreamToken] = useState(null);
+  const [interviewStreamUrl, setInterviewStreamUrl] = useState(null);
 
 const conversationSample = [
   {
@@ -147,7 +157,7 @@ const conversationSample = [
   }, []);
 
   useEffect(() => {
-    if (!startCalledRef.current) { 
+    if (!startCalledRef.current) {
       startCalledRef.current = true;
       enterFullscreen();
       startProctoring();
@@ -316,42 +326,129 @@ const conversationSample = [
   };
 
   const handleStartInterview = async () => {
-    try{
-      if (interviewStartedRef.current) return;
+    if (interviewStartedRef.current) return;
+    try {
+      const result = await handleStartInterviewStream(interviewDetails?.interviewId);
+      const interviewStreamToken= result?.token;
+      const interviewStreamUrl = result?.url;
       interviewStartedRef.current = true;
 
-      // 1. Get Vapi assistantId
-      const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/candidate/interview/start`, {
-        method: "POST",
-        headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`},
-        body: JSON.stringify({
-          interviewId: interviewDetails?.interviewId
-        })
-      });
-
-      if (!response.ok) {
-        console.error("Failed to start interview session");
+      if (!interviewStreamToken || !interviewStreamUrl) {
+        console.error("LiveKit stream not ready");
+        return;
       }
-      const res = await response.json();
-      const assistantId = res?.data?.assistantId;
+      console.log("entered vapi");
+
+      // 1️⃣ Start interview session (get Vapi assistantId)
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/candidate/interview/start`,
+        {
+          method: "POST",
+          headers: {
+            "Content-type": "application/json",
+            Authorization: `Bearer ${session?.user?.token}`,
+          },
+          body: JSON.stringify({
+            interviewId: interviewDetails?.interviewId,
+          }),
+        }
+      );
+      console.log("res: ",res);
+      const data = await res.json();
+      console.log("Data: ",data);
+      const assistantId = data?.data?.assistantId;
+
       await ensureMicPermission();
 
-      // 2. Init Vapi
+      // 2️⃣ Connect to LiveKit
+      const room = new Room();
+      roomRef.current = room;
+
+      await room.connect(interviewStreamUrl, interviewStreamToken);
+
+      // 3️⃣ Camera + Mic
+      const tracks = await createLocalTracks({
+        audio: true,
+        video: true,
+      });
+
+      tracks.forEach((track) => {
+        room.localParticipant.publishTrack(track);
+        if (track.kind === "audio") {
+          micTrackRef.current = track;
+        }
+      });
+
+      // 4️⃣ Screen share
+      const screenStream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+      });
+
+      const screenTrack = screenStream.getVideoTracks()[0];
+      await room.localParticipant.publishTrack(screenTrack, {
+        name: "screen",
+      });
+
+      // 5️⃣ Init Vapi
       const vapi = new Vapi(process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY);
       vapiRef.current = vapi;
 
       registerVapiListeners();
 
-      vapiRef.current.start(assistantId);
-    }
-    catch(error){
-      console.error("Failed to start interview:", err);
-      handleVapiFailure();
+      // 🔊 Send mic → Vapi
+      vapi.start(assistantId);
+
+    } catch (error) {
+      console.error("Failed to start interview:", error);
+      // handleVapiFailure();
     }
   };
 
+  const handleStartInterviewStream = async(interviewId) => {
+    try{
+        const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/candidate/interview/stream`, {
+          method: "POST",
+          headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`},
+          body: JSON.stringify({
+            interviewId,
+          })
+        });
+      
+        const data = await res.json();
+        setInterviewStreamToken(data?.data?.token);
+        setInterviewStreamUrl(data?.data?.url);
+        return data?.data;
+    }
+    catch(error){
+      console.error("Failed to join interview");
+    }
+  }
+
   const registerVapiListeners = () => {
     const vapi = vapiRef.current;
+
+    vapi.on("audio", async (audioStream) => {
+      try {
+        if (!roomRef.current) return;
+      
+        // Convert Vapi audio → LiveKit track
+        const aiTrack = new LocalAudioTrack(
+          audioStream.getAudioTracks()[0]
+        );
+      
+        // Avoid republishing
+        if (assistantAudioTrackRef.current) return;
+      
+        assistantAudioTrackRef.current = aiTrack;
+      
+        await roomRef.current.localParticipant.publishTrack(aiTrack, {
+          name: "assistant-audio",
+        });
+      
+      } catch (err) {
+        console.error("Failed to publish assistant audio", err);
+      }
+    });
 
     vapi.on("speech-start", () => setMicOpen(false));
     vapi.on("speech-end", () => setMicOpen(true));
@@ -492,17 +589,23 @@ const conversationSample = [
   }, [enterFullscreen, logViolation]);
 
   // Handle submit
-  const handleSubmit = async() => {
+  const handleSubmit = async () => {
     setShowEndInterviewModal(false);
     setIsSubmitting(true);
+
     if (vapiRef.current) {
-      console.log("Stopping Vapi call...");
       vapiRef.current.stop();
       vapiRef.current = null;
     }
+
+    if (roomRef.current) {
+      await roomRef.current.disconnect();
+      roomRef.current = null;
+    }
+
     await handleEndInterview();
-    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate submission
-    
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
     stopProctoring();
     setIsSubmitting(false);
     exitFullscreen();

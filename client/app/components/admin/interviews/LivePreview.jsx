@@ -2,10 +2,16 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useSocket } from "../../../providers/SocketProvider";
+import { Room, RoomEvent } from "livekit-client";
+import { Camera, Monitor } from "lucide-react";
 
-export default function LivePreview({ user, interview, onClose }) {
+export default function LivePreview({ user, interview, onClose, interviewStreamToken, interviewStreamUrl }) {
+  console.log('interviewStreamToken',interviewStreamToken);
+  console.log('interviewStreamUrl',interviewStreamUrl);
   const socket = useSocket();
   const transcriptContainerRef = useRef();
+  const videoRef = useRef(null);
+  const screenRef = useRef(null);
 
   const conversationSample = [
     {
@@ -101,6 +107,8 @@ export default function LivePreview({ user, interview, onClose }) {
   ];
 
   const [liveConversation, setLiveConversation] = useState(conversationSample);
+  const [isJoinedInterview, setIsJoinedInterview] = useState(false);
+  const [isViewingVideo, setIsViewingVideo] = useState(true); // true = camera, false = screen
 
     /**
    * Handle incoming live transcript event
@@ -143,6 +151,8 @@ export default function LivePreview({ user, interview, onClose }) {
     // 3️⃣ Receive live updates
     socket.on("live_transcript", handleNewConversation);
 
+    joinInterviewStream();
+
     return () => {
       socket.off("interview_snapshot");
       socket.off("live_transcript", handleNewConversation);
@@ -155,6 +165,34 @@ export default function LivePreview({ user, interview, onClose }) {
         transcriptContainerRef.current.scrollHeight;
     }
   }, [liveConversation]);
+
+  const joinInterviewStream = async() => {
+      if(!user?.id || !interview.interviewId || !interviewStreamToken || !interviewStreamUrl) return ;
+      try{
+        const room = new Room();
+        await room.connect(interviewStreamUrl, interviewStreamToken);
+        console.log("Entering");
+      
+        room.on(RoomEvent.TrackSubscribed, (track, publication) => {
+          if (track.kind === "video") {
+            if (publication.trackName === "screen") {
+              track.attach(screenRef.current);
+            } else {
+              track.attach(videoRef.current);
+            }
+          }
+        
+          if (track.kind === "audio") {
+            track.attach();
+          }
+        });
+        console.log('Entered');
+        setIsJoinedInterview(true);
+      }
+      catch(error){
+        console.error("Failed to start interview stream");
+      }
+  }
 
   return (
     <div className="fixed inset-0 z-[1000]">
@@ -185,6 +223,92 @@ export default function LivePreview({ user, interview, onClose }) {
           {/* Main Content - Responsive Layout */}
           <div className="flex flex-col lg:flex-row gap-4 p-4 sm:p-6">
             {/* Video Section */}
+            { isJoinedInterview ? 
+            <div className="lg:w-2/3 w-full">
+              {/* <div className="flex items-center justify-between pb-3 bg-white dark:bg-gray-800">
+                  <h3 className="font-semibold text-gray-800 dark:text-gray-200 text-lg px-2">
+                    Admin Live Watch
+                  </h3>
+              </div> */}
+
+              {/* Video container */}
+              <div className="overflow-hidden">
+                {/* Header */}
+                <div className="flex justify-between items-center p-4 bg-gray-50 border-b">
+                  <div>
+                    <h3 className="font-semibold text-lg">
+                      {isViewingVideo ? "Candidate Camera Feed" : "Candidate Screen Share"}
+                    </h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Live {isViewingVideo ? "video" : "screen"} feed from candidate
+                    </p>
+                  </div>
+
+                  <div className="flex items-center space-x-4">
+                    {/* Status indicator */}
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 bg-red-500 rounded-full mr-2 animate-pulse"></div>
+                      <span className="text-sm text-red-600">Live</span>
+                    </div>
+
+                    {/* Switch button - more compact */}
+                    <button
+                      onClick={() => setIsViewingVideo(!isViewingVideo)}
+                      className="flex items-center space-x-2 px-3 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors text-sm shadow-sm"
+                      title={`Switch to ${isViewingVideo ? "screen" : "camera"} view`}
+                    >
+                      <span className="text-lg">{isViewingVideo ? <Monitor className="w-6 w-6" /> : <Camera className="w-6 w-6" />}</span>
+                      <span className="hidden sm:inline">
+                        {isViewingVideo ? "View Screen" : "View Camera"}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Video area */}
+                <div className="bg-black h-[30vh] md:h-[35vh] lg:h-[69vh] flex items-center justify-center">
+                  {isViewingVideo ? (
+                    <video 
+                      ref={videoRef} 
+                      autoPlay 
+                      playsInline 
+                      className="w-full max-h-[70vh] object-contain"
+                    />
+                  ) : (
+                    <video 
+                      ref={screenRef} 
+                      autoPlay 
+                      playsInline 
+                      className="w-full max-h-[70vh] object-contain"
+                    />
+                  )}
+                </div>
+                
+                {/* Video Info */}
+                <div className="mt-4">
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                    <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Interview Info</h3>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 sm:justify-between gap-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">Candidate:</span>
+                          <span className="ml-1 font-medium truncate">{interview?.candidate?.firstName} {interview?.candidate?.lastName}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">Position:</span>
+                          <span className="ml-1 font-medium truncate">{interview?.candidate?.resumeProfile?.profileTitle}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600 dark:text-gray-400">Status:</span>
+                          <span className="ml-1 px-2 py-0.5 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 rounded-full text-xs font-medium">
+                            {interview?.status.charAt(0).toUpperCase()}{interview?.status?.slice(1).toLowerCase()}
+                          </span>
+                        </div>
+                      </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            :
             <div className="lg:w-2/3 w-full">
               <div className="bg-gray-800 dark:bg-gray-800 rounded-xl aspect-video flex items-center justify-center relative overflow-hidden">
                 {/* Placeholder for Video */}
@@ -212,7 +336,7 @@ export default function LivePreview({ user, interview, onClose }) {
                 </div>
               </div>
               
-              {/* Video Controls & Info */}
+              {/* Video Info */}
               <div className="mt-4">
                 <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
                   <h3 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Interview Info</h3>
@@ -235,6 +359,7 @@ export default function LivePreview({ user, interview, onClose }) {
                 </div>
               </div>
             </div>
+            }
 
             {/* Conversation Section */}
             <div className="lg:w-1/3 w-full flex flex-col">

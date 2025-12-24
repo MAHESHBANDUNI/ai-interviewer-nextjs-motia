@@ -2,9 +2,11 @@ import { prisma } from "../../lib/prisma";
 import { ApiError } from "../../utils/apiError.util";
 import { getAssemblyAIToken } from "../../utils/assemblyToken.util";
 import { callGemini } from "../../utils/gemini.util";
+import { roomService } from "../../utils/livekit.util";
 import socketTokenGeneration from "../../utils/socketToken.util";
 import { getTTSAudio } from "../../utils/tts.util";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { AccessToken } from "livekit-server-sdk";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY1);
 
@@ -696,6 +698,7 @@ RULES
     },
 
     async startInterview({ userId, interviewId, logger }) {
+      logger.info("InterviewId: ",interviewId,"Userid: ",userId);
       try{
         const interview =await this.checkInterviewDetails(userId, interviewId);
         const updateInterviewStatus = await prisma.interview.update({
@@ -714,6 +717,7 @@ RULES
             }
           }
         });
+        logger.info("updateInterviewStatus ",updateInterviewStatus);
         if(!updateInterviewStatus){
           throw new ApiError("Failed to start the interview",400);
         }
@@ -921,6 +925,15 @@ Only after that may you proceed with the first interview question, following all
 
     async endInterview({userId, interviewId, completionMin, interviewConversation}) {
       try{
+        const roomName = `room-${interviewId}`;
+        const participants = await roomService.listParticipants(roomName);
+
+        for (const p of participants) {
+          await roomService.removeParticipant(roomName, p.identity);
+        }
+
+        await roomService.deleteRoom(roomName);
+
         await this.checkCandidateAuth(userId);
         await this.checkInterviewDetails(userId, interviewId);
 
@@ -1261,6 +1274,72 @@ STRICT RULES
       }
     
       return qaPairs;
-    }
+    },
 
+    async startCandidateInterviewStream({ interviewId, userId, logger }) {
+      const candidateInterview = await prisma.interview.findFirst({
+        where: {
+          interviewId: interviewId,
+          candidateId: userId
+        },
+        select: {
+          candidate: {
+            select: {
+              user: {
+                select: {
+                  role :{
+                    select: {
+                      roleName: true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+      const {
+        LIVEKIT_API_KEY,
+        LIVEKIT_API_SECRET,
+        LIVEKIT_URL
+      } = process.env;
+
+      const roleName =
+        candidateInterview?.candidate?.user?.role?.roleName ?? 'unknown';
+
+      if (roleName !== "Candidate") {
+        throw new ApiError("Only candidates can start interview streams", 400);
+      }
+
+      const identity = `${roleName.toLowerCase()}-${crypto.randomUUID()}`;
+
+      const token = new AccessToken(
+        LIVEKIT_API_KEY,
+        LIVEKIT_API_SECRET,
+        { identity: identity}
+      );
+    
+      if (candidateInterview?.candidate?.user?.role?.roleName === "Candidate") {
+        token.addGrant({
+          room: `room-${interviewId}`,
+          roomJoin: true,
+          canPublish: true,
+          canSubscribe: true
+        });
+      }
+    
+      if (candidateInterview?.candidate?.user?.role?.roleName === "Admin") {
+        token.addGrant({
+          room: `room-${interviewId}`,
+          roomJoin: true,
+          canPublish: false,
+          canSubscribe: true
+        });
+      }
+    
+      return {
+        token: await token.toJwt(),
+        url: LIVEKIT_URL
+      };
+    }
   };

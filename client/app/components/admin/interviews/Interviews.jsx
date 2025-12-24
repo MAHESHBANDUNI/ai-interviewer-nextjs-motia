@@ -27,6 +27,8 @@ export default function Interview() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [interviewDetails, setInterviewDetails] = useState(null);
   const [interviewSessionToken, setInterviewSessionToken] = useState(null);
+  const [interviewStreamToken, setInterviewStreamToken] = useState(null);
+  const [interviewStreamUrl, setInterviewStreamUrl] = useState(null);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -233,6 +235,7 @@ export default function Interview() {
     setSelectedInterviewId(interviewId);
     setShowLivePreviewModal(true);
     await fetchInterviewDetails(interviewId);
+    await joinInterviewStream(interviewId);
   }
 
   const handleRescheduleInterview = async (formData) => {
@@ -311,6 +314,25 @@ export default function Interview() {
     }
     catch(err){
       console.error("Error fetching interview details: ",err);
+    }
+  }
+
+  const joinInterviewStream = async(interviewId) => {
+    try{
+        const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/interview/stream`, {
+          method: "POST",
+          headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`},
+          body: JSON.stringify({
+            interviewId,
+          })
+        });
+      
+        const data = await res.json();
+        setInterviewStreamToken(data?.data?.token);
+        setInterviewStreamUrl(data?.data?.url);
+    }
+    catch(error){
+      console.error("Failed to join interview");
     }
   }
 
@@ -545,7 +567,7 @@ export default function Interview() {
       
       {showLivePreviewModal && (  
       <>
-        {interviewSessionToken && session?.user ? (
+        {interviewSessionToken && session?.user && interviewStreamToken && interviewStreamUrl ? (
           <SocketProvider
             user={session?.user}
             interviewId={selectedInterviewId}
@@ -555,11 +577,15 @@ export default function Interview() {
               user={session?.user}
               interview={interviewDetails}
               interviewSessionToken={interviewSessionToken}
+              interviewStreamToken={interviewStreamToken}
+              interviewStreamUrl={interviewStreamUrl}
               onClose={() => {
                 setShowLivePreviewModal(false);
                 setInterviewDetails(null);
                 setInterviewSessionToken(null);
                 setSelectedInterviewId(null);
+                setInterviewSessionToken(null);
+                setInterviewStreamUrl(null);
               }}
             />
           </SocketProvider>
@@ -573,6 +599,8 @@ export default function Interview() {
                 setInterviewDetails(null);
                 setInterviewSessionToken(null);
                 setSelectedInterviewId(null);
+                setInterviewSessionToken(null);
+                setInterviewStreamUrl(null);
               }}
             />
               <div className="fixed inset-0 flex items-center justify-center overflow-y-auto p-2 sm:p-4">

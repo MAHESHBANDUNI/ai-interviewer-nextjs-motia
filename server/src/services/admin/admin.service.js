@@ -6,6 +6,8 @@ import { sendScheduledInterviewMail, sendRescheduledInterviewMail } from "../../
 import { ApiError } from "../../utils/apiError.util";
 import bcrypt from 'bcrypt';
 import socketTokenGeneration from "../../utils/socketToken.util";
+import { AccessToken } from "livekit-server-sdk";
+import crypto from "crypto";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY1);
 
@@ -731,5 +733,73 @@ export const AdminService = {
     });
 
     return interview;
+  },
+
+  async startAdminInterviewStream({ interviewId, userId, logger }) {
+    const interviewDetails = await prisma.interview.findFirst({
+      where: {
+        interviewId,
+        adminId: userId
+      },
+      select: {
+        admin: {
+          select: {
+            user: {
+              select: {
+                role: {
+                  select: { roleName: true }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+  
+    if (!interviewDetails) {
+      throw new ApiError("Interview not found or admin not assigned", 404);
+    }
+  
+    const roleName = interviewDetails.admin.user.role.roleName;
+    if (roleName !== "Admin") {
+      throw new ApiError("Only admin can join interview streams", 403);
+    }
+  
+    const {
+      LIVEKIT_API_KEY,
+      LIVEKIT_API_SECRET,
+      LIVEKIT_URL
+    } = process.env;
+  
+    if (!LIVEKIT_API_KEY || !LIVEKIT_API_SECRET) {
+      throw new Error("LiveKit env vars missing");
+    }
+  
+    const identity = `admin-${crypto.randomBytes(16).toString("hex")}`;
+    const roomName = `room-${interviewId}`;
+  
+    const token = new AccessToken(
+      LIVEKIT_API_KEY,
+      LIVEKIT_API_SECRET,
+      { identity: identity }
+    );
+  
+    token.addGrant({
+      room: roomName,
+      roomJoin: true,
+      canPublish: false,
+      canSubscribe: true
+    });
+  
+    const jwt = await token.toJwt();
+  
+    // logger.info("LiveKit identity:", identity);
+    // logger.info("LiveKit room:", roomName);
+    // logger.info("JWT length:", jwt.length);
+  
+    return {
+      token: jwt,
+      url: LIVEKIT_URL
+    };
   }
-};
+}

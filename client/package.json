@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3000",
+    "dev": "next dev -p 3001",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -14,6 +14,7 @@
     "backblaze-b2": "^1.7.1",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.23.25",
+    "livekit-client": "^2.16.1",
     "lucide-react": "^0.556.0",
     "next": "^16.0.8",
     "next-auth": "^4.24.13",
