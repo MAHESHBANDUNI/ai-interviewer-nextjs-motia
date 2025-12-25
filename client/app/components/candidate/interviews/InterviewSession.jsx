@@ -15,6 +15,7 @@ import {
 
 const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }) => {
   const {data: session} = useSession();
+  const { audioDeviceId, videoDeviceId, screenStream } = devices;
   const [isFullscreen, setIsFullscreen] = useState(false);
   const timeRemainingRef = useRef(Number(interviewDetails.durationMin) * 60)
   const [timeRemaining, setTimeRemaining] = useState(timeRemainingRef.current)
@@ -139,22 +140,6 @@ const conversationSample = [
 
   const startCalledRef = useRef(false);
 
-  const startVideoStream = async () => {
-    const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
-    if (videoRef.current) {
-      videoRef.current.srcObject = videoStream;
-    }
-    return videoStream;
-  };
-
-  useEffect(() => {
-    startVideoStream();
-    return () => {
-      if (videoRef.current?.srcObject) {
-        videoRef.current.srcObject.getTracks().forEach(t => t.stop());
-      }
-    };
-  }, []);
 
   useEffect(() => {
     if (!startCalledRef.current) {
@@ -320,10 +305,6 @@ const conversationSample = [
     document.removeEventListener('fullscreenchange', handleFullscreenChange);
   },[disableKeyboard, detectTabSwitch, disableContextMenu]);
 
-  const ensureMicPermission = async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    stream.getTracks().forEach(t => t.stop());
-  };
 
   const handleStartInterview = async () => {
     if (interviewStartedRef.current) return;
@@ -358,33 +339,56 @@ const conversationSample = [
       console.log("Data: ",data);
       const assistantId = data?.data?.assistantId;
 
-      await ensureMicPermission();
-
       // 2️⃣ Connect to LiveKit
       const room = new Room();
       roomRef.current = room;
 
       await room.connect(interviewStreamUrl, interviewStreamToken);
 
-      // 3️⃣ Camera + Mic
+      // 2️⃣ Create mic + camera tracks (ONLY source of truth)
       const tracks = await createLocalTracks({
-        audio: true,
-        video: true,
+        audio: {
+          deviceId: audioDeviceId ? { exact: audioDeviceId } : undefined,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+        video: {
+          deviceId: videoDeviceId ? { exact: videoDeviceId } : undefined,
+          width: 1280,
+          height: 720,
+          frameRate: 30,
+        },
       });
 
-      tracks.forEach((track) => {
-        room.localParticipant.publishTrack(track);
-        if (track.kind === "audio") {
-          micTrackRef.current = track;
+      // 3️⃣ Publish mic + camera
+      for (const track of tracks) {
+        await room.localParticipant.publishTrack(track);
+      
+        // Use LiveKit camera track for preview
+        if (track.kind === 'video' && videoRef.current) {
+          const mediaStream = new MediaStream([track.mediaStreamTrack]);
+          videoRef.current.srcObject = mediaStream;
         }
-      });
+      }
 
       // 4️⃣ Screen share
-      const screenStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-      });
+      const screenTrack = screenStream?.getVideoTracks?.()[0];
+      if (!screenTrack) {
+        throw new Error("Screen stream missing");
+      }
+      // Enforce entire screen
+      const settings = screenTrack.getSettings();
+      if (settings.displaySurface !== "monitor") {
+        logViolation("Entire screen not shared");
+      }
 
-      const screenTrack = screenStream.getVideoTracks()[0];
+      // Auto-submit if user stops sharing
+      screenTrack.onended = () => {
+        console.error("Screen sharing stopped by user");
+        handleSubmit();
+      };
+
       await room.localParticipant.publishTrack(screenTrack, {
         name: "screen",
       });
@@ -395,7 +399,7 @@ const conversationSample = [
 
       registerVapiListeners();
 
-      // 🔊 Send mic → Vapi
+      // Send mic → Vapi
       vapi.start(assistantId);
 
     } catch (error) {

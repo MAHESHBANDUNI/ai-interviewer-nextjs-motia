@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "ngrok": "ngrok http --url=resolved-heartily-gnat.ngrok-free.app 3000"
+    "ngrok": "ngrok http --url=resolved-heartily-gnat.ngrok-free.app 3001"
   },
   "dependencies": {
     "@vapi-ai/web": "^2.5.2",

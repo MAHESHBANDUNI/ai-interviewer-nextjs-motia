@@ -2,16 +2,15 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useSocket } from "../../../providers/SocketProvider";
-import { Room, RoomEvent } from "livekit-client";
+import { Room, RoomEvent, Track } from "livekit-client";
 import { Camera, Monitor } from "lucide-react";
 
 export default function LivePreview({ user, interview, onClose, interviewStreamToken, interviewStreamUrl }) {
-  console.log('interviewStreamToken',interviewStreamToken);
-  console.log('interviewStreamUrl',interviewStreamUrl);
   const socket = useSocket();
   const transcriptContainerRef = useRef();
   const videoRef = useRef(null);
   const screenRef = useRef(null);
+  const roomRef = useRef(null);
 
   const conversationSample = [
     {
@@ -106,7 +105,7 @@ export default function LivePreview({ user, interview, onClose, interviewStreamT
     }
   ];
 
-  const [liveConversation, setLiveConversation] = useState(conversationSample);
+  const [liveConversation, setLiveConversation] = useState([]);
   const [isJoinedInterview, setIsJoinedInterview] = useState(false);
   const [isViewingVideo, setIsViewingVideo] = useState(true); // true = camera, false = screen
 
@@ -136,19 +135,24 @@ export default function LivePreview({ user, interview, onClose, interviewStreamT
   }, []);
 
   useEffect(() => {
-    console.log('Socket: ',socket);
-    if (!user || !socket || !interview?.interviewId) return;
+    if (
+      !user ||
+      !socket ||
+      !interview?.interviewId ||
+      !interviewStreamUrl ||
+      !interviewStreamToken
+    ) {
+      return;
+    }
 
-    // 2️⃣ Receive snapshot (mid-join safe)
     socket.on("interview_snapshot", ({ messages }) => {
-      console.log("Older messages: ",messages);
-      if(messages.length === 0) return;
-      setLiveConversation(
-        messages.sort((a, b) => a.timestamp - b.timestamp)
-      );
+      if (messages?.length) {
+        setLiveConversation(
+          messages.sort((a, b) => a.timestamp - b.timestamp)
+        );
+      }
     });
 
-    // 3️⃣ Receive live updates
     socket.on("live_transcript", handleNewConversation);
 
     joinInterviewStream();
@@ -156,8 +160,16 @@ export default function LivePreview({ user, interview, onClose, interviewStreamT
     return () => {
       socket.off("interview_snapshot");
       socket.off("live_transcript", handleNewConversation);
+      roomRef.current?.disconnect();
+      roomRef.current = null;
     };
-  }, [user, socket, interview?.interviewId, handleNewConversation]);
+  }, [
+    user,
+    socket,
+    interview?.interviewId,
+    interviewStreamUrl,
+    interviewStreamToken,
+  ]);
 
   useEffect(() => {
     if (transcriptContainerRef.current) {
@@ -166,33 +178,118 @@ export default function LivePreview({ user, interview, onClose, interviewStreamT
     }
   }, [liveConversation]);
 
-  const joinInterviewStream = async() => {
-      if(!user?.id || !interview.interviewId || !interviewStreamToken || !interviewStreamUrl) return ;
-      try{
-        const room = new Room();
-        await room.connect(interviewStreamUrl, interviewStreamToken);
-        console.log("Entering");
-      
-        room.on(RoomEvent.TrackSubscribed, (track, publication) => {
-          if (track.kind === "video") {
-            if (publication.trackName === "screen") {
-              track.attach(screenRef.current);
-            } else {
-              track.attach(videoRef.current);
-            }
-          }
-        
-          if (track.kind === "audio") {
-            track.attach();
-          }
+  // JOIN LIVEKIT ROOM
+  const joinInterviewStream = async () => {
+    if (roomRef.current) return;
+
+    if (!interviewStreamUrl || !interviewStreamToken) return;
+
+    const room = new Room({
+      adaptiveStream: true,
+      dynacast: true,
+    });
+
+    roomRef.current = room;
+
+    /* ---------- ROOM EVENTS ---------- */
+    room.on(RoomEvent.Connected, () => {
+      console.log("✅ Room connected");
+    });
+
+    room.on(RoomEvent.ParticipantConnected, (p) => {
+      console.log("👤 Participant connected:", p.identity);
+    });
+
+    room.on(RoomEvent.ParticipantDisconnected, (p) => {
+      console.log("👤 Participant disconnected:", p.identity);
+    });
+
+    /* ---------- TRACK PUBLISHED ---------- */
+    room.on(RoomEvent.TrackPublished, (pub, participant) => {
+      console.log("📤 Track published", {
+        participant: participant.identity,
+        kind: pub.kind,
+        source: pub.source,
+        muted: pub.isMuted,
+      });
+    });
+
+    /* ---------- TRACK SUBSCRIBED ---------- */
+    room.on(
+      RoomEvent.TrackSubscribed,
+      (track, publication, participant) => {
+
+        console.log("Track subscribed", {
+          participant: participant.identity,
+          kind: track.kind,
+          source: publication.source,
+          sid: track.sid,
+          trackName: publication.trackName
         });
-        console.log('Entered');
-        setIsJoinedInterview(true);
+
+        if(track.kind === 'video'){
+          if (publication.trackName === "screen") {
+            console.log("Screen attached");
+            track.attach(screenRef.current);
+          }
+          else{
+            console.log("Video attached");
+            track.attach(videoRef.current);
+          }
+        }
+
+        if (track.kind === "audio") {
+          console.log("Audio attached");
+          track.attach();
+        }
       }
-      catch(error){
-        console.error("Failed to start interview stream");
+    );
+
+    /* ---------- TRACK UNSUBSCRIBED ---------- */
+    room.on(RoomEvent.TrackUnsubscribed, (track) => {
+      track?.detach()?.forEach(el => el.remove());
+    
+      if (track === videoRef.current) {
+        videoRef.current = null;
       }
-  }
+      if (track === screenRef.current) {
+        screenRef.current = null;
+      }
+    });
+
+    await room.connect(interviewStreamUrl, interviewStreamToken);
+    setIsJoinedInterview(true);
+
+    /* ---------- MEDIA FLOW STATS ---------- */
+    const statsInterval = setInterval(async () => {
+      room.remoteParticipants?.forEach((participant) => {
+        if (!participant?.tracks) return;
+      
+        participant.tracks.forEach(async (pub) => {
+          if (!pub?.track?.getStats) return;
+        
+          const stats = await pub.track.getStats();
+          if (!stats) return;
+        
+          stats.forEach((r) => {
+            if (r.type === "inbound-rtp") {
+              console.log("📊 Media flow", {
+                kind: pub.kind,
+                source: pub.source,
+                packets: r.packetsReceived,
+                frames: r.framesDecoded,
+                bytes: r.bytesReceived,
+              });
+            }
+          });
+        });
+      });
+    }, 3000);
+
+    room.on(RoomEvent.Disconnected, () => {
+      clearInterval(statsInterval);
+    });
+  };
 
   return (
     <div className="fixed inset-0 z-[1000]">
@@ -265,24 +362,27 @@ export default function LivePreview({ user, interview, onClose, interviewStreamT
                   </div>
                 </div>
 
-                {/* Video area */}
-                <div className="bg-black h-[30vh] md:h-[35vh] lg:h-[69vh] flex items-center justify-center">
-                  {isViewingVideo ? (
-                    <video 
-                      ref={videoRef} 
-                      autoPlay 
-                      playsInline 
-                      className="w-full max-h-[70vh] object-contain"
-                    />
-                  ) : (
-                    <video 
-                      ref={screenRef} 
-                      autoPlay 
-                      playsInline 
-                      className="w-full max-h-[70vh] object-contain"
-                    />
-                  )}
+                <div className="bg-black h-[30vh] md:h-[35vh] lg:h-[69vh] flex items-center  relative">
+                  {/* Camera */}
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    className={`absolute inset-0 w-full h-full object-contain pointer-events-none transition-opacity ${
+                      isViewingVideo ? "opacity-100 z-10" : "opacity-0 z-0"
+                    }`}
+                  />
+                  {/* Screen */}
+                  <video
+                    ref={screenRef}
+                    autoPlay
+                    playsInline
+                    className={`absolute inset-0 w-full h-full object-contain pointer-events-none transition-opacity ${
+                      !isViewingVideo ? "opacity-100 z-10" : "opacity-0 z-0"
+                    }`}
+                  />
                 </div>
+
                 
                 {/* Video Info */}
                 <div className="mt-4">
@@ -331,9 +431,9 @@ export default function LivePreview({ user, interview, onClose, interviewStreamT
                 </div>
                 
                 {/* Timer */}
-                <div className="absolute top-4 right-4 bg-black/50 text-white text-sm px-3 py-1.5 rounded-lg font-mono">
+                {/* <div className="absolute top-4 right-4 bg-black/50 text-white text-sm px-3 py-1.5 rounded-lg font-mono">
                   15:42
-                </div>
+                </div> */}
               </div>
               
               {/* Video Info */}

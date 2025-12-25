@@ -10,10 +10,30 @@ import CustomCalendarModal from './CustomCalenderModal';
 import { useSession } from "next-auth/react";
 
 const schema = z.object({
-  candidate: z.string().min(1, 'Candidate is required'),
-  date: z.date(),
-  time: z.string().min(1, 'Time is required'),
-  duration: z.number().min(1, 'Duration must be at least 1 minute'),
+  candidate: z.object({
+    candidateId: z.string(),
+    firstName: z.string(),
+    lastName: z.string(),
+  }),
+  date: z.date({
+    required_error: 'Date is required',
+    invalid_type_error: 'Invalid date',
+  }),
+  time: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Invalid time format'),
+  duration: z
+    .number()
+    .min(1, 'Duration must be at least 1 minute')
+    .max(480, 'Duration cannot exceed 8 hours'),
+}).refine((data) => {
+  const [h, m] = data.time.split(':').map(Number);
+  const dt = new Date(data.date);
+  dt.setHours(h, m, 0, 0);
+  return dt > new Date();
+}, {
+  message: 'Interview time must be in the future',
+  path: ['time'],
 });
 
 export default function AddInterviewForm({
@@ -117,70 +137,99 @@ export default function AddInterviewForm({
     }
   };
 
-  const onQueryChange = (e) => {
-    const v = e.target.value;
-    setQuery(v);
-    setSelectedCandidate('');
+// REMOVE clearError from onQueryChange
+const onQueryChange = (e) => {
+  setQuery(e.target.value);
+  setSelectedCandidate(null);
+};
+
+const handleDateSelect = (date) => {
+  setSelectedDate(date);
+  setCalendarOpen(false);
+  setSelectedTime('');
+  clearError('date');
+};
+
+const handleTimeChange = (e) => {
+  setSelectedTime(e.target.value);
+  clearError('time');
+};
+
+const handleDurationChange = (e) => {
+  setDuration(Number(e.target.value));
+  clearError('duration');
+};
+
+const validateAndBuildPayload = () => {
+  const result = schema.safeParse({
+    candidate: selectedCandidate || null,
+    date: selectedDate,
+    time: selectedTime,
+    duration: Number(duration), // now correctly refers to state
+  });
+
+  if (!result.success) {
+    const fieldErrors = {};
+    result.error.issues.forEach((issue) => {
+      const field = issue.path.join('.');
+      fieldErrors[field] = issue.message;
+    });
+    setErrors(fieldErrors);
+    return null;
+  }
+
+  setErrors({});
+
+  const {
+    candidate,
+    date,
+    time,
+    duration: parsedDuration, // ✅ renamed
+  } = result.data;
+
+  const [hour, minute] = time.split(':').map(Number);
+  const dt = new Date(date);
+  dt.setHours(hour, minute, 0, 0);
+
+  return {
+    candidateId: candidate.candidateId,
+    datetime: dt.toISOString(),
+    duration: parsedDuration,
+    adminId: session?.user?.id,
   };
+};
 
-  const handleDateSelect = (date) => {
-    setSelectedDate(date);
-    setCalendarOpen(false);
-    setSelectedTime('');
-  };
+const clearError = (field) => {
+  setErrors((prev) => {
+    if (!prev[field]) return prev;
+    const copy = { ...prev };
+    delete copy[field];
+    return copy;
+  });
+};
 
-  const validateAndBuildPayload = () => {
-    try {
-      const parsed = schema.parse({
-        candidate:
-          selectedCandidate?.firstName + ' ' + selectedCandidate?.lastName,
-        date: selectedDate,
-        time: selectedTime,
-        duration: Number(duration)
-      });
 
-      setErrors({});
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-      const [hour, minute] = parsed.time.split(':').map(Number);
-      const dt = new Date(parsed.date);
-      dt.setHours(hour, minute, 0, 0);
+  if (saving) return;
+  setSaving(true);
 
-      return {
-        candidateId: selectedCandidate.candidateId,
-        datetime: dt.toISOString(),
-        duration: parsed.duration,
-        adminId: session?.user?.id
-      };
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        const formatted = {};
-        err.issues.forEach((issue) => {
-          formatted[issue.path[0]] = issue.message;
-        });
-        setErrors(formatted);
-      }
-      return null;
-    }
-  };
+  const payload = validateAndBuildPayload();
+  if (!payload) {
+    setSaving(false);
+    return;
+  }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    const payload = validateAndBuildPayload();
-    if (!payload) {
-      setSaving(false);
-      return;
-    }
-
-    try {
-      await onSubmit(payload);
-    } catch (err) {
-      console.error('Submit error:', err);
-    } finally {
-      setSaving(false);
-      handleCloseModal();
-    }
-  };
+  try {
+    await onSubmit(payload);
+    handleCloseModal();
+  } catch (err) {
+    console.error('Submit error:', err);
+  } finally {
+    setSaving(false);
+  }
+};
 
   const handleCloseModal = () => {
     setQuery('');
@@ -191,6 +240,22 @@ export default function AddInterviewForm({
     setDuration(30);
     onClose();
   }
+
+  const isFormValid = React.useMemo(() => {
+  const result = schema.safeParse({
+    candidate: selectedCandidate || null,
+    date: selectedDate,
+    time: selectedTime,
+    duration: Number(duration),
+  });
+
+  return result.success;
+}, [selectedCandidate, selectedDate, selectedTime, duration]);
+
+
+  const disabledStyles =
+  "disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed disabled:opacity-70";
+
 
   if (!isOpen) return null;
 
@@ -222,8 +287,8 @@ export default function AddInterviewForm({
               }
               onChange={isRescheduling ? undefined : onQueryChange}
               placeholder="Search candidates..."
-              className="w-full p-2 border border-gray-300 rounded-lg mt-2"
-              disabled={isRescheduling}
+              className={`w-full p-2 border border-gray-300 rounded-lg mt-2 ${disabledStyles}`}
+              disabled={isRescheduling || saving}
             />
 
             {/* Dropdown */}
@@ -246,6 +311,7 @@ export default function AddInterviewForm({
                           setSelectedCandidate(c);
                           setQuery(c.firstName + ' ' + c.lastName);
                           setFilterCandidates([]);
+                          clearError('candidate');
                         }}
                         className="p-2 cursor-pointer hover:bg-blue-50"
                       >
@@ -270,8 +336,9 @@ export default function AddInterviewForm({
               <div className="mt-2 flex items-center gap-3">
                 <button
                   type="button"
+                  disabled={saving}
                   onClick={() => setCalendarOpen(true)}
-                  className="px-4 py-2 border rounded-lg border-gray-300 cursor-pointer"
+                  className={`px-4 py-2 border rounded-lg border-gray-300 cursor-pointer ${disabledStyles}`}
                 >
                   {selectedDate
                     ? format(selectedDate, 'PPP')
@@ -289,9 +356,9 @@ export default function AddInterviewForm({
               <input
                 type="time"
                 value={selectedTime}
-                onChange={(e) => setSelectedTime(e.target.value)}
-                disabled={!selectedDate}
-                className="w-full p-2 border border-gray-300 rounded-lg mt-2"
+                onChange={(e) => handleTimeChange(e)}
+                disabled={!selectedDate || saving}
+                className={`w-full p-2 border border-gray-300 rounded-lg mt-2 ${disabledStyles}`}
               />
               {errors.time && <p className="text-red-500 text-xs mt-1">{errors.time}</p>}
             </div>
@@ -305,8 +372,9 @@ export default function AddInterviewForm({
               type="number"
               min={1}
               value={duration}
-              onChange={(e) => setDuration(Number(e.target.value))}
-              className="w-full p-2 border border-gray-300 rounded-lg mt-2"
+              disabled={saving}
+              onChange={(e) => handleDurationChange(e)}
+              className={`w-full p-2 border border-gray-300 rounded-lg mt-2 ${disabledStyles}`}
             />
             {errors.duration && (
               <p className="text-red-500 text-xs mt-1">{errors.duration}</p>
@@ -315,15 +383,15 @@ export default function AddInterviewForm({
 
           {/* Buttons */}
           <div className="flex justify-end gap-3 pt-4">
-            <button type="button"   onClick={() => {if (!isCalendarOpen) {handleCloseModal()};}} className="px-4 py-2 bg-gray-200 rounded-lg cursor-pointer">
+            <button type="button" disabled={saving}  onClick={() => {if (!isCalendarOpen) {handleCloseModal()};}} className={`px-4 py-2 bg-gray-200 rounded-lg cursor-pointer ${disabledStyles}`}>
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className={`px-6 py-2 text-white rounded-lg cursor-pointer ${
-                saving ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
-              }`}
+              className={`px-6 py-2 text-white rounded-lg ${
+                saving ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 cursor-pointer'
+              } `}
             >
                {saving
                 ? isRescheduling

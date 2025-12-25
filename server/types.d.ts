@@ -13,6 +13,7 @@ declare module 'motia' {
 
   interface Handlers {
     'GetTTSAudio': ApiRouteHandler<Record<string, unknown>, unknown, never>
+    'StartCandidateInterviewStream': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'StartCandidateInterviewSession': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GetInterviewDetails': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GetCandidateInterviewsDetails': ApiRouteHandler<Record<string, unknown>, unknown, never>
@@ -28,6 +29,7 @@ declare module 'motia' {
     'UserSignup': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'UserLogin': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GetAssemblyAIToken': ApiRouteHandler<Record<string, unknown>, unknown, never>
+    'StartAdminInterviewStream': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'SendScheduledInterviewMail': EventHandler<never, never>
     'SendRescheduledInterviewMail': EventHandler<never, never>
     'ScheduleInterview': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'schedule-interview-mail'; data: never }>
@@ -43,8 +45,6 @@ declare module 'motia' {
     'DeleteCandidate': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'CreateCandidate': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'generate-resume-profile'; data: never }>
     'GetAnalytics': ApiRouteHandler<Record<string, unknown>, unknown, never>
-    'StartCandidateInterviewStream': ApiRouteHandler<Record<string, unknown>, unknown, never>
-    'StartAdminInterviewStream': ApiRouteHandler<Record<string, unknown>, unknown, never>
   }
     
 }

@@ -16,6 +16,7 @@ const InterviewCheckModal = ({ isOpen, onClose, onStartInterview }) => {
   const [isTestingMicrophone, setIsTestingMicrophone] = useState(false);
   const [audioLevel, setAudioLevel] = useState(0);
   const [isScreenPreviewActive, setIsScreenPreviewActive] = useState(false);
+  const interviewStartingRef = useRef(false);
   
   // Refs for streams and elements
   const videoStreamRef = useRef(null);
@@ -45,15 +46,7 @@ const InterviewCheckModal = ({ isOpen, onClose, onStartInterview }) => {
     "Be careful, after exceeding three proctored alerts limit, the interview will be submitted automatically"
   ];
 
-  const screenSourceOptions = [
-    { id: 'entire-screen', label: 'Entire Screen', icon: '🖥️', description: 'Share your entire screen' },
-    { id: 'application-window', label: 'Application Window', icon: '📱', description: 'Share a specific application' },
-    { id: 'browser-tab', label: 'Browser Tab', icon: '🌐', description: 'Share a single browser tab' },
-  ];
-
-  // ======================
   // Audio Analysis
-  // ======================
   const initAudioAnalysis = useCallback(async (stream) => {
     try {
       // Clean up existing audio context
@@ -144,38 +137,29 @@ const InterviewCheckModal = ({ isOpen, onClose, onStartInterview }) => {
     setAudioLevel(0);
   }, []);
 
-  // ======================
   // Permissions & Devices
-  // ======================
   const checkPermissions = useCallback(async () => {
     setIsChecking(true);
     try {
-      // Check microphone
-      try {
-        const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        setMicPermission('granted');
-        micStream.getTracks().forEach(track => track.stop());
-      } catch (e) {
-        setMicPermission('denied');
-      }
+      const permissions = navigator.permissions;
 
-      // Check camera
-      try {
-        const camStream = await navigator.mediaDevices.getUserMedia({ video: true });
-        setCameraPermission('granted');
-        camStream.getTracks().forEach(track => track.stop());
-      } catch (e) {
-        setCameraPermission('denied');
-      }
+      if (permissions?.query) {
+        const mic = await permissions.query({ name: 'microphone' });
+        const cam = await permissions.query({ name: 'camera' });
 
-      // Check screen sharing
-      if (navigator.mediaDevices && 'getDisplayMedia' in navigator.mediaDevices) {
-        setScreenPermission('granted');
+        setMicPermission(mic.state === 'granted' ? 'granted' : 'pending');
+        setCameraPermission(cam.state === 'granted' ? 'granted' : 'pending');
       } else {
-        setScreenPermission('denied');
+        // Fallback for Safari
+        setMicPermission('pending');
+        setCameraPermission('pending');
       }
-    } catch (err) {
-      console.error('Permission check error:', err);
+
+      setScreenPermission('pending');
+    } catch {
+      setMicPermission('pending');
+      setCameraPermission('pending');
+      setScreenPermission('pending');
     } finally {
       setIsChecking(false);
     }
@@ -202,11 +186,12 @@ const InterviewCheckModal = ({ isOpen, onClose, onStartInterview }) => {
     }
   }, [selectedAudioDevice, selectedVideoDevice]);
 
-  // ======================
   // Camera Preview
-  // ======================
   const startCameraPreview = useCallback(async () => {
-    if (videoStreamRef.current) return;
+    if (videoStreamRef.current && videoRef.current) {
+      videoRef.current.srcObject = videoStreamRef.current;
+      return;
+    }
 
     try {
       const constraints = selectedVideoDevice
@@ -245,65 +230,60 @@ const InterviewCheckModal = ({ isOpen, onClose, onStartInterview }) => {
     }
   }, []);
 
-  // ======================
-  // Screen Share Preview
-  // ======================
-  const startScreenPreview = useCallback(async () => {
-    if (screenStreamRef.current || !screenPreviewRef.current) return;
-
-    try {
-      const constraints = {
-        video: {
-          displaySurface: selectedScreenSource === 'entire-screen' ? 'monitor' :
-                         selectedScreenSource === 'application-window' ? 'window' : 'browser',
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        },
-        audio: false
-      };
-
-      const stream = await navigator.mediaDevices.getDisplayMedia(constraints);
-      screenStreamRef.current = stream;
-      setIsScreenPreviewActive(true);
-
-      // Set stream to video element
-      screenPreviewRef.current.srcObject = stream;
-      screenPreviewRef.current.muted = true;
-      screenPreviewRef.current.playsInline = true;
-      
-      // Ensure video plays
-      await screenPreviewRef.current.play().catch(console.warn);
-
-      // Handle when user stops sharing via browser UI
-      const videoTrack = stream.getVideoTracks()[0];
-      videoTrack.addEventListener('ended', () => {
-        stopScreenPreview();
-      });
-    } catch (err) {
-      console.error('Screen preview error:', err);
-      // Don't set permission to denied for user cancellation
-      if (err.name !== 'NotAllowedError' && err.name !== 'AbortError') {
-        setScreenPermission('denied');
-      }
-    }
-  }, [selectedScreenSource]);
-
   const stopScreenPreview = useCallback(() => {
+    if (interviewStartingRef.current) return;
+
     if (screenStreamRef.current) {
       screenStreamRef.current.getTracks().forEach(track => track.stop());
       screenStreamRef.current = null;
     }
-    
+
     if (screenPreviewRef.current) {
       screenPreviewRef.current.srcObject = null;
     }
-    
+
     setIsScreenPreviewActive(false);
+    setScreenPermission('pending'); // ADD THIS
   }, []);
 
-  // ======================
+  // Screen Share Preview
+  const startScreenPreview = useCallback(async () => {
+    if (screenStreamRef.current || !screenPreviewRef.current) return;
+
+    try {
+      setScreenPermission('checking'); // ADD THIS
+
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: 30 },
+        audio: false,
+      });
+
+      const videoTrack = stream.getVideoTracks()[0];
+      const settings = videoTrack.getSettings();
+
+      if (settings.displaySurface !== 'monitor') {
+        alert('You must share your entire screen.');
+
+        stream.getTracks().forEach(track => track.stop());
+        setScreenPermission('denied');
+        return;
+      }
+
+      screenStreamRef.current = stream;
+      setIsScreenPreviewActive(true);
+      setScreenPermission('granted'); // IMPORTANT
+
+      screenPreviewRef.current.srcObject = stream;
+      await screenPreviewRef.current.play();
+
+      videoTrack.onended = stopScreenPreview;
+    } catch (err) {
+      console.error(err);
+      setScreenPermission('denied');
+    }
+  }, [stopScreenPreview]);
+
   // Microphone Test
-  // ======================
   const startMicrophoneTest = useCallback(async () => {
     if (!selectedAudioDevice || isTestingMicrophone) return;
 
@@ -344,9 +324,7 @@ const InterviewCheckModal = ({ isOpen, onClose, onStartInterview }) => {
     setAudioLevel(0);
   }, [stopAudioAnalysis]);
 
-  // ======================
   // Cleanup Functions
-  // ======================
   const stopAllTests = useCallback(async () => {
     await stopMicrophoneTest();
     stopCameraPreview();
@@ -374,9 +352,7 @@ const InterviewCheckModal = ({ isOpen, onClose, onStartInterview }) => {
     }
   }, [getDevices, checkPermissions]);
 
-  // ======================
   // Effects
-  // ======================
   useEffect(() => {
     if (!isOpen) {
       stopAllTests();
@@ -394,42 +370,86 @@ const InterviewCheckModal = ({ isOpen, onClose, onStartInterview }) => {
 
     return () => {
       navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
-      stopAllTests();
     };
-  }, [isOpen, checkPermissions, getDevices, stopAllTests]);
+  }, [isOpen, checkPermissions, getDevices]);
 
   // Start camera preview when permission granted and device selected
   useEffect(() => {
-    if (cameraPermission === 'granted' && selectedVideoDevice && isOpen) {
+    if (!isOpen) return;
+
+    if (cameraPermission === 'granted' && selectedVideoDevice) {
       startCameraPreview();
     }
+  }, [cameraPermission, selectedVideoDevice, isOpen, startCameraPreview]);
 
-    return () => {
-      stopCameraPreview();
-    };
-  }, [cameraPermission, selectedVideoDevice, isOpen, startCameraPreview, stopCameraPreview]);
-
-  // Cleanup on unmount
   useEffect(() => {
-    return () => {
-      stopAllTests();
-    };
-  }, [stopAllTests]);
-
-  // ======================
-  // Event Handlers
-  // ======================
-  const handleStartInterview = () => {
-    stopAllTests();
-    
-    if (micPermission === 'granted' && cameraPermission === 'granted') {
-      onStartInterview({
-        audioDeviceId: selectedAudioDevice,
-        videoDeviceId: selectedVideoDevice,
-        screenSharingRequired: true,
-        screenSourceType: selectedScreenSource,
-      });
+    if (!isOpen) {
+      stopCameraPreview();
     }
+  }, [isOpen, stopCameraPreview]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      stopAllTests();
+    }
+  }, [isOpen, stopAllTests]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (isTestingMicrophone) return; // don’t restart camera while testing mic
+
+    if (cameraPermission === 'granted' && selectedVideoDevice) {
+      startCameraPreview();
+    }
+  }, [cameraPermission, selectedVideoDevice, isOpen, isTestingMicrophone]);
+
+  useEffect(() => {
+    if (activeTab !== 'devices') return;
+
+    // Reattach camera stream
+    if (videoRef.current && videoStreamRef.current) {
+      videoRef.current.srcObject = videoStreamRef.current;
+      videoRef.current.play().catch(() => {});
+    }
+
+    // Reattach screen stream
+    if (screenPreviewRef.current && screenStreamRef.current) {
+      screenPreviewRef.current.srcObject = screenStreamRef.current;
+      screenPreviewRef.current.play().catch(() => {});
+    }
+  }, [activeTab]);
+
+  // Event Handlers
+  const handleStartInterview = () => {
+    interviewStartingRef.current = true;
+
+    stopMicrophoneTest();
+    stopCameraPreview();
+
+    if (
+      micPermission !== 'granted' ||
+      cameraPermission !== 'granted' ||
+      !screenStreamRef.current
+    ) {
+      alert('Please allow microphone, camera, and share your entire screen.');
+      interviewStartingRef.current = false;
+      return;
+    }
+
+    const videoTrack = screenStreamRef.current.getVideoTracks()[0];
+    const settings = videoTrack.getSettings();
+
+    if (settings.displaySurface !== 'monitor') {
+      alert('Entire screen sharing is required.');
+      interviewStartingRef.current = false;
+      return;
+    }
+
+    onStartInterview({
+      audioDeviceId: selectedAudioDevice,
+      videoDeviceId: selectedVideoDevice,
+      screenStream: screenStreamRef.current,
+    });
   };
 
   const handleCloseModal = () => {
@@ -437,9 +457,7 @@ const InterviewCheckModal = ({ isOpen, onClose, onStartInterview }) => {
     onClose();
   };
 
-  // ======================
   // UI Helper Functions
-  // ======================
   const allPermissionsGranted = micPermission === 'granted' && 
                                 cameraPermission === 'granted' && 
                                 screenPermission === 'granted';
@@ -723,7 +741,7 @@ const InterviewCheckModal = ({ isOpen, onClose, onStartInterview }) => {
                     <div className="flex gap-2 items-end">
                       <button
                         onClick={startScreenPreview}
-                        disabled={screenPermission !== 'granted' || isScreenPreviewActive}
+                        disabled={isScreenPreviewActive}
                         className="px-6 py-2.5 bg-blue-600 rounded-lg text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
                       >
                         Start Preview
@@ -797,7 +815,7 @@ const InterviewCheckModal = ({ isOpen, onClose, onStartInterview }) => {
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                     </svg>
-                    {isChecking ? 'Requesting Permissions...' : 'Grant Camera & Microphone Access'}
+                    {isChecking ? 'Requesting Permissions...' : 'Grant Camera, Microphone and Entire Screen Share Access'}
                   </button>
                 )}
               </div>

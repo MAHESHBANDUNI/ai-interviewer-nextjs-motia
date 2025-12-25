@@ -18,14 +18,6 @@ export default function InterviewPage() {
   const [isCheckingInterview, setIsCheckingInterview] = useState(true);
   const [interviewSessionToken, setInterviewSessionToken] = useState(null);
   const router = useRouter();
-
-  // useEffect(()=>{
-  //   if(interviewDetails===null && session?.user){
-  //     const interviewId = params?.interviewId;
-  //     fetchInterviewDetails({interviewId});
-  //   }
-  // },[interviewDetails])
-
   useEffect(() => {
     if (!session?.user?.token) return;
       const interviewId = params?.interviewId;
@@ -33,41 +25,11 @@ export default function InterviewPage() {
   }, [session?.user?.token]);
 
   const handleStartInterview = (devices) => {
-    setSelectedDevices(devices);
+    setSelectedDevices(devices); // now includes screenStream
     setInterviewStarted(true);
     setIsModalOpen(false);
-    
-    // Initialize interview with selected devices
-    initializeInterview(devices);
   };
 
-  const initializeInterview = async (devices) => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { 
-          deviceId: devices.audioDeviceId ? { exact: devices.audioDeviceId } : undefined,
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        },
-        video: { 
-          deviceId: devices.videoDeviceId ? { exact: devices.videoDeviceId } : undefined,
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          frameRate: { ideal: 30 }
-        }
-      });
-      
-      console.log('Interview stream started with proctored mode');
-      // The stream will be managed by InterviewSession component
-      
-    } catch (error) {
-      console.error('Error starting interview:', error);
-      alert('Failed to start interview. Please check your devices and try again.');
-      setInterviewStarted(false);
-      setIsModalOpen(true);
-    }
-  };
 
   const handleCloseModal = () => {
     setIsModalOpen(false);

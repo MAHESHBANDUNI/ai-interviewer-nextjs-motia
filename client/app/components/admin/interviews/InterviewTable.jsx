@@ -185,7 +185,7 @@ export default function InterviewTable({ interviews, loading, error, handleCance
                         <div className="flex items-center space-x-2">
                           <button
                             onClick={(e) => handleLivePreview(interview.interviewId, e)}
-                            disabled={['PENDING','RESCHEDULED', 'CANCELLED','COMPLETED'].includes(interview.status)}
+                            disabled={['RESCHEDULED', 'CANCELLED','COMPLETED'].includes(interview.status)}
                             className="cursor-pointer group relative p-2.5 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200/60 text-gray-600 
                               hover:text-white hover:from-orange-500 hover:to-orange-600 hover:border-orange-500/50 hover:shadow-lg hover:shadow-orange-500/25 
                               transition-all duration-300
@@ -436,7 +436,7 @@ const MobileCard = ({
 
                   <button
                     onClick={(e) => handleLivePreview(interview.interviewId, e)}
-                    disabled={['PENDING','RESCHEDULED', 'CANCELLED','COMPLETED'].includes(interview.status)}
+                    disabled={['RESCHEDULED', 'CANCELLED','COMPLETED'].includes(interview.status)}
                     className="cursor-pointer group relative flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:text-gray-900 hover:bg-gray-200 transition-all duration-300 min-h-11 w-full disabled:opacity-50 disabled:pointer-events-none disabled:saturate-0 disabled:cursor-not-allowed disabled:shadow-none"
                   >
                     <Monitor className="w-4 h-4 flex-shrink-0" />
