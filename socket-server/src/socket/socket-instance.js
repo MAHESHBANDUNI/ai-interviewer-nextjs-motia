@@ -3,7 +3,7 @@ import http from 'http';
 import jwt from 'jsonwebtoken';
 import { createAdapter } from '@socket.io/redis-adapter';
 import dotenv from 'dotenv';
-import redisClient from '../utils/redisClient';
+import redisClient from '../utils/redisClient.js';
 
 dotenv.config();
 
