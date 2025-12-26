@@ -2,9 +2,10 @@ import { Server } from 'socket.io';
 import http from 'http';
 import jwt from 'jsonwebtoken';
 import { createAdapter } from '@socket.io/redis-adapter';
-import { createClient } from 'redis';
 import dotenv from 'dotenv';
-dotenv.config(); // Load .env file
+import redisClient from '../utils/redisClient';
+
+dotenv.config();
 
 let io = null;
 let socketServer = null;
@@ -39,7 +40,14 @@ export async function initializeSocket(port = process.env.PORT || 8080) {
       cors: {
         origin: (origin, callback) => {
           if (!origin) return callback(null, true);
-          if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+
+          if (
+            ALLOWED_ORIGINS === '*' ||
+            ALLOWED_ORIGINS.includes(origin)
+          ) {
+            return callback(null, true);
+          }
+
           callback(new Error('CORS not allowed'));
         },
         methods: ['GET', 'POST'],
@@ -64,7 +72,7 @@ export async function initializeSocket(port = process.env.PORT || 8080) {
 
         socket.data.user = {
           userId: payload.userId,
-          role: payload.role,            // 'candidate' | 'admin'
+          role: payload.role,
           interviewId: payload.interviewId,
         };
 
@@ -78,19 +86,19 @@ export async function initializeSocket(port = process.env.PORT || 8080) {
        🔁 REDIS ADAPTER (SCALING)
     ================================= */
 
-    const pubClient = createClient({
-      url: process.env.REDIS_URL
-    });
+    const pubClient = redisClient();
+
+    if (!pubClient.isOpen) {
+      await pubClient.connect();
+      console.log('✅ Redis pub client connected');
+    }
 
     const subClient = pubClient.duplicate();
 
-    await pubClient.connect();
-    await pubClient.connect().catch((err) => {
-      console.error('❌ Failed to connect to Redis:', err);
-      process.exit(1);
-    });
-
-    await subClient.connect();
+    if (!subClient.isOpen) {
+      await subClient.connect();
+      console.log('✅ Redis sub client connected');
+    }
 
     io.adapter(createAdapter(pubClient, subClient));
     console.log('✅ Redis adapter attached');
