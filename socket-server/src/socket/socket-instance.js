@@ -83,12 +83,18 @@ export async function initializeSocket(port = process.env.PORT || 8080) {
       socket: {
         tls: true,
         rejectUnauthorized: false,
+        connectTimeout: 20000
       },
     });
 
     const subClient = pubClient.duplicate();
 
     await pubClient.connect();
+    await pubClient.connect().catch((err) => {
+      console.error('❌ Failed to connect to Redis:', err);
+      process.exit(1);
+    });
+
     await subClient.connect();
 
     io.adapter(createAdapter(pubClient, subClient));
