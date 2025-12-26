@@ -81,7 +81,8 @@ export async function initializeSocket(port = process.env.PORT || 8080) {
     const pubClient = createClient({
       url: process.env.REDIS_URL,
       socket: {
-        reconnectStrategy: retries => Math.min(retries * 50, 2000),
+        tls: true,
+        rejectUnauthorized: false,
       },
     });
 
