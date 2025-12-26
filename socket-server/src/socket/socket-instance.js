@@ -13,8 +13,8 @@ const SOCKET_JWT_SECRET = process.env.SOCKET_JWT_SECRET;
 
 const ALLOWED_ORIGINS =
   process.env.SOCKET_SERVER_ENV === 'production'
-    ? ['https://app.yourdomain.com', 'https://admin.yourdomain.com']
-    : ['http://localhost:3000', 'http://localhost:3001'];
+    ? [process.env.CLIENT_SERVER_URL]
+    : '*';
 
 export async function initializeSocket(port = process.env.PORT || 8080) {
   return new Promise(async (resolve, reject) => {
@@ -77,8 +77,12 @@ export async function initializeSocket(port = process.env.PORT || 8080) {
     /* ================================
        🔁 REDIS ADAPTER (SCALING)
     ================================= */
-    const pubClient = createClient({ 
-      url: `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT}` 
+
+    const pubClient = createClient({
+      url: process.env.REDIS_URL,
+      socket: {
+        reconnectStrategy: retries => Math.min(retries * 50, 2000),
+      },
     });
 
     const subClient = pubClient.duplicate();
