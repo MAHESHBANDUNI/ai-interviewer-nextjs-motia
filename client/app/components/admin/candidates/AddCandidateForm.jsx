@@ -4,10 +4,8 @@ import { X, Upload, FileText, Loader } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { z } from 'zod';
 
-const nameRegex = /^[A-Za-zÀ-ÖØ-öø-ÿ' -]{2,50}$/;
-
-const phoneRegex =
-  /^(\+?\d{1,3}[- ]?)?\(?\d{2,4}\)?[- ]?\d{3,4}[- ]?\d{3,6}$/;
+const lettersOnlyRegex = /^[A-Za-zÀ-ÖØ-öø-ÿ' -]+$/;
+const phoneRegex = /^\d{10}$/;
 
 const allowedFileTypes = [
   "application/pdf",
@@ -15,23 +13,65 @@ const allowedFileTypes = [
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ];
 
+const firstNameSchema = z
+  .string()
+  .trim()
+  .min(1, "First name is required")
+  .max(50, "First name must contain only 50 letters")
+  .refine(
+    (val) => lettersOnlyRegex.test(val),
+    "First name must only contain letters"
+  );
+
+  const lastNameSchema = z
+  .string()
+  .trim()
+  .min(1, "Last name is required")
+  .max(50, "Last name must contain only 50 letters")
+  .refine(
+    (val) => lettersOnlyRegex.test(val),
+    "Last name must only contain letters"
+  );
+
+  const phoneSchema = z
+  .string()
+  .trim()
+  .min(1, "Phone number must contain at least 7 digit")
+  .max(10, "Phone number must contain only 10 digits")
+  .refine(
+    (val) => phoneRegex.test(val),
+    "Please enter a valid phone number"
+  );
+
+  const emailSchema = z
+  .string()
+  .trim()
+  .min(1, "Email is required")
+  .email("Please enter a valid email address");
+
 const fileSchema = z
   .instanceof(File, { message: "Resume is required" })
-  .refine((file) => file && file.size > 0, "Resume is required")
-  .refine((file) => allowedFileTypes.includes(file.type), {
-    message: "Invalid file format (PDF, DOC, DOCX only)",
-  })
-  .refine((file) => file.size <= 5 * 1024 * 1024, {
-    message: "File must be under 5MB",
-  });
+  .refine((file) => file.size > 0, "Resume is required")
+  .refine(
+    (file) => allowedFileTypes.includes(file.type),
+    "Only PDF, DOC, or DOCX files are allowed"
+  )
+  .refine(
+    (file) => file.size <= 5 * 1024 * 1024,
+    "File size must be less than 5MB"
+  );
+
+  const declarationSchema = z
+  .boolean()
+  .refine((val) => val === true, "You must accept the declaration");
 
 export const candidateSchema = z.object({
-  firstName: z.string().trim().min(1, "First Name is required").regex(nameRegex, "Invalid name format"),
-  lastName: z.string().trim().min(1, "Last Name is required").regex(nameRegex, "Invalid name format"),
-  phoneNumber: z.string().trim().min(1, "Phone Number is required").regex(phoneRegex, "Invalid phone number"),
-  email: z.string().trim().min(1, "Email is required").email("Invalid email format"),
+  firstName: firstNameSchema,
+  lastName: lastNameSchema,
+  phoneNumber: phoneSchema,
+  email: emailSchema,
   resume: fileSchema,
-  declaration: z.boolean().refine(val => val === true, "You must accept the declaration")
+  declaration: declarationSchema,
 });
 
 const AddCandidateForm = ({ isOpen, onClose, onSubmit, saving, setSaving }) => {
@@ -51,9 +91,18 @@ const AddCandidateForm = ({ isOpen, onClose, onSubmit, saving, setSaving }) => {
   useEffect(() => {
     const handleMouseDown = (e) => {
       if (!e.target.closest('.modal-content')) onClose();
+      setFormData({
+        firstName: '',
+        lastName: '',
+        phoneNumber: '',
+        email: '',
+        resume: null,
+        declaration: false,
+      });
+      setTouched({});
     };
     document.addEventListener('mousedown', handleMouseDown);
-    return () => document.removeEventListener('mousedown', handleMouseDown);
+    return () => document.removeEventListener('mousedown', handleMouseDown);;
   }, [onClose]);
 
   // ✔ LIVE VALIDATION (safe)
@@ -212,7 +261,7 @@ const AddCandidateForm = ({ isOpen, onClose, onSubmit, saving, setSaving }) => {
                 disabled={saving}
                 onChange={handleChange}
                 className={`w-full p-3 border rounded-lg ${touched.phoneNumber && errors.phoneNumber ? "border-red-500" : "border-gray-300"}`}
-                placeholder="(704) 555-0127"
+                placeholder="7045550127"
               />
               {touched.phoneNumber && errors.phoneNumber && (
                 <p className="text-red-500 text-xs mt-1">{errors.phoneNumber}</p>
@@ -272,7 +321,7 @@ const AddCandidateForm = ({ isOpen, onClose, onSubmit, saving, setSaving }) => {
               className={`px-6 py-2 text-white rounded-lg flex items-center gap-2 cursor-pointer
                 ${!isFormValid() || saving ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}
             >
-              {saving ? <><Loader className="w-4 h-4" /><p>Saving...</p></> : <><Upload className="w-4 h-4" /><p>Save Candidate</p></>}
+              {saving ? <><Loader className="w-4 h-4" /><p>Adding...</p></> : <><Upload className="w-4 h-4" /><p>Add Candidate</p></>}
             </button>
           </div>
         </form>

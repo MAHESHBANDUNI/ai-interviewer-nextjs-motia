@@ -6,7 +6,7 @@
   "scripts": {
     "postinstall": "motia install && prisma generate",
     "dev": "motia dev --port 8000",
-    "start": "motia start",
+    "start": "motia start --port 8000",
     "generate-types": "motia generate-types",
     "build": "motia build",
     "clean": "rm -rf dist node_modules python_modules .motia .mermaid",

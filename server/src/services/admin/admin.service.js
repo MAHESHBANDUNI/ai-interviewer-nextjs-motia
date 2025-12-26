@@ -775,7 +775,7 @@ export const AdminService = {
       throw new Error("LiveKit env vars missing");
     }
   
-    const identity = `admin-${crypto.randomBytes(16).toString("hex")}`;
+    const identity = `${roleName.toLowerCase()}-${userId}`;
     const roomName = `room-${interviewId}`;
   
     const token = new AccessToken(

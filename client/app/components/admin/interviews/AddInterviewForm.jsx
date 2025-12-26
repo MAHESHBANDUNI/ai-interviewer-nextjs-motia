@@ -10,26 +10,40 @@ import CustomCalendarModal from './CustomCalenderModal';
 import { useSession } from "next-auth/react";
 
 const schema = z.object({
-  candidate: z.object({
-    candidateId: z.string(),
-    firstName: z.string(),
-    lastName: z.string(),
-  }),
-  date: z.date({
-    required_error: 'Date is required',
-    invalid_type_error: 'Invalid date',
-  }),
+  candidate: z
+    .object({
+      candidateId: z.string(),
+      firstName: z.string(),
+      lastName: z.string(),
+    })
+    .nullable()
+    .refine(val => val !== null, {
+      message: 'Candidate is required',
+    }),
+
+  date: z
+    .date()
+    .nullable()
+    .refine(val => val !== null, {
+      message: 'Date is required',
+    }),
+
   time: z
     .string()
+    .min(1, 'Time is required')
     .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Invalid time format'),
+
   duration: z
     .number()
     .min(1, 'Duration must be at least 1 minute')
     .max(480, 'Duration cannot exceed 8 hours'),
 }).refine((data) => {
+  if (!data.date || !data.time) return true;
+
   const [h, m] = data.time.split(':').map(Number);
   const dt = new Date(data.date);
   dt.setHours(h, m, 0, 0);
+
   return dt > new Date();
 }, {
   message: 'Interview time must be in the future',

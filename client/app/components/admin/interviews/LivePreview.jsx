@@ -108,6 +108,8 @@ export default function LivePreview({ user, interview, onClose, interviewStreamT
   const [liveConversation, setLiveConversation] = useState([]);
   const [isJoinedInterview, setIsJoinedInterview] = useState(false);
   const [isViewingVideo, setIsViewingVideo] = useState(true); // true = camera, false = screen
+  const [isParticipantDisconnected, setIsParticipantDisconnected] = useState(false);
+  const [isParticipantConnected, setIsParticipantConnected] = useState(false);
 
     /**
    * Handle incoming live transcript event
@@ -178,6 +180,12 @@ export default function LivePreview({ user, interview, onClose, interviewStreamT
     }
   }, [liveConversation]);
 
+const pendingVideoTracks = useRef({
+  camera: null,
+  screen: null,
+});
+
+
   // JOIN LIVEKIT ROOM
   const joinInterviewStream = async () => {
     if (roomRef.current) return;
@@ -198,10 +206,14 @@ export default function LivePreview({ user, interview, onClose, interviewStreamT
 
     room.on(RoomEvent.ParticipantConnected, (p) => {
       console.log("👤 Participant connected:", p.identity);
+      setIsParticipantConnected(true);
     });
 
     room.on(RoomEvent.ParticipantDisconnected, (p) => {
       console.log("👤 Participant disconnected:", p.identity);
+      if (p.identity === `candidate-${interview?.candidate?.candidateId}`) {
+        setIsParticipantDisconnected(true);
+      }
     });
 
     /* ---------- TRACK PUBLISHED ---------- */
@@ -215,6 +227,20 @@ export default function LivePreview({ user, interview, onClose, interviewStreamT
     });
 
     /* ---------- TRACK SUBSCRIBED ---------- */
+room.on(RoomEvent.TrackSubscribed, (track, publication) => {
+  if (track.kind === "video") {
+    if (publication.trackName === "screen") {
+      pendingVideoTracks.current.screen = track;
+    } else {
+      pendingVideoTracks.current.camera = track;
+    }
+  }
+
+  if (track.kind === "audio") {
+    track.attach();
+  }
+});
+
     room.on(
       RoomEvent.TrackSubscribed,
       (track, publication, participant) => {
@@ -291,6 +317,18 @@ export default function LivePreview({ user, interview, onClose, interviewStreamT
     });
   };
 
+  useEffect(() => {
+  if (!isJoinedInterview) return;
+
+  if (videoRef.current && pendingVideoTracks.current.camera) {
+    pendingVideoTracks.current.camera.attach(videoRef.current);
+  }
+
+  if (screenRef.current && pendingVideoTracks.current.screen) {
+    pendingVideoTracks.current.screen.attach(screenRef.current);
+  }
+}, [isJoinedInterview]);
+
   return (
     <div className="fixed inset-0 z-[1000]">
       {/* Backdrop */}
@@ -320,7 +358,8 @@ export default function LivePreview({ user, interview, onClose, interviewStreamT
           {/* Main Content - Responsive Layout */}
           <div className="flex flex-col lg:flex-row gap-4 p-4 sm:p-6">
             {/* Video Section */}
-            { isJoinedInterview ? 
+            { isJoinedInterview && !isParticipantDisconnected &&
+            <>
             <div className="lg:w-2/3 w-full">
               {/* <div className="flex items-center justify-between pb-3 bg-white dark:bg-gray-800">
                   <h3 className="font-semibold text-gray-800 dark:text-gray-200 text-lg px-2">
@@ -362,13 +401,13 @@ export default function LivePreview({ user, interview, onClose, interviewStreamT
                   </div>
                 </div>
 
-                <div className="bg-black h-[30vh] md:h-[35vh] lg:h-[69vh] flex items-center  relative">
+                <div className="bg-black h-[30vh] md:h-[35vh] lg:h-[69vh] flex items-center relative">
                   {/* Camera */}
                   <video
                     ref={videoRef}
                     autoPlay
                     playsInline
-                    className={`absolute inset-0 w-full h-full object-contain pointer-events-none transition-opacity ${
+                    className={`absolute inset-0 lg:w-2/3 w-full h-[30vh] md:h-[35vh] lg:h-[69vh] object-contain pointer-events-none transition-opacity ${
                       isViewingVideo ? "opacity-100 z-10" : "opacity-0 z-0"
                     }`}
                   />
@@ -377,12 +416,11 @@ export default function LivePreview({ user, interview, onClose, interviewStreamT
                     ref={screenRef}
                     autoPlay
                     playsInline
-                    className={`absolute inset-0 w-full h-full object-contain pointer-events-none transition-opacity ${
+                    className={`absolute inset-0 lg:w-2/3 w-full h-[30vh] md:h-[35vh] lg:h-[69vh] object-contain pointer-events-none transition-opacity ${
                       !isViewingVideo ? "opacity-100 z-10" : "opacity-0 z-0"
                     }`}
                   />
                 </div>
-
                 
                 {/* Video Info */}
                 <div className="mt-4">
@@ -408,7 +446,9 @@ export default function LivePreview({ user, interview, onClose, interviewStreamT
                 </div>
               </div>
             </div>
-            :
+            </>
+            }
+            { (!isJoinedInterview || ((isParticipantDisconnected) && isJoinedInterview)) &&
             <div className="lg:w-2/3 w-full">
               <div className="bg-gray-800 dark:bg-gray-800 rounded-xl aspect-video flex items-center justify-center relative overflow-hidden">
                 {/* Placeholder for Video */}
@@ -419,7 +459,7 @@ export default function LivePreview({ user, interview, onClose, interviewStreamT
                     </svg>
                   </div>
                   <p className="text-gray-300 font-medium">Live Interview Preview</p>
-                  <p className="text-sm text-gray-400 mt-1">Video feed will appear here</p>
+                  <p className="text-sm text-gray-400 mt-1">{isParticipantDisconnected ? 'This interview has been ended.' : 'Candidate feed will appear here'}</p>
                 </div>
                 
                 {/* Video Stats Overlay */}

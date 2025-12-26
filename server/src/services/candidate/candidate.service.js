@@ -1311,7 +1311,7 @@ STRICT RULES
         throw new ApiError("Only candidates can start interview streams", 400);
       }
 
-      const identity = `${roleName.toLowerCase()}-${crypto.randomUUID()}`;
+      const identity = `${roleName.toLowerCase()}-${userId}`;
 
       const token = new AccessToken(
         LIVEKIT_API_KEY,
