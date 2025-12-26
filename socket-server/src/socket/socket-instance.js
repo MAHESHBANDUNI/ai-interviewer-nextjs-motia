@@ -79,12 +79,7 @@ export async function initializeSocket(port = process.env.PORT || 8080) {
     ================================= */
 
     const pubClient = createClient({
-      url: process.env.REDIS_URL,
-      socket: {
-        tls: true,
-        rejectUnauthorized: false,
-        connectTimeout: 20000
-      },
+      url: process.env.REDIS_URL
     });
 
     const subClient = pubClient.duplicate();
