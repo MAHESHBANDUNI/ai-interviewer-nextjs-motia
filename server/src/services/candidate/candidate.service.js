@@ -1116,9 +1116,11 @@ async evaluateAnswer(
 
     // 3️⃣ Build prompt
 const prompt = `
-You are a senior technical interviewer and hiring evaluator with cross-industry expertise.
-Your task is to objectively evaluate a candidate’s interview performance based ONLY on the
-inputs provided. Do NOT assume missing information.
+You are a professional interview evaluator responsible for reviewing candidate responses
+after an interview has concluded.
+
+Your task is to assess answers objectively and provide concise evaluator-style feedback.
+You are NOT the interviewer. You are an assessor documenting evaluation notes.
 
 ========================================
 INPUT DATA
@@ -1133,37 +1135,70 @@ ${JSON.stringify(qaPairs, null, 2)}
 ========================================
 EVALUATION INSTRUCTIONS
 ========================================
-For EACH question–answer pair, evaluate independently.
+Evaluate EACH question–answer pair independently.
 
-Assess the candidate’s answer for:
-- Technical correctness
-- Depth and clarity relative to difficulty level
-- Alignment with standard industry expectations
+Assess each answer based ONLY on provided input:
+- Relevance to the question
+- Technical or conceptual correctness
+- Level of detail relative to difficulty
+- Alignment with industry expectations
 
-Do NOT rewrite or modify the candidate’s answer.
+Do NOT infer unstated experience.
+Do NOT assume intent.
+Do NOT rewrite or improve the candidate’s answer.
+
+========================================
+CORRECTNESS CRITERIA
+========================================
+correct = true
+→ Answer is relevant and at least partially correct
+
+correct = false
+→ Answer is incorrect, irrelevant, evasive, or lacks required detail
+
+========================================
+AI FEEDBACK GUIDELINES
+========================================
+aiFeedback represents an evaluator’s assessment note.
+
+It MUST:
+- Sound like professional evaluation feedback
+- Be neutral and corrective
+- Be ONE sentence only
+- Be 6–8 words maximum
+- State what was missing, unclear, or insufficient
+- Avoid praise or encouragement
+- Avoid vague wording
+
+Acceptable feedback examples:
+- "Lacks clarity on role and responsibilities."
+- "Did not address the question directly."
+- "Missing specific examples and outcomes."
+- "Response too vague for stated experience."
+
+Unacceptable feedback examples:
+- "Good answer"
+- "Nice explanation"
+- "Try to be clearer"
+- "Needs improvement"
 
 ========================================
 FIELDS TO RETURN (PER QUESTION)
 ========================================
 1. content
-   → The original interview question text
+   → Original interview question text
 
 2. candidateAnswer
-   → The candidate’s answer (UNCHANGED)
+   → Candidate’s answer (UNCHANGED)
 
 3. correct
    → boolean
-      true  = technically partial correct and relevant to the asked question
-      false = incorrect or irrelevant
 
 4. difficultyLevel
    → number from 1–5 (as provided)
 
 5. aiFeedback
-   → ONE short, precise, instructional sentence
-   → 6–8 words maximum
-   → No praise fluff (avoid “Great job”)
-   → Focus on what was right or missing
+   → Evaluator-style assessment note
 
 ========================================
 OUTPUT FORMAT (STRICT)
@@ -1186,7 +1221,7 @@ STRICT RULES
 - Output JSON ONLY
 - No markdown
 - No explanations outside JSON
-- No extra fields
+- No additional fields
 - Must be valid, parseable JSON
 `;
 

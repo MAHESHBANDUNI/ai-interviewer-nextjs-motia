@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 dotenv.config(); // Load .env file
 
 const SOCKET_PORT = process.env.SOCKET_PORT || 8080;
+const client = await redisClient();
 
 initializeSocket(SOCKET_PORT).then((io) => {
   io.on('connection', (socket) => {
@@ -24,7 +25,7 @@ initializeSocket(SOCKET_PORT).then((io) => {
 
       socket.join(`interview:${interviewId}:admins`);
 
-      const raw = await redisClient.hgetall(
+      const raw = await client.hGetAll(
         `interview:${interviewId}:messages`
       );
 
@@ -42,7 +43,7 @@ initializeSocket(SOCKET_PORT).then((io) => {
       const key = `interview:${interviewId}:messages`;
 
       // TTL only once
-      await redisClient.expire(key, interviewDuration * 60, 'NX');
+      await client.expire(key, interviewDuration * 60, 'NX');
 
       const message = {
         id,
@@ -53,7 +54,7 @@ initializeSocket(SOCKET_PORT).then((io) => {
 
       console.log('Message: ',message);
 
-      await redisClient.hset(key, id, JSON.stringify(message));
+      await client.hSet(key, id, JSON.stringify(message));
 
       io.to(`interview:${interviewId}:admins`).emit(
         'live_transcript',

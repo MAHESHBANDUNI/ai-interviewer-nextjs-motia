@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import redisClient from '../utils/redisClient.js';
 
 dotenv.config();
+const client = await redisClient();
 
 let io = null;
 let socketServer = null;
@@ -86,7 +87,7 @@ export async function initializeSocket(port = process.env.PORT || 8080) {
        🔁 REDIS ADAPTER (SCALING)
     ================================= */
 
-    const pubClient = redisClient();
+    const pubClient = client;
 
     if (!pubClient.isOpen) {
       await pubClient.connect();
