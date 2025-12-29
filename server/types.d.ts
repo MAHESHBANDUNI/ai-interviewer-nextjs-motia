@@ -13,6 +13,8 @@ declare module 'motia' {
 
   interface Handlers {
     'GetTTSAudio': ApiRouteHandler<Record<string, unknown>, unknown, never>
+    'ProcessFailedInterviews': CronHandler<never>
+    'CancelPendingRescheduledInterviews': CronHandler<never>
     'StartCandidateInterviewStream': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'StartCandidateInterviewSession': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GetInterviewDetails': ApiRouteHandler<Record<string, unknown>, unknown, never>

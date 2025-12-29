@@ -15,7 +15,15 @@ import {
   HelpCircle,
   Briefcase,
   Bell,
-  SidebarIcon
+  SidebarIcon,
+  Calendar,
+  CheckCircle,
+  XCircle,
+  BarChart3,
+  Clock,
+  AlertCircle,
+  Users,
+  TrendingUp
 } from "lucide-react"
 import { successToast, errorToast } from "@/app/components/ui/toast"
 import { useSession, signOut } from "next-auth/react"
@@ -24,11 +32,33 @@ import { useEffect, useRef, useState } from "react"
 const navItemsAdmin = [
   { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
   { name: "Candidates", href: "/admin/candidates", icon: User },
-  { name: "Interviews", href: "/admin/interview", icon: Laptop }
+  { 
+    name: "Interviews", 
+    href: "/admin/interview", 
+    icon: Laptop,
+    hasSubmenu: true,
+    submenu: [
+      { name: "All Interviews", href: "/admin/interview", icon: Laptop },
+      { name: "Upcoming", href: "/admin/interview/upcoming", icon: Calendar },
+      { name: "Completed", href: "/admin/interview/completed", icon: CheckCircle },
+      { name: "Cancelled", href: "/admin/interview/cancelled", icon: XCircle }
+    ]
+  }
 ]
 
 const navItemsCandidate = [
-  { name: "Interviews", href: "/candidate/interviews", icon: Laptop }
+  { 
+    name: "Interviews", 
+    href: "/candidate/interviews", 
+    icon: Laptop,
+    hasSubmenu: true,
+    submenu: [
+      { name: "Dashboard", href: "/candidate/interviews", icon: LayoutDashboard },
+      { name: "Upcoming", href: "/candidate/interviews/upcoming", icon: Calendar },
+      { name: "Completed", href: "/candidate/interviews/completed", icon: CheckCircle },
+      { name: "Cancelled", href: "/candidate/interviews/cancelled", icon: XCircle }
+    ]
+  }
 ]
 
 export default function Sidebar({ sidebarOpen, setSidebarOpen, isCollapsed, setIsCollapsed }) {
@@ -54,6 +84,12 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, isCollapsed, setI
     ? navItemsAdmin 
     : navItemsCandidate
 
+  // Check if pathname matches any submenu item
+  const getActiveSubmenu = (item) => {
+    if (!item.submenu) return false;
+    return item.submenu.some(subItem => pathname.startsWith(subItem.href));
+  };
+
   // Click outside to close sidebar on mobile
   useEffect(() => {
     if (!sidebarOpen || !isMobile) return
@@ -73,6 +109,14 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, isCollapsed, setI
       setSidebarOpen(false)
     } else {
       setIsCollapsed(!isCollapsed)
+    }
+  }
+
+  const handleSubmenuToggle = (itemName) => {
+    if (activeSubmenu === itemName) {
+      setActiveSubmenu(null)
+    } else {
+      setActiveSubmenu(itemName)
     }
   }
 
@@ -117,7 +161,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, isCollapsed, setI
         }}
         transition={{ type: "spring", damping: 25, stiffness: 300 }}
         className={`
-          fixed top-0 left-0 h-full bg-gradient-to-b from-white to-gray-50 border-r border-gray-200
+          fixed top-0 left-0 h-full bg-gradient-to-b from-gray-50 to-gray-100 border-r border-gray-200
           shadow-xl z-[100] flex flex-col overflow-hidden
           ${isCollapsed && !isMobile ? "w-20" : "w-80"}
           ${isMobile ? "w-80" : ""}
@@ -127,9 +171,9 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, isCollapsed, setI
         <div className="px-6 py-5 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <div className={`flex items-center gap-3 ${isCollapsed && !isMobile ? "justify-center" : ""}`}>
-              {/* <div className="bg-blue-600 w-8 h-8 rounded-lg flex items-center justify-center">
+              <div className="bg-gradient-to-br from-blue-600 to-blue-800 w-9 h-9 rounded-xl flex items-center justify-center shadow-md">
                 <Briefcase className="w-5 h-5 text-white" />
-              </div> */}
+              </div>
               
               <AnimatePresence>
                 {(!isCollapsed || isMobile) && (
@@ -142,6 +186,9 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, isCollapsed, setI
                     <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
                       AI INTERVIEWER
                     </h1>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {session?.user?.role === 'Admin' ? 'Admin Portal' : 'Candidate Portal'}
+                    </p>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -162,7 +209,6 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, isCollapsed, setI
               )}
             </button>
           </div>
-
         </div>
 
         {/* Navigation */}
@@ -173,163 +219,261 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, isCollapsed, setI
               Main Menu
             </p>
             
-            {activeNavItems.map(({ name, href, icon: Icon }) => {
-              const isActive = pathname === href
-              const isCollapsedState = isCollapsed && !isMobile
+            {activeNavItems.map((item) => {
+              const isActive = pathname === item.href || getActiveSubmenu(item);
+              const isCollapsedState = isCollapsed && !isMobile;
+              const Icon = item.icon;
+              const hasSubmenu = item.hasSubmenu;
+              const isSubmenuOpen = activeSubmenu === item.name;
 
               return (
-                <motion.div
-                  key={href}
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.99 }}
-                >
-                  <Link
-                    href={href}
-                    className={`
-                      flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
-                      ${isActive
-                        ? " bg-gray-200 text-white shadow-sm shadow-gray-500/20"
-                        : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"}
-                      ${isCollapsedState ? "justify-center px-3" : ""}
-                    `}
-                    onClick={() => isMobile && setSidebarOpen(false)}
+                <div key={item.name}>
+                  <motion.div
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
                   >
                     <div className="relative">
-                      <Icon size={20} className={isActive ? "text-gray-900" : "text-gray-800"} />
-                      {/* {isActive && (
-                        <motion.div
-                          layoutId="activeIndicator"
-                          className="absolute -right-1 -top-1 w-2 h-2 bg-black rounded-full"
-                        />
-                      )} */}
-                    </div>
-                    
-                    <AnimatePresence>
-                      {(!isCollapsed || isMobile) && (
-                        <motion.span
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: -10 }}
-                          className="font-medium text-sm text-gray-800"
+                      {hasSubmenu ? (
+                        <button
+                          onClick={() => handleSubmenuToggle(item.name)}
+                          className={`
+                            flex items-center justify-between w-full px-4 py-3 rounded-xl transition-all duration-200
+                            ${isActive
+                              ? "bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 border border-blue-200"
+                              : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"}
+                            ${isCollapsedState ? "justify-center px-3" : ""}
+                            cursor-pointer
+                          `}
                         >
-                          {name}
-                        </motion.span>
+                          <div className="flex items-center gap-3">
+                            <div className="relative">
+                              <Icon size={20} className={isActive ? "text-blue-600" : "text-gray-800"} />
+                              {isActive && (
+                                <motion.div
+                                  layoutId="activeIndicator"
+                                  className="absolute -right-1 -top-1 w-2 h-2 bg-blue-500 rounded-full"
+                                />
+                              )}
+                            </div>
+                            
+                            <AnimatePresence>
+                              {(!isCollapsed || isMobile) && (
+                                <motion.span
+                                  initial={{ opacity: 0, x: -10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  exit={{ opacity: 0, x: -10 }}
+                                  className="font-medium text-sm text-gray-800"
+                                >
+                                  {item.name}
+                                </motion.span>
+                              )}
+                            </AnimatePresence>
+                          </div>
+
+                          <AnimatePresence>
+                            {(!isCollapsed || isMobile) && hasSubmenu && (
+                              <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className={`transform transition-transform ${isSubmenuOpen ? 'rotate-90' : ''}`}
+                              >
+                                <ChevronRight className="w-4 h-4 text-gray-400" />
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </button>
+                      ) : (
+                        <Link
+                          href={item.href}
+                          className={`
+                            flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
+                            ${isActive
+                              ? "bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 border border-blue-200"
+                              : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"}
+                            ${isCollapsedState ? "justify-center px-3" : ""}
+                          `}
+                          onClick={() => isMobile && setSidebarOpen(false)}
+                        >
+                          <div className="relative">
+                            <Icon size={20} className={isActive ? "text-blue-600" : "text-gray-800"} />
+                            {isActive && (
+                              <motion.div
+                                layoutId="activeIndicator"
+                                className="absolute -right-1 -top-1 w-2 h-2 bg-blue-500 rounded-full"
+                              />
+                            )}
+                          </div>
+                          
+                          <AnimatePresence>
+                            {(!isCollapsed || isMobile) && (
+                              <motion.span
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -10 }}
+                                className="font-medium text-sm text-gray-800"
+                              >
+                                {item.name}
+                              </motion.span>
+                            )}
+                          </AnimatePresence>
+                        </Link>
                       )}
-                    </AnimatePresence>
-                    
-                    {/* {isActive && (!isCollapsed || isMobile) && (
-                      <div className="ml-auto w-2 h-2 bg-gray-700 rounded-full"></div>
-                    )} */}
-                  </Link>
-                </motion.div>
+                    </div>
+                  </motion.div>
+
+                  {/* Submenu Items */}
+                  <AnimatePresence>
+                    {hasSubmenu && isSubmenuOpen && (!isCollapsed || isMobile) && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="ml-8 mt-1 pl-4 border-l border-gray-200 space-y-1 overflow-hidden"
+                      >
+                        {item.submenu.map((subItem) => {
+                          const SubIcon = subItem.icon;
+                          const isSubActive = pathname === subItem.href;
+                          const isDashboard = subItem.name === "Dashboard";
+                          
+                          return (
+                            <motion.div
+                              key={subItem.href}
+                              whileHover={{ x: 2 }}
+                              whileTap={{ scale: 0.98 }}
+                            >
+                              <Link
+                                href={subItem.href}
+                                className={`
+                                  flex items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-200
+                                  ${isSubActive
+                                    ? "bg-blue-50 text-blue-700"
+                                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"}
+                                `}
+                                onClick={() => isMobile && setSidebarOpen(false)}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <SubIcon className={`w-4 h-4 ${isSubActive ? "text-blue-600" : "text-gray-500"}`} />
+                                  <span className="text-sm font-medium">{subItem.name}</span>
+                                </div>
+                                
+                              </Link>
+                            </motion.div>
+                          );
+                        })}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               )
             })}
           </div>
 
-          {/* Divider */}
-          <div className={`my-6 border-t border-gray-200 ${(isCollapsed && !isMobile) ? "hidden" : "block"}`}></div>
-
         </nav>
 
         {/* Footer / Logout */}
-      <div className="border-t border-gray-200 p-4">
-        {/* User Profile Section */}
-        <div className="mb-4">
-          <AnimatePresence>
-            {(!isCollapsed || isMobile) && session?.user && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2 }}
-                className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="relative flex-shrink-0">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                      {session.user.name?.charAt(0) || 
-                       session.user.email?.charAt(0) || 
-                       "U"}
+        <div className="border-t border-gray-200 p-4">
+          {/* User Profile Section */}
+          <div className="mb-4">
+            <AnimatePresence>
+              {(!isCollapsed || isMobile) && session?.user && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                  className="p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="relative flex-shrink-0">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-md">
+                        {session.user.name?.charAt(0) || 
+                         session.user.email?.charAt(0) || 
+                         "U"}
+                      </div>
+                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white shadow-sm"></div>
                     </div>
-                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                        
+                    <div className="flex-1 min-w-0 overflow-hidden">
+                      <p className="font-semibold text-sm truncate">
+                        {session.user.name || "User"}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {session.user.email}
+                      </p>
+                      {session.user.role && (
+                        <span className={`inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded-full ${
+                          session.user.role === 'Admin' 
+                            ? 'bg-purple-100 text-purple-700' 
+                            : 'bg-blue-100 text-blue-700'
+                        }`}>
+                          {session.user.role}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                      
-                  <div className="flex-1 min-w-0 overflow-hidden">
-                    <p className="font-semibold text-sm truncate">
-                      {session.user.name || "User"}
-                    </p>
-                    <p className="text-xs text-gray-500 truncate">
-                      {session.user.email}
-                    </p>
-                    {session.user.role && (
-                      <span className="inline-block mt-1 px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
-                        {session.user.role}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-          
-        {/* Logout Button */}
-        <motion.button
-          onClick={handleLogout}
-          className={`
-            cursor-pointer flex items-center w-full px-4 py-3 rounded-xl transition-all duration-200
-            bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-900
-            border border-gray-100 hover:border-gray-200
-            ${(isCollapsed && !isMobile) ? "justify-center px-3" : "gap-3"}
-            group
-          `}
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.99 }}
-        >
-          <LogOut 
-            size={20} 
-            className={`${(isCollapsed && !isMobile) ? "" : "flex-shrink-0"} text-gray-600 group-hover:text-gray-800`}
-          />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+            
+          {/* Logout Button */}
+          <motion.button
+            onClick={handleLogout}
+            className={`
+              cursor-pointer flex items-center w-full px-4 py-3 rounded-xl transition-all duration-200
+              bg-gradient-to-r from-gray-50 to-gray-100 text-gray-700 hover:from-gray-100 hover:to-gray-200 hover:text-gray-900
+              border border-gray-200 hover:border-gray-300 shadow-sm
+              ${(isCollapsed && !isMobile) ? "justify-center px-3" : "gap-3"}
+              group
+            `}
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+          >
+            <LogOut 
+              size={20} 
+              className={`${(isCollapsed && !isMobile) ? "" : "flex-shrink-0"} text-gray-600 group-hover:text-gray-800`}
+            />
 
-          <AnimatePresence mode="wait">
-            {(!isCollapsed || isMobile) && (
-              <motion.span
-                key="logout-text"
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                transition={{ duration: 0.15 }}
-                className="font-medium text-sm text-gray-700 truncate"
-              >
-                Logout
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </motion.button>
-          
-        {/* Version Info */}
-        <div className="mt-4">
-          <AnimatePresence>
-            {(!isCollapsed || isMobile) && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="text-center"
-              >
-                <p className="text-xs text-gray-400">
-                  v1.1.0 • Interview AI
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
+            <AnimatePresence mode="wait">
+              {(!isCollapsed || isMobile) && (
+                <motion.span
+                  key="logout-text"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  transition={{ duration: 0.15 }}
+                  className="font-medium text-sm text-gray-700 truncate"
+                >
+                  Logout
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </motion.button>
+            
+          {/* Version Info */}
+          <div className="mt-4">
+            <AnimatePresence>
+              {(!isCollapsed || isMobile) && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="text-center"
+                >
+                  <p className="text-xs text-gray-400">
+                    v1.2.0 • AI Interviewer Pro
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
-      </div>
       </motion.aside>
 
-      {/* Mobile Menu Button */}
-      {/* {isMobile && !sidebarOpen && (
+      {/* Mobile Menu Button (Hidden for now since we have top navbar) */}
+      {isMobile && !sidebarOpen && (
         <button
           onClick={() => setSidebarOpen(true)}
           className="fixed top-4 left-4 p-2 bg-white rounded-xl shadow-lg border border-gray-200 z-[99] lg:hidden"
@@ -337,7 +481,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, isCollapsed, setI
         >
           <Menu className="w-5 h-5 text-gray-700" />
         </button>
-      )} */}
+      )}
     </>
   )
 }

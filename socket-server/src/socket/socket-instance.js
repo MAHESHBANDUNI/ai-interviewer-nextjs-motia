@@ -58,9 +58,7 @@ export async function initializeSocket(port = process.env.PORT || 8080) {
       allowEIO3: false,
     });
 
-    /* ================================
-       🔐 JWT AUTH (connection-level)
-    ================================= */
+    // JWT AUTH (connection-level)
     io.use((socket, next) => {
       try {
         const token =
@@ -83,10 +81,7 @@ export async function initializeSocket(port = process.env.PORT || 8080) {
       }
     });
 
-    /* ================================
-       🔁 REDIS ADAPTER (SCALING)
-    ================================= */
-
+    //REDIS ADAPTER (SCALING)
     const pubClient = client;
 
     if (!pubClient.isOpen) {

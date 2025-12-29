@@ -1,568 +1,74 @@
 'use client'
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useSession } from "next-auth/react";
-import PerformanceModal from "./PerformanceModal";
 import { useRouter } from "next/navigation";
-import { Eye, Calendar, Timer, Clock, Scale, Check } from "lucide-react";
-import Pagination from "./Pagination";
+import { Calendar, BarChart3, XCircle, ArrowRight, TrendingUp } from "lucide-react";
 
-export default function HomePage() {
-    const [upcomingInterviews, setUpcomingInterviews] = useState([]);
-    const [pastInterviews, setPastInterviews] = useState([]);
-    const [cancelledInterviews, setCancelledInterviews] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState("upcoming");
-    const [selectedInterview, setSelectedInterview] = useState(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
+export default function InterviewsPage() {
     const { data: session } = useSession();
     const router = useRouter();
-    const today = new Date();
-
-    // Add pagination state at the top of your component
-    const [currentPage, setCurrentPage] = useState({
-      upcoming: 1,
-      past: 1,
-      cancelled: 1
+    const [stats, setStats] = useState({
+        total: 0,
+        completed: 0,
+        upcoming: 0,
+        cancelled: 0,
+        averageScore: 0
     });
-    const [itemsPerPage] = useState(10); // You can adjust this number
-    
-    // Calculate paginated data for each section
-    const getPaginatedData = (data, tab) => {
-      const startIndex = (currentPage[tab] - 1) * itemsPerPage;
-      const endIndex = startIndex + itemsPerPage;
-      return data.slice(startIndex, endIndex);
-    };
-    
-    // Calculate total pages for each section
-    const getTotalPages = (data) => {
-      return Math.ceil(data.length / itemsPerPage);
-    };
 
-    useEffect(() => {
-      if (!session?.user?.token) return;
-
-      fetchCandidateInterviewsList();
-    }, [session?.user?.token]);
-
-    const mockInterviewData = {
-    upcoming: [
-        {
-            interviewId: "1",
-            candidateId: "candidate-1",
-            adminId: "admin-1",
-            scheduledAt: "2024-12-20T14:30:00Z",
-            durationMin: 60,
-            meetingLink: "https://meet.google.com/abc-def-ghi",
-            status: "PENDING",
-            createdAt: "2024-12-15T10:00:00Z",
-            admin: {
-                firstName: "Sarah",
-                lastName: "Johnson",
-                email: "sarah.johnson@techvista.com"
-            },
-            questions: [
-                {
-                    interviewQuestionId: "q1",
-                    interviewId: "1",
-                    content: "Explain the difference between let, const, and var in JavaScript",
-                    difficultyLevel: 2,
-                    askedAt: "2024-12-15T10:00:00Z",
-                    candidateAnswer: null,
-                    aiFeedback: null,
-                    correct: null
-                },
-                {
-                    interviewQuestionId: "q2",
-                    interviewId: "1",
-                    content: "How would you optimize a React application that's experiencing slow rendering?",
-                    difficultyLevel: 4,
-                    askedAt: "2024-12-15T10:00:00Z",
-                    candidateAnswer: null,
-                    aiFeedback: null,
-                    correct: null
-                }
-            ],
-            interviewProfile: null
-        },
-        {
-            interviewId: "2",
-            candidateId: "candidate-1",
-            adminId: "admin-2",
-            scheduledAt: "2024-12-22T11:00:00Z",
-            durationMin: 90,
-            meetingLink: "https://teams.microsoft.com/l/meetup-join/xyz",
-            status: "PENDING",
-            createdAt: "2024-12-16T09:30:00Z",
-            admin: {
-                firstName: "Mike",
-                lastName: "Chen",
-                email: "mike.chen@innotech.com"
-            },
-            questions: [
-                {
-                    interviewQuestionId: "q3",
-                    interviewId: "2",
-                    content: "Design a database schema for an e-commerce platform",
-                    difficultyLevel: 5,
-                    askedAt: "2024-12-16T09:30:00Z",
-                    candidateAnswer: null,
-                    aiFeedback: null,
-                    correct: null
-                }
-            ],
-            interviewProfile: null
-        }
-    ],
-    past: [
-        {
-            interviewId: "3",
-            candidateId: "candidate-1",
-            adminId: "admin-3",
-            scheduledAt: "2024-12-10T15:00:00Z",
-            durationMin: 45,
-            meetingLink: null,
-            status: "COMPLETED",
-            createdAt: "2024-12-05T14:20:00Z",
-            admin: {
-                firstName: "David",
-                lastName: "Kim",
-                email: "david.kim@webcraft.com"
-            },
-            questions: [
-                {
-                    interviewQuestionId: "q4",
-                    interviewId: "3",
-                    content: "Reverse a linked list in-place",
-                    difficultyLevel: 3,
-                    askedAt: "2024-12-10T15:00:00Z",
-                    candidateAnswer: "I would use two pointers to traverse the list and reverse the links between nodes",
-                    aiFeedback: "Good approach. You correctly identified the two-pointer technique. Consider mentioning time complexity (O(n)) and space complexity (O(1)) for completeness.",
-                    correct: true
-                },
-                {
-                    interviewQuestionId: "q5",
-                    interviewId: "3",
-                    content: "Explain the concept of promises in JavaScript",
-                    difficultyLevel: 2,
-                    askedAt: "2024-12-10T15:05:00Z",
-                    candidateAnswer: "Promises represent eventual completion of asynchronous operations with states like pending, fulfilled, and rejected",
-                    aiFeedback: "Accurate definition. Good understanding of promise states. You could mention .then() and .catch() methods for handling results.",
-                    correct: true
-                }
-            ],
-            interviewProfile: {
-                interviewProfileId: "profile-1",
-                candidateId: "candidate-1",
-                interviewId: "3",
-                performanceScore: 8.5,
-                techStackFit: ["React", "Node.js", "PostgreSQL"],
-                recommendedRoles: ["Senior Frontend Developer", "Full Stack Developer"],
-                strengths: ["Problem-solving skills", "JavaScript knowledge", "Communication"],
-                weaknesses: ["System design depth", "Database optimization"],
-                analytics: {
-                    totalQuestions: 5,
-                    correctAnswers: 4,
-                    averageDifficulty: 3.2,
-                    timePerQuestion: 8.5
-                },
-                createdAt: "2024-12-10T16:30:00Z"
-            }
-        },
-        {
-            interviewId: "4",
-            candidateId: "candidate-1",
-            adminId: "admin-4",
-            scheduledAt: "2024-12-08T10:30:00Z",
-            durationMin: 30,
-            meetingLink: null,
-            status: "COMPLETED",
-            createdAt: "2024-12-01T11:15:00Z",
-            admin: {
-                firstName: "Lisa",
-                lastName: "Wang",
-                email: "lisa.wang@techvista.com"
-            },
-            questions: [
-                {
-                    interviewQuestionId: "q6",
-                    interviewId: "4",
-                    content: "What motivates you to work in tech?",
-                    difficultyLevel: 1,
-                    askedAt: "2024-12-08T10:30:00Z",
-                    candidateAnswer: "I'm passionate about solving real-world problems through technology and continuous learning",
-                    aiFeedback: "Authentic and well-articulated response. Shows genuine interest in the field.",
-                    correct: true
-                },
-                {
-                    interviewQuestionId: "q7",
-                    interviewId: "4",
-                    content: "Describe your experience working in a team environment",
-                    difficultyLevel: 2,
-                    askedAt: "2024-12-08T10:35:00Z",
-                    candidateAnswer: "I've collaborated with cross-functional teams using Agile methodology and participated in code reviews",
-                    aiFeedback: "Good examples of teamwork. Consider mentioning specific collaboration tools you've used.",
-                    correct: true
-                }
-            ],
-            interviewProfile: {
-                interviewProfileId: "profile-2",
-                candidateId: "candidate-1",
-                interviewId: "4",
-                performanceScore: 9.0,
-                techStackFit: ["Communication", "Teamwork", "Adaptability"],
-                recommendedRoles: ["Team Lead", "Senior Developer"],
-                strengths: ["Communication skills", "Cultural fit", "Professional attitude"],
-                weaknesses: [],
-                analytics: {
-                    totalQuestions: 3,
-                    correctAnswers: 3,
-                    averageDifficulty: 1.5,
-                    timePerQuestion: 6.2
-                },
-                createdAt: "2024-12-08T11:15:00Z"
-            }
-        }
-    ],
-    cancelled: [
-        {
-            interviewId: "5",
-            candidateId: "candidate-1",
-            adminId: "admin-5",
-            scheduledAt: "2024-11-25T13:00:00Z",
-            durationMin: 60,
-            meetingLink: null,
-            status: "CANCELLED",
-            createdAt: "2024-11-20T16:45:00Z",
-            admin: {
-                firstName: "Alex",
-                lastName: "Rodriguez",
-                email: "alex.rodriguez@startupco.com"
-            },
-            questions: [],
-            interviewProfile: null,
-            cancelledAt: "2024-11-22T10:30:00Z",
-            cancellationReason: "Interviewer unavailable due to emergency"
-        },
-        {
-            interviewId: "6",
-            candidateId: "candidate-1",
-            adminId: "admin-6",
-            scheduledAt: "2024-11-18T09:00:00Z",
-            durationMin: 45,
-            meetingLink: "https://meet.google.com/cancelled-meeting",
-            status: "CANCELLED",
-            createdAt: "2024-11-15T14:20:00Z",
-            admin: {
-                firstName: "Maria",
-                lastName: "Garcia",
-                email: "maria.garcia@techsolutions.com"
-            },
-            questions: [
-                {
-                    interviewQuestionId: "q8",
-                    interviewId: "6",
-                    content: "Explain REST API principles",
-                    difficultyLevel: 2,
-                    askedAt: null,
-                    candidateAnswer: null,
-                    aiFeedback: null,
-                    correct: null
-                }
-            ],
-            interviewProfile: null,
-            cancelledAt: "2024-11-17T15:45:00Z",
-            cancellationReason: "Rescheduled by candidate request"
-        }
-    ]
-};
-    // Modal handler functions
-    const openPerformanceModal = (interview) => {
-        setSelectedInterview(interview);
-        setIsModalOpen(true);
-    };
-
-    const closePerformanceModal = () => {
-        setSelectedInterview(null);
-        setIsModalOpen(false);
-    };
-
-    const fetchCandidateInterviewsList = async () => {
-        if(!session?.user?.id) return;
-        setLoading(true);
-        try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/candidate/interviews/list`, {
-                method: 'GET',
-                headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`}
-            });
-
-            if (res.ok) {
-                const data = await res.json();
-                const interviews = data.interviews || [];
-                
-                const sortByDate = (a, b) => new Date(b.scheduledAt) - new Date(a.scheduledAt);
-
-                setUpcomingInterviews(
-                  interviews
-                    .filter(interview =>
-                      interview.status === "PENDING" ||
-                      interview.status === "RESCHEDULED"
-                    )
-                    .sort(sortByDate)
-                );
-
-                setPastInterviews(
-                  interviews
-                    .filter(interview => interview.status === "COMPLETED")
-                    .sort(sortByDate)
-                );
-
-                setCancelledInterviews(
-                  interviews
-                    .filter(interview => interview.status === "CANCELLED")
-                    .sort(sortByDate)
-                );
-
-                } else {
-                    console.error('Failed to fetch interviews');
-                    // Fallback to mock data
-                    setUpcomingInterviews(mockInterviewData.upcoming);
-                    setPastInterviews(mockInterviewData.past);
-                    setCancelledInterviews(mockInterviewData.cancelled);
-                }
-        } catch (error) {
-            console.error('Error fetching interviews:', error);
-            // Fallback to mock data
-            setUpcomingInterviews(mockInterviewData.upcoming);
-            setPastInterviews(mockInterviewData.past);
-            setCancelledInterviews(mockInterviewData.cancelled);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const formatDate = (dateString) => {
-        const options = { 
-            weekday: 'short', 
-            month: 'short', 
-            day: 'numeric',
-            year: 'numeric'
-        };
-        return new Date(dateString).toLocaleDateString('en-US', options);
-    };
-
-    const formatTime = (dateString) => {
-        return new Date(dateString).toLocaleTimeString('en-US', {
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true
+    // Mock stats - in real app, fetch from API
+    React.useEffect(() => {
+        setStats({
+            total: 15,
+            completed: 8,
+            upcoming: 4,
+            cancelled: 3,
+            averageScore: 8.2
         });
-    };
+    }, []);
 
-    const getDuration = (minutes) => {
-        if (minutes < 60) return `${minutes} mins`;
-        const hours = Math.floor(minutes / 60);
-        const mins = minutes % 60;
-        return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
-    };
+    const tabs = [
+        {
+            key: "upcoming",
+            label: "Upcoming Interviews",
+            description: "View and manage your scheduled interviews",
+            icon: Calendar,
+            count: stats.upcoming,
+            color: "from-blue-500 to-blue-600",
+            hoverColor: "hover:from-blue-600 hover:to-blue-700",
+            buttonColor: "bg-blue-600 hover:bg-blue-700",
+            path: "/candidate/interviews/upcoming"
+        },
+        {
+            key: "completed",
+            label: "Completed Interviews",
+            description: "Review past interviews and performance",
+            icon: BarChart3,
+            count: stats.completed,
+            color: "from-green-500 to-green-600",
+            hoverColor: "hover:from-green-600 hover:to-green-700",
+            buttonColor: "bg-green-600 hover:bg-green-700",
+            path: "/candidate/interviews/completed"
+        },
+        {
+            key: "cancelled",
+            label: "Cancelled Interviews",
+            description: "View cancelled interviews history",
+            icon: XCircle,
+            count: stats.cancelled,
+            color: "from-gray-500 to-gray-600",
+            hoverColor: "hover:from-gray-600 hover:to-gray-700",
+            buttonColor: "bg-gray-600 hover:bg-gray-700",
+            path: "/candidate/interviews/cancelled"
+        }
+    ];
 
-    const getStatusConfig = (status) => {
-        const config = {
-            PENDING: { 
-                label: "Scheduled", 
-                color: "bg-blue-50 text-blue-700 border-blue-200",
-                badgeColor: "bg-blue-100 text-blue-800"
-            },
-            COMPLETED: { 
-                label: "Completed", 
-                color: "bg-green-50 text-green-700 border-green-200",
-                badgeColor: "bg-green-100 text-green-800"
-            },
-            CANCELLED: { 
-                label: "Cancelled", 
-                color: "bg-red-50 text-red-700 border-red-200",
-                badgeColor: "bg-red-100 text-red-800"
-            }
-        };
-        return config[status] || config.PENDING;
-    };
-
-    const StatusBadge = ({ status }) => {
-        const config = getStatusConfig(status);
+    if (!session) {
         return (
-            <span className={`px-3 py-2 text-sm font-semibold border rounded-lg ${config.color}`}>
-                {config.label}
-            </span>
-        );
-    };
-
-    const PerformanceScore = ({ score }) => {
-        if (!score) return null;
-        
-        const getScoreColor = (score) => {
-            if (score >= 8) return "text-green-600 bg-green-50 border-green-200";
-            if (score >= 6) return "text-yellow-600 bg-yellow-50 border-yellow-200";
-            return "text-red-600 bg-red-50 border-red-200";
-        };
-
-        return (
-            <div className={`px-3 py-2 rounded-lg border ${getScoreColor(score)} text-sm font-semibold`}>
-                Score: {score}/100
-            </div>
-        );
-    };
-
-    const handleJoinMeeting =(interviewId) =>{
-      router.push(`/candidate/interview/${interviewId}`);
-    }
-
-
-// const Pagination = ({ currentPage, totalPages, totalItems, onPageChange, tab }) => {
-//   if (totalPages <= 1) return null;
-
-//     const startItem =
-//       totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
-
-//     const endItem =
-//       totalItems === 0
-//         ? 0
-//         : Math.min(currentPage * itemsPerPage, totalItems);
-
-
-//   return (
-//     <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-6 rounded-b-lg">
-//       <div className="flex flex-1 justify-between sm:hidden">
-//         <button
-//           onClick={() => onPageChange(Math.max(currentPage - 1, 1))}
-//           disabled={currentPage === 1}
-//           className={`relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium ${
-//             currentPage === 1 
-//               ? 'text-gray-300 cursor-not-allowed' 
-//               : 'text-gray-700 hover:bg-gray-50 cursor-pointer'
-//           }`}
-//         >
-//           Previous
-//         </button>
-//         <button
-//           onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))}
-//           disabled={currentPage === totalPages}
-//           className={`relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium ${
-//             currentPage === totalPages 
-//               ? 'text-gray-300 cursor-not-allowed' 
-//               : 'text-gray-700 hover:bg-gray-50 cursor-pointer'
-//           }`}
-//         >
-//           Next
-//         </button>
-//       </div>
-//       <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-//         <div>
-//           <p className="text-sm text-gray-700">
-//             Showing <span className="font-medium">{startItem}</span> to{' '}
-//             <span className="font-medium">{endItem}</span> of{' '}
-//             <span className="font-medium">{totalItems}</span> results
-//           </p>
-//         </div>
-//         <div>
-//           <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
-//             <button
-//               onClick={() => onPageChange(Math.max(currentPage - 1, 1))}
-//               disabled={currentPage === 1}
-//               className={`relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 ${
-//                 currentPage === 1 
-//                   ? 'cursor-not-allowed' 
-//                   : 'hover:bg-gray-50 focus:z-20 focus:outline-offset-0 cursor-pointer'
-//               }`}
-//             >
-//               <span className="sr-only">Previous</span>
-//               <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-//                 <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
-//               </svg>
-//             </button>
-            
-//             {[...Array(totalPages)].map((_, i) => {
-//               const pageNumber = i + 1;
-//               // Show first page, last page, current page, and pages around current page
-//               if (
-//                 pageNumber === 1 ||
-//                 pageNumber === totalPages ||
-//                 (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)
-//               ) {
-//                 return (
-//                   <button
-//                     key={pageNumber}
-//                     onClick={() => onPageChange(pageNumber)}
-//                     aria-current={currentPage === pageNumber ? 'page' : undefined}
-//                     className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
-//                       currentPage === pageNumber
-//                         ? 'z-10 bg-blue-600 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600'
-//                         : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
-//                     } cursor-pointer`}
-//                   >
-//                     {pageNumber}
-//                   </button>
-//                 );
-//               }
-//               // Show ellipsis for skipped pages
-//               if (
-//                 (pageNumber === 2 && currentPage > 3) ||
-//                 (pageNumber === totalPages - 1 && currentPage < totalPages - 2)
-//               ) {
-//                 return (
-//                   <span key={pageNumber} className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300 focus:outline-offset-0">
-//                     ...
-//                   </span>
-//                 );
-//               }
-//               return null;
-//             })}
-            
-//             <button
-//               onClick={() => onPageChange(Math.min(currentPage + 1, totalPages))}
-//               disabled={currentPage === totalPages}
-//               className={`relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 ${
-//                 currentPage === totalPages 
-//                   ? 'cursor-not-allowed' 
-//                   : 'hover:bg-gray-50 focus:z-20 focus:outline-offset-0 cursor-pointer'
-//               }`}
-//             >
-//               <span className="sr-only">Next</span>
-//               <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-//                 <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l4.5-4.25a.75.75 0 111.04 1.08l-3.96 3.71a.75.75 0 01-1.06.02z" clipRule="evenodd" />
-//               </svg>
-//             </button>
-//           </nav>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// };
-
-    if (loading) {
-        return (
-            <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-                <div className="max-w-6xl mx-auto">
-                    <div className="animate-pulse">
-                        <div className="h-8 bg-gray-200 rounded w-64 mb-2"></div>
-                        <div className="h-4 bg-gray-200 rounded w-96 mb-8"></div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                            {[1, 2, 3].map(item => (
-                                <div key={item} className="bg-white rounded-lg shadow p-6">
-                                    <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
-                                    <div className="h-8 bg-gray-200 rounded w-1/3"></div>
-                                </div>
-                            ))}
-                        </div>
-                        
-                        <div className="bg-white rounded-lg shadow p-6">
-                            <div className="h-6 bg-gray-200 rounded w-1/4 mb-4"></div>
-                            {[1, 2].map(item => (
-                                <div key={item} className="pt-4 mt-4">
-                                    <div className="h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
-                                    <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                                </div>
-                            ))}
-                        </div>
+            <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white py-8 px-4">
+                <div className="max-w-7xl mx-auto">
+                    <div className="text-center py-12">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                        <p className="mt-4 text-gray-600">Loading...</p>
                     </div>
                 </div>
             </div>
@@ -570,414 +76,149 @@ export default function HomePage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-6xl mx-auto">
-            <div className="flex flex-col lg:flex-row lg:justify-between w-full lg:content-center lg:items-center">
+        <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white py-8 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-7xl mx-auto">
                 {/* Header */}
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                        Interviews
-                    </h1>
-                    <p className="text-gray-600">
-                        Manage your interview schedule and review past performances
-                    </p>
+                <div className="mb-10">
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                        <div>
+                            <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
+                                Interview Management
+                            </h1>
+                            <p className="text-gray-600 text-lg">
+                                Track and manage your interview journey
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <div className="text-right">
+                                <p className="text-sm text-gray-600">Welcome back,</p>
+                                <p className="font-semibold text-gray-900">{session?.user?.name || "Candidate"}</p>
+                            </div>
+                            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                                {session?.user?.name?.charAt(0) || "C"}
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                {/* Tab Navigation */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-1 mb-8 w-full h-full lg:max-w-md">
-                    <div className="flex">
-                        {[
-                            { key: "upcoming", label: "Upcoming", count: upcomingInterviews.length },
-                            { key: "past", label: "Past", count: pastInterviews.length },
-                            { key: "cancelled", label: "Cancelled", count: cancelledInterviews.length }
-                        ].map((tab) => (
-                            <button
+                {/* Stats Overview */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+                    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="p-3 bg-blue-50 rounded-xl">
+                                <Calendar className="w-8 h-8 text-blue-600" />
+                            </div>
+                            <span className="text-sm font-medium px-3 py-1 bg-blue-50 text-blue-700 rounded-full">
+                                {((stats.completed / stats.total) * 100).toFixed(0)}% completion
+                            </span>
+                        </div>
+                        <h3 className="text-3xl font-bold text-gray-900 mb-1">{stats.total}</h3>
+                        <p className="text-gray-600">Total Interviews</p>
+                    </div>
+
+                    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="p-3 bg-green-50 rounded-xl">
+                                <BarChart3 className="w-8 h-8 text-green-600" />
+                            </div>
+                        </div>
+                        <h3 className="text-3xl font-bold text-gray-900 mb-1">{stats.completed}</h3>
+                        <p className="text-gray-600">Completed</p>
+                    </div>
+
+                    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="p-3 bg-orange-50 rounded-xl">
+                                <Calendar className="w-8 h-8 text-orange-600" />
+                            </div>
+                        </div>
+                        <h3 className="text-3xl font-bold text-gray-900 mb-1">{stats.upcoming}</h3>
+                        <p className="text-gray-600">Upcoming</p>
+                    </div>
+
+                    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="p-3 bg-purple-50 rounded-xl">
+                                <TrendingUp className="w-8 h-8 text-purple-600" />
+                            </div>
+                        </div>
+                        <h3 className="text-3xl font-bold text-gray-900 mb-1">{stats.averageScore}</h3>
+                        <p className="text-gray-600">Avg. Score</p>
+                    </div>
+                </div>
+
+                {/* Tabs Navigation Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+                    {tabs.map((tab) => {
+                        const Icon = tab.icon;
+                        return (
+                            <div 
                                 key={tab.key}
-                                onClick={() => setActiveTab(tab.key)}
-                                className={`flex-1 py-3 px-4 text-sm font-medium rounded-md transition-colors cursor-pointer ${
-                                    activeTab === tab.key
-                                        ? "bg-blue-600 text-white shadow"
-                                        : "text-gray-800 hover:text-blue-700"
-                                }`}
+                                className={`group bg-gradient-to-br ${tab.color} rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer`}
+                                onClick={() => router.push(tab.path)}
                             >
-                                {tab.label} ({tab.count})
-                            </button>
-                        ))}
+                                <div className="p-8 text-white">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                                            <Icon className="w-8 h-8" />
+                                        </div>
+                                        <span className="text-4xl font-bold">{tab.count}</span>
+                                    </div>
+                                    
+                                    <h3 className="text-xl font-bold mb-3">{tab.label}</h3>
+                                    <p className="text-white/80 mb-6">{tab.description}</p>
+                                    
+                                    <div className="flex items-center justify-between">
+                                        <button className={`${tab.buttonColor} text-white px-6 py-3 rounded-xl font-medium flex items-center gap-2 hover:shadow-lg transition-all duration-200`}>
+                                            View All
+                                            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                        </button>
+                                        <div className="text-white/60 text-sm">
+                                            Click to explore
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* Quick Tips */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-8 border border-blue-100 mt-12">
+                    <h3 className="text-xl font-bold text-gray-900 mb-4">Interview Preparation Tips</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="bg-white rounded-xl p-6 shadow-sm">
+                            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                </svg>
+                            </div>
+                            <h4 className="font-semibold text-gray-900 mb-2">Research the Company</h4>
+                            <p className="text-gray-600 text-sm">Understand their products, culture, and recent news before the interview.</p>
+                        </div>
+                        
+                        <div className="bg-white rounded-xl p-6 shadow-sm">
+                            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
+                                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <h4 className="font-semibold text-gray-900 mb-2">Practice Common Questions</h4>
+                            <p className="text-gray-600 text-sm">Review frequently asked questions and prepare thoughtful responses.</p>
+                        </div>
+                        
+                        <div className="bg-white rounded-xl p-6 shadow-sm">
+                            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
+                                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <h4 className="font-semibold text-gray-900 mb-2">Be Punctual</h4>
+                            <p className="text-gray-600 text-sm">Join the interview 5-10 minutes early to test your setup and prepare.</p>
+                        </div>
                     </div>
                 </div>
             </div>
-
-                {/* Interview Content */}
-                <div>
-                    {activeTab === "upcoming" && (
-                        <div className="space-y-4">
-                            {upcomingInterviews.length === 0 ? (
-                                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-                                    <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                    </svg>
-                                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Upcoming Interviews</h3>
-                                    <p className="text-gray-600 max-w-sm mx-auto">
-                                        You don't have any scheduled interviews. New interviews will appear here once scheduled.
-                                    </p>
-                                </div>
-                            ) : (
-                                <>
-                                {getPaginatedData(upcomingInterviews, 'upcoming').map((interview) => (
-                                    <div key={interview.interviewId} className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
-                                        <div className="p-6">
-                                            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between mb-4">
-                                                <div className="flex-1">
-                                                    <div className="flex items-start justify-between mb-3">
-                                                        <div>
-                                                            <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                                                                Technical Interview
-                                                            </h3>
-                                                            <p className="text-gray-700 font-medium">
-                                                                With {interview.admin?.firstName} {interview.admin?.lastName}
-                                                            </p>
-                                                        </div>
-                                                        <StatusBadge status={interview.status} />
-                                                    </div>
-                                                    
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 text-sm text-gray-600">
-                                                        <div className="flex items-center">
-                                                            <Calendar className="w-4 h-4 text-gray-500 mr-2" />
-                                                            <p className="text-gray-500 font-semibold mr-1">Date:</p>
-                                                            {formatDate(interview.scheduledAt)}
-                                                        </div>
-                                                        <div className="flex items-center">
-                                                            <Clock className="w-4 h-4 text-gray-500 mr-2" />
-                                                            <p className="text-gray-500 font-semibold mr-1">Timing:</p>
-                                                            {formatTime(interview.scheduledAt)} 
-                                                        </div>
-                                                        <div className="flex items-center">
-                                                            <Timer className="w-4 h-4 text-gray-500 mr-2" />                             
-                                                              <p className="text-gray-500 font-semibold mr-1">Duration:</p> 
-                                                              {getDuration(interview.durationMin)}
-                                                            </div>
-                                                        <div className="flex items-center">
-                                                            <svg className="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9v-9m0-9v9" />
-                                                            </svg>
-                                                            <p className="text-gray-500 font-semibold mr-1">Mode:</p>
-                                                            Video Call
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                
-                                                {(() => {
-                                                    const now = new Date();
-                                                    const interviewTime = new Date(interview.scheduledAt);
-                                                                                                    
-                                                    const diffInMinutes = (interviewTime - now) / 1000 / 60;
-                                                                                                    
-                                                    // Allow between 0 minutes (start time) and +60 minutes after
-                                                    const canStart = diffInMinutes <= 0 && diffInMinutes >= -60;
-                                               
-                                                    return (
-                                                        canStart && (
-                                                            <div className="lg:ml-6 mt-4 lg:mt-0">
-                                                                <button
-                                                                    onClick={() => {
-                                                                        setSelectedInterview(interview);
-                                                                        handleJoinMeeting(interview.interviewId);
-                                                                    }}
-                                                                    className="cursor-pointer inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-xl shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-                                                                >
-                                                                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path
-                                                                            strokeLinecap="round"
-                                                                            strokeLinejoin="round"
-                                                                            strokeWidth={2}
-                                                                            d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-                                                                        />
-                                                                    </svg>
-                                                                    Start Interview
-                                                                </button>
-                                                            </div>
-                                                        )
-                                                    );
-                                                })()}
-                                            </div>
-
-                                            {/* Interview Preparation Instructions */}
-                                            {interview && (
-                                                <div className="mt-4 pt-4 border-t border-gray-200">
-                                                    <h4 className="text-sm font-medium text-gray-600 mb-3">Interview Preparation Instructions: </h4>
-                                                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                                                        <div className="flex items-start">
-                                                            <svg className="w-5 h-5 text-blue-600 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                            </svg>
-                                                            <div>
-                                                                <p className="text-sm font-medium text-blue-800 mb-2">
-                                                                    This interview is scheduled to assess your skills and experience, so please:
-                                                                </p>
-                                                                <ul className="text-sm text-blue-700 space-y-1">
-                                                                    <li>• Review your field-specific knowledge and recent work experiences</li>
-                                                                    <li>• Prepare examples that demonstrate your skills and achievements</li>
-                                                                    <li>• Be ready to discuss your career goals and interests</li>
-                                                                </ul>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                                <Pagination
-                                  currentPage={currentPage.upcoming}
-                                  totalPages={getTotalPages(upcomingInterviews)}
-                                  totalItems={upcomingInterviews.length}
-                                  onPageChange={(page) => setCurrentPage(prev => ({ ...prev, upcoming: page }))}
-                                  tab="upcoming"
-                                />
-                                </>
-                            )}
-                        </div>
-                    )}
-
-                    {activeTab === "past" && (
-                        <div className="space-y-4">
-                            {pastInterviews.length === 0 ? (
-                               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-                                    <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                    </svg>
-                                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Past Interviews</h3>
-                                    <p className="text-gray-600 max-w-sm mx-auto">
-                                        Your completed interview records will appear here for future reference.
-                                    </p>
-                                </div>
-                            ) : (
-                                <>
-                                {getPaginatedData(pastInterviews, 'past').map((interview) => (
-                                    <div key={interview.interviewId} className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
-                                        <div className="p-6">
-                                            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between mb-4">
-                                                <div className="flex-1">
-                                                    <div className="flex items-start justify-between mb-3">
-                                                        <div>
-                                                            <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                                                                Technical Interview
-                                                            </h3>
-                                                            <p className="text-gray-700 font-medium">
-                                                                With {interview.admin?.firstName} {interview.admin?.lastName}
-                                                            </p>
-                                                        </div>
-                                                        <div className="flex items-center gap-3">
-                                                            <StatusBadge status={interview.status} />
-                                                            {/* {interview.interviewProfile?.performanceScore && (
-                                                                <PerformanceScore score={interview.interviewProfile.performanceScore} />
-                                                            )} */}
-                                                        </div>
-                                                    </div>
-                                                    
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 text-sm text-gray-600">
-                                                        <div className="flex items-center">
-                                                            <Calendar className="w-4 h-4 text-gray-500 mr-2" />
-                                                            <p className="text-gray-500 font-semibold mr-1">Date:</p>
-                                                            {formatDate(interview.scheduledAt)}
-                                                        </div>
-                                                        <div className="flex items-center">
-                                                            <Clock className="w-4 h-4 text-gray-500 mr-2" />
-                                                            <p className="text-gray-500 font-semibold mr-1">Timing:</p>
-                                                            {formatTime(interview.scheduledAt)} 
-                                                        </div>
-                                                        <div className="flex items-center">
-                                                            <Timer className="w-4 h-4 text-gray-500 mr-2" />
-                                                              <p className="text-gray-500 font-semibold mr-1">Duration:</p> 
-                                                              {getDuration(interview.durationMin)}
-                                                            </div>
-                                                        {/* <div className="flex items-center">
-                                                            <svg className="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9v-9m0-9v9" />
-                                                            </svg>
-                                                            <p className="text-gray-500 font-semibold mr-1">Mode:</p>
-                                                            Video Call
-                                                        </div> */}
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Performance Preview with View Details Button */}
-                                            {interview.interviewProfile && (
-                                                <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                                                        <div>
-                                                            <h4 className="text-sm font-medium text-gray-900 mb-2">
-                                                                Performance Summary
-                                                            </h4>
-                                                            <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-                                                                <span className="inline-flex items-center">
-                                                                    <svg className="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                                                    </svg>
-                                                                    Score: 
-                                                                    <strong className="text-gray-900 ml-1">{interview.interviewProfile.performanceScore}/100</strong>
-                                                                </span>
-                                                                <span className="inline-flex items-center">< Check className="w-4 h-4 text-gray-500 mr-2"/>Correct: <strong className="text-gray-900 ml-1">{interview.interviewProfile.analytics?.correctAnswers}/{interview.interviewProfile.analytics?.totalQuestions}</strong></span>
-                                                                <span className="inline-flex items-center">< Scale className="w-4 h-4 text-gray-500 mr-2"/>Avg Difficulty: <strong className="text-gray-900 ml-1">{interview.interviewProfile.analytics?.averageDifficulty?.toFixed(1)}</strong></span>
-                                                            </div>
-                                                        </div>
-                                                        <button
-                                                            onClick={() => openPerformanceModal(interview)}
-                                                            className="cursor-pointer inline-flex gap-3 items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-                                                        >
-                                                            <Eye className="w-5 h-5 " />
-                                                            View Full Details
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* Performance Preview - Placeholder for No Data */}
-                                            {!interview.interviewProfile &&
-                                                <>
-                                                    <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                                                            <div>
-                                                                <h4 className="text-sm font-medium text-gray-900 mb-2">
-                                                                    Performance Summary
-                                                                </h4>
-                                                                <p className="text-sm text-gray-600 italic">
-                                                                    Performance data is being processed and will be available soon.
-                                                                </p>
-                                                            </div>
-                                                            {/* <div className="text-sm text-gray-500">
-                                                                Check back later for detailed analytics
-                                                            </div> */}
-                                                        </div>
-                                                    </div>
-                                                </>    
-                                            }
-
-                                        </div>
-                                    </div>
-                                ))}
-                                <Pagination
-                                  currentPage={currentPage.past}
-                                  totalPages={getTotalPages(pastInterviews)}
-                                  totalItems={pastInterviews.length}
-                                  onPageChange={(page) => setCurrentPage(prev => ({ ...prev, past: page }))}
-                                  tab="past"
-                                />
-                                </>
-                                
-                            )}
-                        </div>
-                    )}
-
-                    {activeTab === "cancelled" && (
-                        <div className="space-y-4">
-                            {cancelledInterviews.length === 0 ? (
-                                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-                                    <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                    </svg>
-                                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Cancelled Interviews</h3>
-                                    <p className="text-gray-600 max-w-sm mx-auto">
-                                        You don't have any cancelled interviews in your history.
-                                    </p>
-                                </div>
-                            ) : (
-                                <>
-                                {getPaginatedData(cancelledInterviews, 'cancelled').map((interview) => (
-                                    <div key={interview.interviewId} className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
-                                        <div className="p-6">
-                                            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between mb-4">
-                                                <div className="flex-1">
-                                                    <div className="flex items-start justify-between mb-3">
-                                                        <div>
-                                                            <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                                                                Technical Interview
-                                                            </h3>
-                                                            <p className="text-gray-700 font-medium">
-                                                                With {interview.admin?.firstName} {interview.admin?.lastName}
-                                                            </p>
-                                                        </div>
-                                                        <StatusBadge status={interview.status} />
-                                                    </div>
-                                                    
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 text-sm text-gray-600">
-                                                        <div className="flex items-center">
-                                                            <Calendar className="w-4 h-4 text-gray-500 mr-2" />
-                                                            <p className="text-gray-500 font-semibold mr-1">Date:</p>
-                                                            {formatDate(interview.scheduledAt)}
-                                                        </div>
-                                                        <div className="flex items-center">
-                                                            <Clock className="w-4 h-4 text-gray-500 mr-2" />
-                                                            <p className="text-gray-500 font-semibold mr-1">Timing:</p>
-                                                            {formatTime(interview.scheduledAt)} 
-                                                        </div>
-                                                        <div className="flex items-center">
-                                                            <Timer className="w-4 h-4 text-gray-500 mr-2" />
-
-                                                              <p className="text-gray-500 font-semibold mr-1">Duration:</p> 
-                                                              {getDuration(interview.durationMin)}
-                                                            </div>
-                                                        {interview.cancelledAt && (
-                                                            <div className="flex items-center">
-                                                                <svg className="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                                </svg>
-                                                                <p className="text-gray-500 font-semibold mr-1">Cancelled on:</p>
-                                                                {formatDate(interview.cancelledAt)}
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    {/* Cancellation Reason */}
-                                                    {interview.cancellationReason && (
-                                                        <div className="mt-4 p-4 bg-red-50 rounded-lg border border-red-200">
-                                                            <div className="flex items-start">
-                                                                <svg className="w-5 h-5 text-red-400 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                                                </svg>
-                                                                <div>
-                                                                    <p className="text-sm font-medium text-red-800">Cancellation Reason</p>
-                                                                    <p className="text-sm text-red-700 mt-1">{interview.cancellationReason}</p>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            {/* Interview Questions Preview (if any were prepared) */}
-                                            {interview.questions && interview.questions.length > 0 && (
-                                                <div className="mt-4 pt-4 border-t border-gray-200">
-                                                    <h4 className="text-sm font-medium text-gray-900 mb-2">Prepared Questions: {interview.questions.length}</h4>
-                                                    <p className="text-sm text-gray-600">
-                                                        This interview was cancelled but had {interview.questions.length} question{interview.questions.length === 1 ? '' : 's'} prepared.
-                                                    </p>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                                <Pagination
-                                  currentPage={currentPage.cancelled}
-                                  totalPages={getTotalPages(cancelledInterviews)}
-                                  totalItems={cancelledInterviews.length}
-                                  onPageChange={(page) => setCurrentPage(prev => ({ ...prev, cancelled: page }))}
-                                  tab="cancelled"
-                                />
-                                </>
-                            )}
-                        </div>
-                    )}
-                </div>
-            </div>
-
-             <PerformanceModal 
-                interview={selectedInterview} 
-                isOpen={isModalOpen} 
-                onClose={closePerformanceModal} 
-                formatDate={formatDate}
-            />
         </div>
     );
 }

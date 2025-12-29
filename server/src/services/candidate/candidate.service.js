@@ -122,11 +122,26 @@ export const CandidateService = {
         return candidateDetails;
     },
 
-    async getCandidateInterviews(userId){
+    async getCandidateInterviews(userId, status){
         await this.checkCandidateAuth(userId);
+        let statusFilter;
+        if(status==='upcoming'){
+          statusFilter = { in: ['PENDING', 'RESCHEDULED'] };
+        }
+        else if(status==='completed'){
+          statusFilter='COMPLETED';
+        }
+        else if(status==='cancelled'){
+          statusFilter='CANCELLED';
+        }
         const interviews = await prisma.interview.findMany({
             where: {
               candidateId: userId,
+              ...(statusFilter && {
+                status: typeof statusFilter === 'string'
+                  ? statusFilter
+                  : statusFilter,
+              }),
             },
             select: {
                 interviewId: true,
