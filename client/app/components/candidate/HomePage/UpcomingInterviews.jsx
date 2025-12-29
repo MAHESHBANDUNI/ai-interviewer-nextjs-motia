@@ -2,8 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Calendar, Timer, Clock, Video, Users, Play, ChevronRight, AlertCircle, Zap, ArrowLeft } from "lucide-react";
-import InterviewCard from "../other/InterviewCard";
+import { Calendar, Timer, Clock, Video, Users, Play, ChevronRight, AlertCircle, Zap, ArrowLeft, CalendarClock } from "lucide-react";
 import Pagination from "../other/Pagination";
 
 export default function UpcomingInterviewsPage() {
@@ -13,79 +12,6 @@ export default function UpcomingInterviewsPage() {
     const [itemsPerPage] = useState(8);
     const { data: session } = useSession();
     const router = useRouter();
-
-    // Mock data - in real app, fetch from API
-    const mockUpcomingInterviews = [
-        {
-            interviewId: "1",
-            candidateId: "candidate-1",
-            adminId: "admin-1",
-            scheduledAt: "2024-12-20T14:30:00Z",
-            durationMin: 60,
-            meetingLink: "https://meet.google.com/abc-def-ghi",
-            status: "PENDING",
-            createdAt: "2024-12-15T10:00:00Z",
-            admin: {
-                firstName: "Sarah",
-                lastName: "Johnson",
-                email: "sarah.johnson@techvista.com",
-                avatar: "SJ"
-            },
-            questions: [
-                {
-                    interviewQuestionId: "q1",
-                    interviewId: "1",
-                    content: "Explain the difference between let, const, and var in JavaScript",
-                    difficultyLevel: 2,
-                    askedAt: "2024-12-15T10:00:00Z",
-                    candidateAnswer: null,
-                    aiFeedback: null,
-                    correct: null
-                },
-                {
-                    interviewQuestionId: "q2",
-                    interviewId: "1",
-                    content: "How would you optimize a React application that's experiencing slow rendering?",
-                    difficultyLevel: 4,
-                    askedAt: "2024-12-15T10:00:00Z",
-                    candidateAnswer: null,
-                    aiFeedback: null,
-                    correct: null
-                }
-            ],
-            interviewProfile: null
-        },
-        {
-            interviewId: "2",
-            candidateId: "candidate-1",
-            adminId: "admin-2",
-            scheduledAt: "2024-12-22T11:00:00Z",
-            durationMin: 90,
-            meetingLink: "https://teams.microsoft.com/l/meetup-join/xyz",
-            status: "PENDING",
-            createdAt: "2024-12-16T09:30:00Z",
-            admin: {
-                firstName: "Mike",
-                lastName: "Chen",
-                email: "mike.chen@innotech.com",
-                avatar: "MC"
-            },
-            questions: [
-                {
-                    interviewQuestionId: "q3",
-                    interviewId: "2",
-                    content: "Design a database schema for an e-commerce platform",
-                    difficultyLevel: 5,
-                    askedAt: "2024-12-16T09:30:00Z",
-                    candidateAnswer: null,
-                    aiFeedback: null,
-                    correct: null
-                }
-            ],
-            interviewProfile: null
-        },
-        // Add more mock interviews...
-    ];
 
     useEffect(() => {
         if (!session?.user?.token) return;
@@ -222,49 +148,6 @@ export default function UpcomingInterviewsPage() {
                     </div>
                 </div>
 
-                {/* Stats Bar */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 bg-blue-50 rounded-lg">
-                                <Calendar className="w-6 h-6 text-blue-600" />
-                            </div>
-                            <div>
-                                <div className="text-2xl font-bold text-gray-900">{interviews.length}</div>
-                                <div className="text-gray-600">Total Scheduled</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 bg-green-50 rounded-lg">
-                                <Video className="w-6 h-6 text-green-600" />
-                            </div>
-                            <div>
-                                <div className="text-2xl font-bold text-gray-900">
-                                    {interviews.filter(i => i.meetingLink).length}
-                                </div>
-                                <div className="text-gray-600">Video Interviews</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 bg-purple-50 rounded-lg">
-                                <AlertCircle className="w-6 h-6 text-purple-600" />
-                            </div>
-                            <div>
-                                <div className="text-2xl font-bold text-gray-900">
-                                    {interviews.reduce((acc, i) => acc + (i.questions?.length || 0), 0)}
-                                </div>
-                                <div className="text-gray-600">Questions Prepared</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 {/* Interview List */}
                 {interviews.length === 0 ? (
                     <div className="text-center py-16 bg-white rounded-2xl shadow-sm border border-gray-200">
@@ -299,7 +182,8 @@ export default function UpcomingInterviewsPage() {
                                             <div className="flex items-start justify-between mb-6">
                                                 <div className="flex items-center gap-4">
                                                     <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">
-                                                        {interview.admin?.firstName?.charAt(0)}{interview.admin?.lastName?.charAt(0)}
+                                                        {/* {interview.admin?.firstName?.charAt(0)}{interview.admin?.lastName?.charAt(0)} */}
+                                                        <CalendarClock className="w-6 h-6" />
                                                     </div>
                                                     <div>
                                                         <h3 className="text-xl font-bold text-gray-900">Technical Interview</h3>
@@ -369,15 +253,11 @@ export default function UpcomingInterviewsPage() {
                                             </div>
 
                                             {/* Action Button */}
-                                            <div className="flex items-center justify-between">
-                                                <div className="text-sm text-gray-600">
-                                                    {interview.questions?.length || 0} questions prepared
-                                                </div>
-                                                
+                                            <div className="flex items-center justify-between">                           
                                                 {canStart ? (
                                                     <button
                                                         onClick={() => handleJoinMeeting(interview.interviewId)}
-                                                        className="group flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-medium rounded-xl hover:shadow-lg transition-all duration-200 cursor-pointer"
+                                                        className="group flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-medium rounded-xl hover:shadow-lg transition-all duration-200 cursor-pointer"
                                                     >
                                                         <Play className="w-5 h-5" />
                                                         <span>Join Interview Now</span>

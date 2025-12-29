@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { XCircle, Calendar, Clock, Timer, AlertCircle, Users, ArrowLeft, RefreshCw, ChevronRight, Info } from "lucide-react";
+import { XCircle, Calendar, Clock, Timer, AlertCircle, Users, ArrowLeft, RefreshCw, ChevronRight, Info, CalendarX } from "lucide-react";
 import Pagination from "../other/Pagination";
 
 export default function CancelledInterviewsPage() {
@@ -168,7 +168,7 @@ export default function CancelledInterviewsPage() {
                 </div>
 
                 {/* Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                {/* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
                         <div className="flex items-center gap-4 mb-4">
                             <div className="p-3 bg-red-50 rounded-xl">
@@ -216,7 +216,7 @@ export default function CancelledInterviewsPage() {
                             </div>
                         </div>
                     </div>
-                </div>
+                </div> */}
 
                 {/* Interview List */}
                 {interviews.length === 0 ? (
@@ -245,8 +245,9 @@ export default function CancelledInterviewsPage() {
                                         {/* Header */}
                                         <div className="flex items-start justify-between mb-6">
                                             <div className="flex items-center gap-4">
-                                                <div className="w-14 h-14 bg-gradient-to-br from-gray-400 to-gray-500 rounded-xl flex items-center justify-center text-white font-bold text-lg">
-                                                    {interview.admin?.firstName?.charAt(0)}{interview.admin?.lastName?.charAt(0)}
+                                                <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">
+                                                    {/* {interview.admin?.firstName?.charAt(0)}{interview.admin?.lastName?.charAt(0)} */}
+                                                    <CalendarX className="w-6 h-6" />
                                                 </div>
                                                 <div>
                                                     <h3 className="text-xl font-bold text-gray-900">Cancelled Interview</h3>
@@ -287,9 +288,9 @@ export default function CancelledInterviewsPage() {
                                             <div className="space-y-1">
                                                 <div className="flex items-center gap-2 text-gray-600">
                                                     <XCircle className="w-4 h-4" />
-                                                    <span className="text-sm">Cancelled</span>
+                                                    <span className="text-sm">Cancelled On</span>
                                                 </div>
-                                                <p className="font-semibold text-gray-900">{getTimeSinceCancelled(interview.cancelledAt)}</p>
+                                                <p className="font-semibold text-gray-900">{formatDate(interview.cancelledAt)}</p>
                                             </div>
                                         </div>
 
@@ -301,49 +302,9 @@ export default function CancelledInterviewsPage() {
                                                     <h4 className="font-semibold text-red-800">Cancellation Reason</h4>
                                                 </div>
                                                 <p className="text-red-700">{interview.cancellationReason}</p>
-                                                <div className="mt-2 text-sm text-red-600">
-                                                    Cancelled by: {interview.cancelledBy === 'admin' ? 'Interviewer' : 'You'}
-                                                </div>
                                             </div>
                                         )}
 
-                                        {/* Questions Preview */}
-                                        {interview.questions && interview.questions.length > 0 && (
-                                            <div className="mb-6">
-                                                <div className="flex items-center gap-2 text-gray-700 mb-3">
-                                                    <Info className="w-4 h-4" />
-                                                    <span className="font-medium">Questions Prepared</span>
-                                                </div>
-                                                <div className="text-sm text-gray-600">
-                                                    This interview had {interview.questions.length} question{interview.questions.length === 1 ? '' : 's'} prepared before cancellation.
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Action Buttons */}
-                                        <div className="flex items-center justify-between">
-                                            <div className="text-sm text-gray-600">
-                                                {interview.cancelledBy === 'admin' ? 'Cancelled by interviewer' : 'Cancelled by you'}
-                                            </div>
-                                            
-                                            <div className="flex items-center gap-3">
-                                                <button
-                                                    onClick={() => {/* Handle reschedule */}}
-                                                    className="group flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 font-medium rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
-                                                >
-                                                    <RefreshCw className="w-4 h-4" />
-                                                    <span>Reschedule</span>
-                                                </button>
-                                                
-                                                <button
-                                                    onClick={() => {/* Handle view details */}}
-                                                    className="group flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors cursor-pointer"
-                                                >
-                                                    <span>View Details</span>
-                                                    <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-                                                </button>
-                                            </div>
-                                        </div>
                                     </div>
                                 </div>
                             ))}

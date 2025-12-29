@@ -102,6 +102,22 @@ export const CandidateService = {
         return interview;
     },
 
+    async getInterviewAnalytics(userId){
+      this.checkCandidateAuth(userId);
+        const allInterviews = await prisma.interview.findMany({
+          where: {
+            candidateId: userId
+          },
+          select: {
+            status: true
+          }
+        })
+        const upcomingInterview = allInterviews.filter(interview => interview.status === 'PENDING' || interview.status === 'RESCHEDULED');
+        const completedInterview = allInterviews.filter(interview => interview.status === 'COMPLETED');
+        const cancelledInterview = allInterviews.filter(interview => interview.status === 'CANCELLED');
+        return {allInterviewsCount: allInterviews.length, upcomingInterviewCount : upcomingInterview.length, completedInterviewCount: completedInterview.length, cancelledInterviewCount: cancelledInterview.length};
+    },
+
     async getCandidateDetails(userId){
         await this.checkCandidateAuth(userId);
         const candidateDetails = await prisma.candidate.findFirst({

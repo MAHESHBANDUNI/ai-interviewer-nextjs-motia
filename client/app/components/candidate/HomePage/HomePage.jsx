@@ -1,8 +1,27 @@
 'use client'
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Calendar, BarChart3, XCircle, ArrowRight, TrendingUp } from "lucide-react";
+import { CalendarClock, CalendarCheckIcon, XCircle, ArrowRight, TrendingUp, CalendarX, Laptop } from "lucide-react";
+import { motion } from "framer-motion"
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.15 }
+  }
+}
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 30, scale: 0.95 },
+  visible: { opacity: 1, y: 0, scale: 1, transition: { type: "spring", stiffness: 100, damping: 12 }},
+  hover: { 
+    scale: 1.02, 
+    y: -5,
+    boxShadow: "0 20px 40px rgba(0,0,0,0.1), 0 0 0 1px rgba(255,255,255,0.8)"
+  }
+}
 
 export default function InterviewsPage() {
     const { data: session } = useSession();
@@ -11,56 +30,39 @@ export default function InterviewsPage() {
         total: 0,
         completed: 0,
         upcoming: 0,
-        cancelled: 0,
-        averageScore: 0
+        cancelled: 0
     });
 
-    // Mock stats - in real app, fetch from API
-    React.useEffect(() => {
-        setStats({
-            total: 15,
-            completed: 8,
-            upcoming: 4,
-            cancelled: 3,
-            averageScore: 8.2
-        });
-    }, []);
+    useEffect(() => {
+      if (!session?.user?.token) return;
 
-    const tabs = [
-        {
-            key: "upcoming",
-            label: "Upcoming Interviews",
-            description: "View and manage your scheduled interviews",
-            icon: Calendar,
-            count: stats.upcoming,
-            color: "from-blue-500 to-blue-600",
-            hoverColor: "hover:from-blue-600 hover:to-blue-700",
-            buttonColor: "bg-blue-600 hover:bg-blue-700",
-            path: "/candidate/interviews/upcoming"
-        },
-        {
-            key: "completed",
-            label: "Completed Interviews",
-            description: "Review past interviews and performance",
-            icon: BarChart3,
-            count: stats.completed,
-            color: "from-green-500 to-green-600",
-            hoverColor: "hover:from-green-600 hover:to-green-700",
-            buttonColor: "bg-green-600 hover:bg-green-700",
-            path: "/candidate/interviews/completed"
-        },
-        {
-            key: "cancelled",
-            label: "Cancelled Interviews",
-            description: "View cancelled interviews history",
-            icon: XCircle,
-            count: stats.cancelled,
-            color: "from-gray-500 to-gray-600",
-            hoverColor: "hover:from-gray-600 hover:to-gray-700",
-            buttonColor: "bg-gray-600 hover:bg-gray-700",
-            path: "/candidate/interviews/cancelled"
+      fetchInterviewAnalytics();
+    }, [session?.user?.token]);
+    
+
+    const fetchInterviewAnalytics = async() => {
+        try{
+            const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/candidate/interviews/analytics`,{
+                method: 'GET',
+                headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`}
+            })
+            if(!res.ok){
+              console.error('Error fetching analytics');
+            }
+            if(res.ok){
+              const response = await res.json();
+              setStats({
+                total:response?.analytics?.allInterviewsCount,
+                completed:response?.analytics?.completedInterviewCount,
+                upcoming:response?.analytics?.upcomingInterviewCount,
+                cancelled:response?.analytics?.cancelledInterviewCount
+              });
+            }
         }
-    ];
+        catch(error){
+            console.error('Error fetching analytics',error);
+        }
+    }
 
     if (!session) {
         return (
@@ -83,141 +85,122 @@ export default function InterviewsPage() {
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                         <div>
                             <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
-                                Interview Management
+                                Interview Dashboard
                             </h1>
                             <p className="text-gray-600 text-lg">
                                 Track and manage your interview journey
                             </p>
                         </div>
-                        <div className="flex items-center gap-4">
-                            <div className="text-right">
-                                <p className="text-sm text-gray-600">Welcome back,</p>
-                                <p className="font-semibold text-gray-900">{session?.user?.name || "Candidate"}</p>
-                            </div>
-                            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                                {session?.user?.name?.charAt(0) || "C"}
-                            </div>
-                        </div>
                     </div>
                 </div>
 
-                {/* Stats Overview */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-                    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="p-3 bg-blue-50 rounded-xl">
-                                <Calendar className="w-8 h-8 text-blue-600" />
-                            </div>
-                            <span className="text-sm font-medium px-3 py-1 bg-blue-50 text-blue-700 rounded-full">
-                                {((stats.completed / stats.total) * 100).toFixed(0)}% completion
-                            </span>
-                        </div>
-                        <h3 className="text-3xl font-bold text-gray-900 mb-1">{stats.total}</h3>
-                        <p className="text-gray-600">Total Interviews</p>
+                {/* Stats Grid */}
+                <motion.div
+                  className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8"
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="visible"
+                >
+                  {/* Total Interview Card */}
+                  <motion.div
+                    className="bg-white rounded-2xl p-5 sm:p-6 cursor-pointer border border-slate-100 relative overflow-hidden group h-full flex flex-col"
+                    variants={cardVariants}
+                    whileHover="hover"
+                    onClick={()=> router.push('/candidate/interviews')}
+                  >
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-orange-500/5 rounded-bl-full"/>
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-slate-500 text-sm font-medium mb-2 truncate">Total Interviews</p>
+                        <h3 className="text-2xl sm:text-3xl font-bold text-slate-800">{stats.total || '--'}</h3>
+                      </div>
+                      <div className="p-2 sm:p-3 bg-orange-500/10 rounded-xl flex-shrink-0 ml-3">
+                        <Laptop className="text-orange-600 w-5 h-5 sm:w-6 sm:h-6" />
+                      </div>
                     </div>
-
-                    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="p-3 bg-green-50 rounded-xl">
-                                <BarChart3 className="w-8 h-8 text-green-600" />
-                            </div>
-                        </div>
-                        <h3 className="text-3xl font-bold text-gray-900 mb-1">{stats.completed}</h3>
-                        <p className="text-gray-600">Completed</p>
+                    <div className="mt-auto pt-4">
+                      <div className="flex items-center text-sm text-slate-500">
+                        <TrendingUp className="w-4 h-4 text-orange-500 mr-1" />
+                        <span className="truncate">+{'0' || '--'} this week</span>
+                      </div>
                     </div>
+                  </motion.div>
 
-                    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="p-3 bg-orange-50 rounded-xl">
-                                <Calendar className="w-8 h-8 text-orange-600" />
-                            </div>
-                        </div>
-                        <h3 className="text-3xl font-bold text-gray-900 mb-1">{stats.upcoming}</h3>
-                        <p className="text-gray-600">Upcoming</p>
+                  {/* Upcoming Interviews Card */}
+                  <motion.div
+                    className="bg-white rounded-2xl p-5 sm:p-6 cursor-pointer border border-slate-100 relative overflow-hidden group h-full flex flex-col"
+                    variants={cardVariants}
+                    whileHover="hover"
+                    onClick={()=> router.push('/candidate/interviews/upcoming')}
+                  >
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-blue-500/5 rounded-bl-full" />
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-slate-500 text-sm font-medium mb-2 truncate">Upcoming</p>
+                        <h3 className="text-2xl sm:text-3xl font-bold text-slate-800">{stats.upcoming || '--'}</h3>
+                      </div>
+                      <div className="p-2 sm:p-3 bg-blue-500/10 rounded-xl flex-shrink-0 ml-3">
+                        <CalendarClock className="text-blue-600 w-5 h-5 sm:w-6 sm:h-6" />
+                      </div>
                     </div>
-
-                    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="p-3 bg-purple-50 rounded-xl">
-                                <TrendingUp className="w-8 h-8 text-purple-600" />
-                            </div>
-                        </div>
-                        <h3 className="text-3xl font-bold text-gray-900 mb-1">{stats.averageScore}</h3>
-                        <p className="text-gray-600">Avg. Score</p>
+                    <div className="mt-auto pt-4">
+                      <div className="flex items-center text-sm text-slate-500">
+                        <TrendingUp className="w-4 h-4 text-blue-500 mr-1" />
+                        <span className="truncate">+{'0' || '--'} this week</span>
+                      </div>
                     </div>
-                </div>
+                  </motion.div>
 
-                {/* Tabs Navigation Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-                    {tabs.map((tab) => {
-                        const Icon = tab.icon;
-                        return (
-                            <div 
-                                key={tab.key}
-                                className={`group bg-gradient-to-br ${tab.color} rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer`}
-                                onClick={() => router.push(tab.path)}
-                            >
-                                <div className="p-8 text-white">
-                                    <div className="flex items-center justify-between mb-6">
-                                        <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-                                            <Icon className="w-8 h-8" />
-                                        </div>
-                                        <span className="text-4xl font-bold">{tab.count}</span>
-                                    </div>
-                                    
-                                    <h3 className="text-xl font-bold mb-3">{tab.label}</h3>
-                                    <p className="text-white/80 mb-6">{tab.description}</p>
-                                    
-                                    <div className="flex items-center justify-between">
-                                        <button className={`${tab.buttonColor} text-white px-6 py-3 rounded-xl font-medium flex items-center gap-2 hover:shadow-lg transition-all duration-200`}>
-                                            View All
-                                            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                                        </button>
-                                        <div className="text-white/60 text-sm">
-                                            Click to explore
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-
-                {/* Quick Tips */}
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-8 border border-blue-100 mt-12">
-                    <h3 className="text-xl font-bold text-gray-900 mb-4">Interview Preparation Tips</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-white rounded-xl p-6 shadow-sm">
-                            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
-                                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                </svg>
-                            </div>
-                            <h4 className="font-semibold text-gray-900 mb-2">Research the Company</h4>
-                            <p className="text-gray-600 text-sm">Understand their products, culture, and recent news before the interview.</p>
-                        </div>
-                        
-                        <div className="bg-white rounded-xl p-6 shadow-sm">
-                            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
-                                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                            </div>
-                            <h4 className="font-semibold text-gray-900 mb-2">Practice Common Questions</h4>
-                            <p className="text-gray-600 text-sm">Review frequently asked questions and prepare thoughtful responses.</p>
-                        </div>
-                        
-                        <div className="bg-white rounded-xl p-6 shadow-sm">
-                            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
-                                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                            </div>
-                            <h4 className="font-semibold text-gray-900 mb-2">Be Punctual</h4>
-                            <p className="text-gray-600 text-sm">Join the interview 5-10 minutes early to test your setup and prepare.</p>
-                        </div>
+                  {/* Completed Interviews Card */}
+                  <motion.div
+                    className="bg-white rounded-2xl p-5 sm:p-6 cursor-pointer border border-slate-100 relative overflow-hidden group h-full flex flex-col"
+                    variants={cardVariants}
+                    whileHover="hover"
+                    onClick={()=> router.push('/candidate/interviews/completed')}
+                  >
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-green-500/5 rounded-bl-full" />
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-slate-500 text-sm font-medium mb-2 truncate">Completed</p>
+                        <h3 className="text-2xl sm:text-3xl font-bold text-slate-800">{stats.completed || '--'}</h3>
+                      </div>
+                      <div className="p-2 sm:p-3 bg-green-500/10 rounded-xl flex-shrink-0 ml-3">
+                        <CalendarCheckIcon className="text-green-600 w-5 h-5 sm:w-6 sm:h-6" />
+                      </div>
                     </div>
-                </div>
+                    <div className="mt-auto pt-4">
+                      <div className="flex items-center text-sm text-slate-500">
+                        <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
+                        <span className="truncate">+{'0' || '--'} this week</span>
+                      </div>
+                    </div>
+                  </motion.div>  
+
+                {/* Cancelled Interviews Card */}
+                  <motion.div
+                    className="bg-white rounded-2xl p-5 sm:p-6 cursor-pointer border border-slate-100 relative overflow-hidden group h-full flex flex-col"
+                    variants={cardVariants}
+                    whileHover="hover"
+                    onClick={()=> router.push('/candidate/interviews/cancelled')}
+                  >
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-red-500/5 rounded-bl-full" />
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-slate-500 text-sm font-medium mb-2 truncate">Cancelled</p>
+                        <h3 className="text-2xl sm:text-3xl font-bold text-slate-800">{stats.cancelled || '--'}</h3>
+                      </div>
+                      <div className="p-2 sm:p-3 bg-red-500/10 rounded-xl flex-shrink-0 ml-3">
+                        <CalendarX className="text-red-600 w-5 h-5 sm:w-6 sm:h-6" />
+                      </div>
+                    </div>
+                    <div className="mt-auto pt-4">
+                      <div className="flex items-center text-sm text-slate-500">
+                        <TrendingUp className="w-4 h-4 text-red-500 mr-1" />
+                        <span className="truncate">+{'0' || '--'} this week</span>
+                      </div>
+                    </div>
+                  </motion.div>  
+                </motion.div>
             </div>
         </div>
     );

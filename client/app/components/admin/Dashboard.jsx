@@ -1,5 +1,5 @@
 "use client"
-import { motion } from "framer-motion"
+import { motion } from "framer-motion";
 import { Lightbulb, BarChart3, CalendarDays, Users, TrendingUp, FileText, ChevronRight, MoreHorizontal, Clock } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";

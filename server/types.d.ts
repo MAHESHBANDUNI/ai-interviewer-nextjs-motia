@@ -47,6 +47,7 @@ declare module 'motia' {
     'DeleteCandidate': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'CreateCandidate': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'generate-resume-profile'; data: never }>
     'GetAnalytics': ApiRouteHandler<Record<string, unknown>, unknown, never>
+    'GetInterviewAnalytics': ApiRouteHandler<Record<string, unknown>, unknown, never>
   }
     
 }

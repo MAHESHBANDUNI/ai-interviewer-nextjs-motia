@@ -31,10 +31,19 @@ export default function HeaderDashboard({ sidebarOpen, setSidebarOpen, isCollaps
         </div>
 
         {/* Right side user menu */}
-        <div className="flex items-center space-x-4 gap-2">
+        {/* <div className="flex items-center space-x-4 gap-2">
           <p className="m-0">Hello, {session?.user?.name}</p>
           <UserCircle className="w-7 h-7 m-0 bg-black text-white rounded-xl" />
-          {/* <ChevronDown className="w-7 h-7 m-0" /> */}
+        </div> */}
+
+        <div className="flex items-center gap-4">
+            <div className="text-right">
+                <p className="text-sm text-gray-600">Welcome back,</p>
+                <p className="font-semibold text-gray-900">{session?.user?.name || "Candidate"}</p>
+            </div>
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                {session?.user?.name?.charAt(0) || "C"}
+            </div>
         </div>
 
     </header>

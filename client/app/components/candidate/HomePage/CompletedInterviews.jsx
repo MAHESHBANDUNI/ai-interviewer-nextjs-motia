@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { BarChart3, CheckCircle, TrendingUp, Calendar, Timer, Users, Eye, ChevronRight, ArrowLeft, Award, Target, Clock } from "lucide-react";
+import { BarChart3, CheckCircle, TrendingUp, Calendar, Timer, Users, Eye, ChevronRight, ArrowLeft, Award, Target, Clock, CalendarCheckIcon } from "lucide-react";
 import PerformanceModal from "./PerformanceModal";
 import Pagination from "../other/Pagination";
 
@@ -15,56 +15,6 @@ export default function CompletedInterviewsPage() {
     const [itemsPerPage] = useState(8);
     const { data: session } = useSession();
     const router = useRouter();
-
-    // Mock data
-    const mockCompletedInterviews = [
-        {
-            interviewId: "3",
-            candidateId: "candidate-1",
-            adminId: "admin-3",
-            scheduledAt: "2024-12-10T15:00:00Z",
-            durationMin: 45,
-            meetingLink: null,
-            status: "COMPLETED",
-            createdAt: "2024-12-05T14:20:00Z",
-            admin: {
-                firstName: "David",
-                lastName: "Kim",
-                email: "david.kim@webcraft.com",
-                avatar: "DK"
-            },
-            questions: [
-                {
-                    interviewQuestionId: "q4",
-                    interviewId: "3",
-                    content: "Reverse a linked list in-place",
-                    difficultyLevel: 3,
-                    askedAt: "2024-12-10T15:00:00Z",
-                    candidateAnswer: "I would use two pointers to traverse the list and reverse the links between nodes",
-                    aiFeedback: "Good approach. You correctly identified the two-pointer technique. Consider mentioning time complexity (O(n)) and space complexity (O(1)) for completeness.",
-                    correct: true
-                }
-            ],
-            interviewProfile: {
-                interviewProfileId: "profile-1",
-                candidateId: "candidate-1",
-                interviewId: "3",
-                performanceScore: 8.5,
-                techStackFit: ["React", "Node.js", "PostgreSQL"],
-                recommendedRoles: ["Senior Frontend Developer", "Full Stack Developer"],
-                strengths: ["Problem-solving skills", "JavaScript knowledge", "Communication"],
-                weaknesses: ["System design depth", "Database optimization"],
-                analytics: {
-                    totalQuestions: 5,
-                    correctAnswers: 4,
-                    averageDifficulty: 3.2,
-                    timePerQuestion: 8.5
-                },
-                createdAt: "2024-12-10T16:30:00Z"
-            }
-        },
-        // Add more mock interviews...
-    ];
 
     useEffect(() => {
         if (!session?.user?.token) return;
@@ -143,24 +93,36 @@ export default function CompletedInterviewsPage() {
     const stats = React.useMemo(() => {
         const scores = interviews
             .filter(i => i.interviewProfile?.performanceScore)
-            .map(i => i.interviewProfile.performanceScore);
-        
-        const averageScore = scores.length > 0 
-            ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1)
-            : 0;
+            .map(i => Number(i.interviewProfile.performanceScore));
 
-        const totalQuestions = interviews.reduce((acc, i) => 
-            acc + (i.interviewProfile?.analytics?.totalQuestions || 0), 0);
-        
-        const correctAnswers = interviews.reduce((acc, i) => 
-            acc + (i.interviewProfile?.analytics?.correctAnswers || 0), 0);
+        const averageScore =
+            scores.length > 0
+                ? Number(
+                    (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1)
+                  )
+                : 0;
+
+        const totalQuestions = interviews.reduce(
+            (acc, i) =>
+                acc + Number(i.interviewProfile?.analytics?.totalQuestions || 0),
+            0
+        );
+
+        const correctAnswers = interviews.reduce(
+            (acc, i) =>
+                acc + Number(i.interviewProfile?.analytics?.correctAnswers || 0),
+            0
+        );
 
         return {
             averageScore,
             totalQuestions,
             correctAnswers,
-            accuracy: totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0,
-            totalInterviews: interviews.length
+            accuracy:
+                totalQuestions > 0
+                    ? Math.round((correctAnswers / totalQuestions) * 100)
+                    : 0,
+            totalInterviews: interviews.length,
         };
     }, [interviews]);
 
@@ -218,7 +180,7 @@ export default function CompletedInterviewsPage() {
                             <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-xl p-4">
                                 <div className="text-sm text-green-700 font-medium mb-1">Overall Performance</div>
                                 <div className="text-lg font-bold text-green-900">
-                                    {stats.averageScore}/10
+                                    {stats.averageScore}/100
                                 </div>
                             </div>
                         </div>
@@ -226,23 +188,23 @@ export default function CompletedInterviewsPage() {
                 </div>
 
                 {/* Performance Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-100">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                    <div className="bg-white rounded-2xl p-6 border border-amber-100">
                         <div className="flex items-center gap-4 mb-4">
-                            <div className="p-3 bg-green-100 rounded-xl">
-                                <BarChart3 className="w-8 h-8 text-green-600" />
+                            <div className="p-3 bg-amber-100 rounded-xl">
+                                <BarChart3 className="w-8 h-8 text-amber-600" />
                             </div>
                             <div>
                                 <div className="text-3xl font-bold text-gray-900">{stats.averageScore}</div>
                                 <div className="text-gray-600">Avg. Score</div>
                             </div>
                         </div>
-                        <div className="text-sm text-green-700">
-                            Out of 10 interviews
+                        <div className="text-sm text-amber-700">
+                            Out of {interviews.length} interviews
                         </div>
                     </div>
                     
-                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border border-blue-100">
+                    <div className="bg-white rounded-2xl p-6 border border-blue-100">
                         <div className="flex items-center gap-4 mb-4">
                             <div className="p-3 bg-blue-100 rounded-xl">
                                 <Target className="w-8 h-8 text-blue-600" />
@@ -253,11 +215,11 @@ export default function CompletedInterviewsPage() {
                             </div>
                         </div>
                         <div className="text-sm text-blue-700">
-                            {stats.correctAnswers}/{stats.totalQuestions} correct
+                            {stats.correctAnswers}/{stats.totalQuestions} correct answers
                         </div>
                     </div>
                     
-                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-6 border border-purple-100">
+                    <div className="bg-white rounded-2xl p-6 border border-purple-100">
                         <div className="flex items-center gap-4 mb-4">
                             <div className="p-3 bg-purple-100 rounded-xl">
                                 <Award className="w-8 h-8 text-purple-600" />
@@ -272,7 +234,7 @@ export default function CompletedInterviewsPage() {
                         </div>
                     </div>
                     
-                    <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-2xl p-6 border border-amber-100">
+                    {/* <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-2xl p-6 border border-amber-100">
                         <div className="flex items-center gap-4 mb-4">
                             <div className="p-3 bg-amber-100 rounded-xl">
                                 <TrendingUp className="w-8 h-8 text-amber-600" />
@@ -285,7 +247,7 @@ export default function CompletedInterviewsPage() {
                         <div className="text-sm text-amber-700">
                             Since last month
                         </div>
-                    </div>
+                    </div> */}
                 </div>
 
                 {/* Interview List */}
@@ -315,8 +277,9 @@ export default function CompletedInterviewsPage() {
                                         {/* Header */}
                                         <div className="flex items-start justify-between mb-6">
                                             <div className="flex items-center gap-4">
-                                                <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">
-                                                    {interview.admin?.firstName?.charAt(0)}{interview.admin?.lastName?.charAt(0)}
+                                                <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">
+                                                    {/* {interview.admin?.firstName?.charAt(0)}{interview.admin?.lastName?.charAt(0)} */}
+                                                    <CalendarCheckIcon className="w-6 h-6" />
                                                 </div>
                                                 <div>
                                                     <h3 className="text-xl font-bold text-gray-900">Technical Interview</h3>
