@@ -84,7 +84,7 @@ export default function InterviewsPage() {
                 <div className="mb-10">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                         <div>
-                            <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
+                            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
                                 Interview Dashboard
                             </h1>
                             <p className="text-gray-600 text-lg">

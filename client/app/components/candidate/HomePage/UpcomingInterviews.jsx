@@ -129,7 +129,7 @@ export default function UpcomingInterviewsPage() {
                     
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
                         <div>
-                            <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
+                            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
                                 Upcoming Interviews
                             </h1>
                             <p className="text-gray-600 text-lg">
@@ -202,7 +202,7 @@ export default function UpcomingInterviewsPage() {
                                                         <Calendar className="w-4 h-4" />
                                                         <span className="text-sm">Date</span>
                                                     </div>
-                                                    <p className="font-semibold text-gray-900">{formatDate(interview.scheduledAt)}</p>
+                                                    <p className="font-semibold text-gray-800">{formatDate(interview.scheduledAt)}</p>
                                                 </div>
                                                 
                                                 <div className="space-y-1">
@@ -210,7 +210,7 @@ export default function UpcomingInterviewsPage() {
                                                         <Clock className="w-4 h-4" />
                                                         <span className="text-sm">Time</span>
                                                     </div>
-                                                    <p className="font-semibold text-gray-900">{formatTime(interview.scheduledAt)}</p>
+                                                    <p className="font-semibold text-gray-800">{formatTime(interview.scheduledAt)}</p>
                                                 </div>
                                                 
                                                 <div className="space-y-1">
@@ -218,7 +218,7 @@ export default function UpcomingInterviewsPage() {
                                                         <Timer className="w-4 h-4" />
                                                         <span className="text-sm">Duration</span>
                                                     </div>
-                                                    <p className="font-semibold text-gray-900">{getDuration(interview.durationMin)}</p>
+                                                    <p className="font-semibold text-gray-800">{getDuration(interview.durationMin)}</p>
                                                 </div>
                                                 
                                                 <div className="space-y-1">
@@ -226,7 +226,7 @@ export default function UpcomingInterviewsPage() {
                                                         <AlertCircle className="w-4 h-4" />
                                                         <span className="text-sm">Starts</span>
                                                     </div>
-                                                    <p className="font-semibold text-gray-900">{getTimeUntil(interview.scheduledAt)}</p>
+                                                    <p className="font-semibold text-gray-800">{getTimeUntil(interview.scheduledAt)}</p>
                                                 </div>
                                             </div>
 

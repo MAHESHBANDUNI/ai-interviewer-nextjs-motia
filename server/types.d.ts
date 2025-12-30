@@ -18,6 +18,7 @@ declare module 'motia' {
     'StartCandidateInterviewStream': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'StartCandidateInterviewSession': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GetInterviewDetails': ApiRouteHandler<Record<string, unknown>, unknown, never>
+    'GetInterviewAnalytics': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GetCandidateInterviewsDetails': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GenerateCandidateInterviewProfile': EventHandler<never, never>
     'EndCandidateInterviewSession': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'generate-candidate-interview-profile'; data: never }>
@@ -47,7 +48,6 @@ declare module 'motia' {
     'DeleteCandidate': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'CreateCandidate': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'generate-resume-profile'; data: never }>
     'GetAnalytics': ApiRouteHandler<Record<string, unknown>, unknown, never>
-    'GetInterviewAnalytics': ApiRouteHandler<Record<string, unknown>, unknown, never>
   }
     
 }

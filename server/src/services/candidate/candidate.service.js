@@ -774,7 +774,7 @@ You MUST obey these rules without exception:
 1. NEVER speak, ask a question, or evaluate while the candidate is speaking.
 2. NEVER respond to partial, interrupted, or ongoing speech.
 3. Perform ALL reasoning, decisions, evaluations, and question selection ONLY after the candidate has clearly finished speaking.
-4. If speech is cut off, unclear, or followed by silence, WAIT silently.
+4. If speech is cut off, unclear, or followed by silence, WAIT silently..
 
 Violation of these rules is not allowed.
 
@@ -913,20 +913,20 @@ Only after that may you proceed with the first interview question, following all
                 },
               
                 startSpeakingPlan: {
-                  waitSeconds: 0.3,
+                  waitSeconds: 1.2,
                   smartEndpointingEnabled: true,
                   smartEndpointingPlan: { provider: "vapi" },
                   transcriptionEndpointingPlan: {
-                    onPunctuationSeconds: 0.7,
-                    onNoPunctuationSeconds: 3.0,
-                    onNumberSeconds: 1.2
+                    onPunctuationSeconds: 1.5,
+                    onNoPunctuationSeconds: 6.0,
+                    onNumberSeconds: 2.0
                   }
                 },
-              
+                
                 stopSpeakingPlan: {
-                  numWords: 2,
-                  voiceSeconds: 0.5,
-                  backoffSeconds: 1.5
+                  numWords: 4,
+                  voiceSeconds: 1.0,
+                  backoffSeconds: 2.5
                 },
                 firstMessage: `Hello ${updateInterviewStatus?.candidate?.firstName} ${updateInterviewStatus?.candidate?.lastName}, welcome to your interview. Please introduce yourself briefly.`
               })

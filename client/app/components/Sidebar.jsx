@@ -7,23 +7,13 @@ import {
   Laptop, 
   User, 
   LogOut, 
-  ChevronLeft, 
   ChevronRight,
   Menu,
   X,
-  Settings,
-  HelpCircle,
-  Briefcase,
-  Bell,
   SidebarIcon,
   Calendar,
   CheckCircle,
   XCircle,
-  BarChart3,
-  Clock,
-  AlertCircle,
-  Users,
-  TrendingUp
 } from "lucide-react"
 import { successToast, errorToast } from "@/app/components/ui/toast"
 import { useSession, signOut } from "next-auth/react"
@@ -35,14 +25,7 @@ const navItemsAdmin = [
   { 
     name: "Interviews", 
     href: "/admin/interview", 
-    icon: Laptop,
-    hasSubmenu: true,
-    submenu: [
-      { name: "All Interviews", href: "/admin/interview", icon: Laptop },
-      { name: "Upcoming", href: "/admin/interview/upcoming", icon: Calendar },
-      { name: "Completed", href: "/admin/interview/completed", icon: CheckCircle },
-      { name: "Cancelled", href: "/admin/interview/cancelled", icon: XCircle }
-    ]
+    icon: Laptop
   }
 ]
 
@@ -171,10 +154,6 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, isCollapsed, setI
         <div className="px-6 py-5 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <div className={`flex items-center gap-3 ${isCollapsed && !isMobile ? "justify-center" : ""}`}>
-              <div className="bg-gradient-to-br from-blue-600 to-blue-800 w-9 h-9 rounded-xl flex items-center justify-center shadow-md">
-                <Briefcase className="w-5 h-5 text-white" />
-              </div>
-              
               <AnimatePresence>
                 {(!isCollapsed || isMobile) && (
                   <motion.div
@@ -248,12 +227,6 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, isCollapsed, setI
                           <div className="flex items-center gap-3">
                             <div className="relative">
                               <Icon size={20} className={isActive ? "text-blue-600" : "text-gray-800"} />
-                              {isActive && (
-                                <motion.div
-                                  layoutId="activeIndicator"
-                                  className="absolute -right-1 -top-1 w-2 h-2 bg-blue-500 rounded-full"
-                                />
-                              )}
                             </div>
                             
                             <AnimatePresence>
@@ -297,12 +270,6 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, isCollapsed, setI
                         >
                           <div className="relative">
                             <Icon size={20} className={isActive ? "text-blue-600" : "text-gray-800"} />
-                            {isActive && (
-                              <motion.div
-                                layoutId="activeIndicator"
-                                className="absolute -right-1 -top-1 w-2 h-2 bg-blue-500 rounded-full"
-                              />
-                            )}
                           </div>
                           
                           <AnimatePresence>
@@ -462,26 +429,15 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, isCollapsed, setI
                   transition={{ duration: 0.2 }}
                   className="text-center"
                 >
-                  <p className="text-xs text-gray-400">
+                  {/* <p className="text-xs text-gray-400">
                     v1.2.0 • AI Interviewer Pro
-                  </p>
+                  </p> */}
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
         </div>
       </motion.aside>
-
-      {/* Mobile Menu Button (Hidden for now since we have top navbar) */}
-      {isMobile && !sidebarOpen && (
-        <button
-          onClick={() => setSidebarOpen(true)}
-          className="fixed top-4 left-4 p-2 bg-white rounded-xl shadow-lg border border-gray-200 z-[99] lg:hidden"
-          aria-label="Open menu"
-        >
-          <Menu className="w-5 h-5 text-gray-700" />
-        </button>
-      )}
     </>
   )
 }

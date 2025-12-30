@@ -2,9 +2,28 @@
 import React, { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { BarChart3, CheckCircle, TrendingUp, Calendar, Timer, Users, Eye, ChevronRight, ArrowLeft, Award, Target, Clock, CalendarCheckIcon } from "lucide-react";
+import { BarChart3, CheckCircle, TrendingUp, Calendar, Timer, Users, Eye, ChevronRight, ArrowLeft, Award, Target, Clock, CalendarCheckIcon, FileCheck } from "lucide-react";
 import PerformanceModal from "./PerformanceModal";
 import Pagination from "../other/Pagination";
+import { motion } from "framer-motion"
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.15 }
+  }
+}
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 30, scale: 0.95 },
+  visible: { opacity: 1, y: 0, scale: 1, transition: { type: "spring", stiffness: 100, damping: 12 }},
+  hover: { 
+    scale: 1.02, 
+    y: -5,
+    boxShadow: "0 20px 40px rgba(0,0,0,0.1), 0 0 0 1px rgba(255,255,255,0.8)"
+  }
+}
 
 export default function CompletedInterviewsPage() {
     const [interviews, setInterviews] = useState([]);
@@ -168,7 +187,7 @@ export default function CompletedInterviewsPage() {
                     
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
                         <div>
-                            <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
+                            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
                                 Completed Interviews
                             </h1>
                             <p className="text-gray-600 text-lg">
@@ -188,67 +207,90 @@ export default function CompletedInterviewsPage() {
                 </div>
 
                 {/* Performance Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                    <div className="bg-white rounded-2xl p-6 border border-amber-100">
-                        <div className="flex items-center gap-4 mb-4">
-                            <div className="p-3 bg-amber-100 rounded-xl">
-                                <BarChart3 className="w-8 h-8 text-amber-600" />
-                            </div>
-                            <div>
-                                <div className="text-3xl font-bold text-gray-900">{stats.averageScore}</div>
-                                <div className="text-gray-600">Avg. Score</div>
-                            </div>
-                        </div>
-                        <div className="text-sm text-amber-700">
-                            Out of {interviews.length} interviews
-                        </div>
+                <motion.div
+                  className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8"
+                  variants={containerVariants}
+                  initial="hidden"
+                  animate="visible"
+                >
+                  {/* Average Score Card */}
+                  <motion.div
+                    className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 relative overflow-hidden group h-full flex flex-col hover:shadow-lg transition-all duration-300"
+                    variants={cardVariants}
+                    whileHover="hover"
+                  >
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-indigo-500/5 rounded-bl-full"/>
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-slate-500 text-sm font-medium mb-2 truncate">Avg Score</p>
+                        <h3 className="text-2xl sm:text-3xl font-bold text-slate-800 leading-tight">
+                          {stats.averageScore}
+                        </h3>
+                      </div>
+                      <div className="p-2 sm:p-3 bg-indigo-500/10 rounded-xl flex-shrink-0 ml-3">
+                        <BarChart3 className="text-indigo-600 w-5 h-5 sm:w-6 sm:h-6" />
+                      </div>
                     </div>
-                    
-                    <div className="bg-white rounded-2xl p-6 border border-blue-100">
-                        <div className="flex items-center gap-4 mb-4">
-                            <div className="p-3 bg-blue-100 rounded-xl">
-                                <Target className="w-8 h-8 text-blue-600" />
-                            </div>
-                            <div>
-                                <div className="text-3xl font-bold text-gray-900">{stats.accuracy}%</div>
-                                <div className="text-gray-600">Accuracy</div>
-                            </div>
-                        </div>
-                        <div className="text-sm text-blue-700">
-                            {stats.correctAnswers}/{stats.totalQuestions} correct answers
-                        </div>
+                    <div className="mt-auto pt-4">
+                      <div className="flex items-center text-sm text-slate-500">
+                        <span className="truncate">Out of {interviews.length} interviews</span>
+                      </div>
                     </div>
-                    
-                    <div className="bg-white rounded-2xl p-6 border border-purple-100">
-                        <div className="flex items-center gap-4 mb-4">
-                            <div className="p-3 bg-purple-100 rounded-xl">
-                                <Award className="w-8 h-8 text-purple-600" />
-                            </div>
-                            <div>
-                                <div className="text-3xl font-bold text-gray-900">{stats.totalInterviews}</div>
-                                <div className="text-gray-600">Interviews</div>
-                            </div>
-                        </div>
-                        <div className="text-sm text-purple-700">
-                            Successfully completed
-                        </div>
+                  </motion.div>
+
+                  {/* Accuracy Card */}
+                  <motion.div
+                    className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 relative overflow-hidden group h-full flex flex-col hover:shadow-lg transition-all duration-300"
+                    variants={cardVariants}
+                    whileHover="hover"
+                  >
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-blue-500/5 rounded-bl-full"/>
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-slate-500 text-sm font-medium mb-2 truncate">Accuracy</p>
+                        <h3 className="text-2xl sm:text-3xl font-bold text-slate-800 leading-tight">
+                          {stats.accuracy}%
+                        </h3>
+                      </div>
+                      <div className="p-2 sm:p-3 bg-blue-500/10 rounded-xl flex-shrink-0 ml-3">
+                        <Target className="text-blue-600 w-5 h-5 sm:w-6 sm:h-6" />
+                      </div>
                     </div>
-                    
-                    {/* <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-2xl p-6 border border-amber-100">
-                        <div className="flex items-center gap-4 mb-4">
-                            <div className="p-3 bg-amber-100 rounded-xl">
-                                <TrendingUp className="w-8 h-8 text-amber-600" />
-                            </div>
-                            <div>
-                                <div className="text-3xl font-bold text-gray-900">+12%</div>
-                                <div className="text-gray-600">Improvement</div>
-                            </div>
-                        </div>
-                        <div className="text-sm text-amber-700">
-                            Since last month
-                        </div>
-                    </div> */}
-                </div>
+                    <div className="mt-auto pt-4">
+                      <div className="flex items-center text-sm text-slate-500">
+                        <span className="truncate">
+                          Based on correct answers
+                        </span>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  {/* Total Interviews Card */}
+                  <motion.div
+                    className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-100 relative overflow-hidden group h-full flex flex-col hover:shadow-lg transition-all duration-300"
+                    variants={cardVariants}
+                    whileHover="hover"
+                  >
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-500/5 rounded-bl-full"/>
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-slate-500 text-sm font-medium mb-2 truncate">Total Interviews</p>
+                        <h3 className="text-2xl sm:text-3xl font-bold text-slate-800 leading-tight">
+                          {stats.totalInterviews}
+                        </h3>
+                      </div>
+                      <div className="p-2 sm:p-3 bg-emerald-500/10 rounded-xl flex-shrink-0 ml-3">
+                        <Award className="text-emerald-600 w-5 h-5 sm:w-6 sm:h-6" />
+                      </div>
+                    </div>
+                    <div className="mt-auto pt-4">
+                      <div className="flex items-center text-sm text-slate-500">
+                        <span className="truncate">Successfully completed</span>
+                      </div>
+                    </div>
+                  </motion.div>
+                </motion.div>
+
 
                 {/* Interview List */}
                 {interviews.length === 0 ? (
@@ -272,7 +314,7 @@ export default function CompletedInterviewsPage() {
                     <>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                             {currentInterviews.map((interview) => (
-                                <div key={interview.interviewId} className="bg-white rounded-2xl shadow-lg border border-gray-200 hover:border-green-300 hover:shadow-xl transition-all duration-300">
+                                <div key={interview.interviewId} className="bg-white rounded-2xl shadow-lg border border-gray-200 hover:border-blue-300 hover:shadow-xl transition-all duration-300">
                                     <div className="p-6">
                                         {/* Header */}
                                         <div className="flex items-start justify-between mb-6">
@@ -309,7 +351,7 @@ export default function CompletedInterviewsPage() {
                                                         <CheckCircle className="w-4 h-4" />
                                                         <span className="text-sm">Accuracy</span>
                                                     </div>
-                                                    <p className="font-semibold text-gray-900">
+                                                    <p className="font-semibold text-gray-800">
                                                         {interview.interviewProfile.analytics?.correctAnswers}/{interview.interviewProfile.analytics?.totalQuestions} correct
                                                     </p>
                                                 </div>
@@ -319,7 +361,7 @@ export default function CompletedInterviewsPage() {
                                                         <Calendar className="w-4 h-4" />
                                                         <span className="text-sm">Date</span>
                                                     </div>
-                                                    <p className="font-semibold text-gray-900">{formatDate(interview.scheduledAt)}</p>
+                                                    <p className="font-semibold text-gray-800">{formatDate(interview.scheduledAt)}</p>
                                                 </div>
                                                 
                                                 <div className="space-y-1">
@@ -327,14 +369,14 @@ export default function CompletedInterviewsPage() {
                                                         <Timer className="w-4 h-4" />
                                                         <span className="text-sm">Duration</span>
                                                     </div>
-                                                    <p className="font-semibold text-gray-900">{getDuration(interview.durationMin)}</p>
+                                                    <p className="font-semibold text-gray-800">{getDuration(interview.durationMin)}</p>
                                                 </div>
                                             </div>
                                         )}
 
                                         {/* Strengths */}
                                         {interview.interviewProfile?.strengths && interview.interviewProfile.strengths.length > 0 && (
-                                            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 mb-6">
+                                            <div className="bg-white rounded-xl p-0 mb-6 mt-2 border-2 border-gray-100 px-2 py-3">
                                                 <div className="flex items-center gap-3 mb-3">
                                                     <Award className="w-5 h-5 text-green-600" />
                                                     <h4 className="font-semibold text-green-800">Key Strengths</h4>
@@ -356,15 +398,11 @@ export default function CompletedInterviewsPage() {
 
                                         {/* Action Button */}
                                         <div className="flex items-center justify-between">
-                                            <div className="text-sm text-gray-600">
-                                                Completed on {formatDate(interview.scheduledAt)}
-                                            </div>
-                                            
                                             <button
                                                 onClick={() => openPerformanceModal(interview)}
                                                 className="group flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium rounded-xl hover:shadow-lg transition-all duration-200 cursor-pointer"
                                             >
-                                                <Eye className="w-5 h-5" />
+                                                <FileCheck className="w-5 h-5" />
                                                 <span>View Full Report</span>
                                                 <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                                             </button>

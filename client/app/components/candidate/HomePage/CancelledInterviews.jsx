@@ -148,7 +148,7 @@ export default function CancelledInterviewsPage() {
                     
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
                         <div>
-                            <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
+                            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
                                 Cancelled Interviews
                             </h1>
                             <p className="text-gray-600 text-lg">
@@ -157,9 +157,9 @@ export default function CancelledInterviewsPage() {
                         </div>
                         
                         <div className="flex items-center gap-4">
-                            <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-4">
-                                <div className="text-sm text-gray-700 font-medium mb-1">Total Cancelled</div>
-                                <div className="text-lg font-bold text-gray-900">
+                            <div className="bg-gradient-to-r from-red-50 to-red-100 rounded-xl p-4">
+                                <div className="text-sm text-red-700 font-medium mb-1">Total Cancelled</div>
+                                <div className="text-lg font-bold text-red-900">
                                     {stats.total}
                                 </div>
                             </div>
@@ -240,7 +240,7 @@ export default function CancelledInterviewsPage() {
                     <>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                             {currentInterviews.map((interview) => (
-                                <div key={interview.interviewId} className="bg-white rounded-2xl shadow-lg border border-gray-200 hover:border-red-200 hover:shadow-xl transition-all duration-300">
+                                <div key={interview.interviewId} className="bg-white rounded-2xl shadow-lg border border-gray-200 hover:border-blue-200 hover:shadow-xl transition-all duration-300">
                                     <div className="p-6">
                                         {/* Header */}
                                         <div className="flex items-start justify-between mb-6">
@@ -250,7 +250,7 @@ export default function CancelledInterviewsPage() {
                                                     <CalendarX className="w-6 h-6" />
                                                 </div>
                                                 <div>
-                                                    <h3 className="text-xl font-bold text-gray-900">Cancelled Interview</h3>
+                                                    <h3 className="text-xl font-bold text-gray-900">Technical Interview</h3>
                                                     <p className="text-gray-600">With {interview.admin?.firstName} {interview.admin?.lastName}</p>
                                                 </div>
                                             </div>
@@ -266,7 +266,7 @@ export default function CancelledInterviewsPage() {
                                                     <Calendar className="w-4 h-4" />
                                                     <span className="text-sm">Original Date</span>
                                                 </div>
-                                                <p className="font-semibold text-gray-900">{formatDate(interview.scheduledAt)}</p>
+                                                <p className="font-semibold text-gray-800">{formatDate(interview.scheduledAt)}</p>
                                             </div>
                                             
                                             <div className="space-y-1">
@@ -274,7 +274,7 @@ export default function CancelledInterviewsPage() {
                                                     <Clock className="w-4 h-4" />
                                                     <span className="text-sm">Time</span>
                                                 </div>
-                                                <p className="font-semibold text-gray-900">{formatTime(interview.scheduledAt)}</p>
+                                                <p className="font-semibold text-gray-800">{formatTime(interview.scheduledAt)}</p>
                                             </div>
                                             
                                             <div className="space-y-1">
@@ -282,7 +282,7 @@ export default function CancelledInterviewsPage() {
                                                     <Timer className="w-4 h-4" />
                                                     <span className="text-sm">Duration</span>
                                                 </div>
-                                                <p className="font-semibold text-gray-900">{getDuration(interview.durationMin)}</p>
+                                                <p className="font-semibold text-gray-800">{getDuration(interview.durationMin)}</p>
                                             </div>
                                             
                                             <div className="space-y-1">
@@ -290,13 +290,13 @@ export default function CancelledInterviewsPage() {
                                                     <XCircle className="w-4 h-4" />
                                                     <span className="text-sm">Cancelled On</span>
                                                 </div>
-                                                <p className="font-semibold text-gray-900">{formatDate(interview.cancelledAt)}</p>
+                                                <p className="font-semibold text-gray-800">{formatDate(interview.cancelledAt)}</p>
                                             </div>
                                         </div>
 
                                         {/* Cancellation Reason */}
                                         {interview.cancellationReason && (
-                                            <div className="bg-gradient-to-r from-red-50 to-red-100 rounded-xl p-4 mb-6">
+                                            <div className="bg-white rounded-xl p-0 mb-6 mt-2 border-2 border-gray-100 px-2 py-3">
                                                 <div className="flex items-center gap-3 mb-3">
                                                     <AlertCircle className="w-5 h-5 text-red-600" />
                                                     <h4 className="font-semibold text-red-800">Cancellation Reason</h4>
