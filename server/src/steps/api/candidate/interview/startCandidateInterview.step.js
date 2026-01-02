@@ -20,7 +20,6 @@ export const handler = async(req, {emit, logger}) =>{
         logger.info('Processing start interview session request', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
         const userId = await req?.user?.userId;
         const interviewId = req?.body?.interviewId;
-        logger.info("InterviewId: ",interviewId,"Userid: ",userId);
         if(!interviewId || !userId){
           return {
             status: 400,

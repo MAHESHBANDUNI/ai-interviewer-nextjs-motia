@@ -555,64 +555,129 @@ export default function InterviewProfile({ candidateId, interviewId }) {
 
           {/* Questions & Answers Section */}
           {activeTab === 'questions' && selectedInterview && (
-            <div className="space-y-6">
-              {selectedInterview.questions?.map((question, index) => (
-                <div
-                  key={index}
-                  className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300"
-                  style={{ animationDelay: `${index * 100}ms` }}
-                >
-                  <div className="flex items-start justify-between gap-4 mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-4 mb-2">
-                        <div className="flex-shrink-0 w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold">
-                          {index + 1}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-gray-500">Difficulty:</span>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              question.difficultyLevel >= 4 ? 'bg-red-100 text-red-800' :
-                              question.difficultyLevel >= 3 ? 'bg-amber-100 text-amber-800' :
-                              'bg-green-100 text-green-800'
-                            }`}>
-                              Level {question.difficultyLevel}
-                            </span>
-                          </div>
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-gray-500">Correct:</span>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              question.correct === true ? 'bg-green-100 text-green-800' :
-                              'bg-red-100 text-red-800'
-                            }`}>
-                              {question.correct === true ? <Check className="w-4 h-4"></Check> : <X className="w-4 h-4"></X>}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3">{question.content}</h3>
-                    </div>
-                  </div>
+            // <div className="space-y-6">
+            //   {selectedInterview.questions?.map((question, index) => (
+            //     <div
+            //       key={index}
+            //       className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition-all duration-300"
+            //       style={{ animationDelay: `${index * 100}ms` }}
+            //     >
+            //       <div className="flex items-start justify-between gap-4 mb-4">
+            //         <div className="flex-1">
+            //           <div className="flex items-center gap-4 mb-2">
+            //             <div className="flex-shrink-0 w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold">
+            //               {index + 1}
+            //             </div>
+            //             <div>
+            //               <div className="flex items-center gap-2">
+            //                 <span className="text-sm font-medium text-gray-500">Difficulty:</span>
+            //                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+            //                   question.difficultyLevel >= 4 ? 'bg-red-100 text-red-800' :
+            //                   question.difficultyLevel >= 3 ? 'bg-amber-100 text-amber-800' :
+            //                   'bg-green-100 text-green-800'
+            //                 }`}>
+            //                   Level {question.difficultyLevel}
+            //                 </span>
+            //               </div>
+            //             </div>
+            //             <div>
+            //               <div className="flex items-center gap-2">
+            //                 <span className="text-sm font-medium text-gray-500">Correct:</span>
+            //                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+            //                   question.correct === true ? 'bg-green-100 text-green-800' :
+            //                   'bg-red-100 text-red-800'
+            //                 }`}>
+            //                   {question.correct === true ? <Check className="w-4 h-4"></Check> : <X className="w-4 h-4"></X>}
+            //                 </span>
+            //               </div>
+            //             </div>
+            //           </div>
+            //           <h3 className="text-lg font-semibold text-gray-900 mb-3">{question.content}</h3>
+            //         </div>
+            //       </div>
 
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">Candidate's Answer</h4>
-                      <div className="bg-gray-50 rounded-xl p-4">
-                        <p className="text-gray-700 whitespace-pre-wrap">{question.candidateAnswer}</p>
-                      </div>
-                    </div>
+            //       <div className="space-y-4">
+            //         <div>
+            //           <h4 className="text-sm font-medium text-gray-700 mb-2">Candidate's Answer</h4>
+            //           <div className="bg-gray-50 rounded-xl p-4">
+            //             <p className="text-gray-700 whitespace-pre-wrap">{question.candidateAnswer}</p>
+            //           </div>
+            //         </div>
 
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">AI Feedback</h4>
-                      <div className="bg-blue-50 rounded-xl p-4">
-                        <p className="text-gray-700">{question.aiFeedback}</p>
-                      </div>
-                    </div>
-                  </div>
+            //         <div>
+            //           <h4 className="text-sm font-medium text-gray-700 mb-2">AI Feedback</h4>
+            //           <div className="bg-blue-50 rounded-xl p-4">
+            //             <p className="text-gray-700">{question.aiFeedback}</p>
+            //           </div>
+            //         </div>
+            //       </div>
+            //     </div>
+            //   ))}
+            // </div>
+              <div className="mt-6">
+                <div className="flex items-center mb-6">
+                    <div className="w-1 h-8 bg-indigo-500 rounded-full mr-3"></div>
+                    <h3 className="text-xl font-bold text-gray-800">Interview Questions</h3>
+                    <span className="ml-3 px-3 py-1 bg-blue-50 text-blue-600 text-sm font-medium rounded-full">
+                        {selectedInterview.questions.length} Questions
+                    </span>
                 </div>
-              ))}
+                
+                <div className="space-y-4">
+                    {selectedInterview.questions.map((question, index) => (
+                        <div key={question.interviewQuestionId} className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-300">
+                            <div className="p-5">
+                                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between mb-4">
+                                    <div className="flex items-start space-x-3 mb-3 lg:mb-0">
+                                        <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                                            <span className="text-white font-bold text-sm">Q{index + 1}</span>
+                                        </div>
+                                        <div>
+                                            <p className="text-gray-800 font-medium">{question.content}</p>
+                                            {question.topic && (
+                                                <span className="inline-block mt-2 px-3 py-1 bg-blue-50 text-blue-600 text-xs font-medium rounded-full">
+                                                    {question.topic}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
+                                        question.difficultyLevel >= 4 
+                                            ? 'bg-red-50 text-red-700 border border-red-100' 
+                                            : question.difficultyLevel >= 3 
+                                                ? 'bg-yellow-50 text-yellow-700 border border-yellow-100'
+                                                : 'bg-green-50 text-green-700 border border-green-100'
+                                    }`}>
+                                        {question.difficultyLevel >= 4 ? 'Expert' : 
+                                         question.difficultyLevel >= 3 ? 'Intermediate' : 'Beginner'}
+                                    </div>
+                                </div>
+
+                                {question.candidateAnswer && (
+                                    <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
+                                        <div className="flex items-center mb-2">
+                                            <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
+                                            <span className="text-sm font-semibold text-blue-700">Candidate Answer</span>
+                                        </div>
+                                        <p className="text-gray-700 text-sm leading-relaxed">{question.candidateAnswer}</p>
+                                    </div>
+                                )}
+
+                                {question.aiFeedback && (
+                                    <div className="mt-4 p-4 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg border border-indigo-100">
+                                        <div className="flex items-center mb-2">
+                                            <svg className="w-4 h-4 text-indigo-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                            </svg>
+                                            <span className="text-sm font-semibold text-indigo-700">AI Feedback</span>
+                                        </div>
+                                        <p className="text-gray-700 text-sm leading-relaxed">{question.aiFeedback}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
             </div>
           )}
 

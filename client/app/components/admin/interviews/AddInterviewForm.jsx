@@ -80,6 +80,7 @@ export default function AddInterviewForm({
   const [errors, setErrors] = useState({});
 
   const searchAbort = useRef(null);
+  const backdropRef = useRef(null);
 
   useEffect(() => {
     return () => {
@@ -153,14 +154,20 @@ export default function AddInterviewForm({
 
 // REMOVE clearError from onQueryChange
 const onQueryChange = (e) => {
-  setQuery(e.target.value);
-  setSelectedCandidate(null);
+  const value = e.target.value;
+  setQuery(value);
+
+  if (
+    selectedCandidate &&
+    value !== `${selectedCandidate.firstName} ${selectedCandidate.lastName}`
+  ) {
+    setSelectedCandidate(null);
+  }
 };
 
 const handleDateSelect = (date) => {
   setSelectedDate(date);
   setCalendarOpen(false);
-  setSelectedTime('');
   clearError('date');
 };
 
@@ -274,7 +281,13 @@ const handleSubmit = async (e) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-opacity-40 flex items-center justify-center p-4 bg-[#00000082] backdrop-blur-[5px] z-[9999]" onClick={() => {if (!isCalendarOpen) {handleCloseModal()};}}>
+    <div className="fixed inset-0 bg-opacity-40 flex items-center justify-center p-4 bg-[#00000082] backdrop-blur-[5px] z-[9999]"   ref={backdropRef}
+  onClick={(e) => {
+    if (e.target === backdropRef.current) {
+      handleCloseModal();
+    }
+  }}
+>
       <div className="modal-content bg-white rounded-lg w-full max-w-2xl max-h-[95vh] overflow-y-auto shadow-2xl" onClick={(e) =>e.stopPropagation()}>
         <div className="flex justify-between items-center border-b border-gray-200 p-4 bg-gradient-to-r from-blue-600 to-blue-700">
           <h2 className="text-xl text-white font-semibold">

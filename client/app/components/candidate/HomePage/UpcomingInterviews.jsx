@@ -33,7 +33,6 @@ export default function UpcomingInterviewsPage() {
           interviews
             .sort(sortByDate)
         );
-        console.log('II',interviews);
         setLoading(false);
         }
         if(!res.ok){

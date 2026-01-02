@@ -13,6 +13,42 @@ import {
   LocalAudioTrack
 } from "livekit-client";
 
+const classifyAnswerCompletion = (text) => {
+  const lower = text.trim().toLowerCase();
+
+  const completionMarkers = [
+    "that's all",
+    "that’s it",
+    "i'm done",
+    "i am done",
+    "yeah",
+    "no",
+    "i guess that's it"
+  ];
+
+  const thinkingMarkers = [
+    "uh",
+    "um",
+    "let me think",
+    "one second",
+    "hmm"
+  ];
+
+  if (completionMarkers.some(m => lower.endsWith(m))) {
+    return "COMPLETE";
+  }
+
+  if (thinkingMarkers.some(m => lower.includes(m))) {
+    return "INCOMPLETE";
+  }
+
+  if (!/[.!?]$/.test(lower)) {
+    return "INCOMPLETE";
+  }
+
+  return "COMPLETE";
+};
+
 const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }) => {
   const {data: session} = useSession();
   const { audioDeviceId, videoDeviceId, screenStream } = devices;
@@ -33,99 +69,6 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }
   const assistantAudioTrackRef = useRef(null);
   const [interviewStreamToken, setInterviewStreamToken] = useState(null);
   const [interviewStreamUrl, setInterviewStreamUrl] = useState(null);
-
-const conversationSample = [
-  {
-    id: "51aa5945-e43f-4fb6-b212-0c2fa1cc646b",
-    speaker: "assistant",
-    text: "Hi, thanks for joining today. Can you briefly introduce yourself as a frontend developer?",
-    timestamp: "2025-12-15T05:00:00.000Z"
-  },
-  {
-    id: "8b6c8c4f-9d63-4f47-8a1a-9c1c3bda1a01",
-    speaker: "user",
-    text: "Sure! I’m a frontend developer with experience in React, JavaScript, and modern CSS.",
-    timestamp: "2025-12-15T05:00:05.000Z"
-  },
-  {
-    id: "c7cfe3a6-41c3-4f63-bc68-2fdcbd4a1c12",
-    speaker: "assistant",
-    text: "Great. Can you explain the difference between `let`, `const`, and `var` in JavaScript?",
-    timestamp: "2025-12-15T05:00:15.000Z"
-  },
-  {
-    id: "e91a2b44-7f91-4c4f-9d7b-8e0b93c6f221",
-    speaker: "user",
-    text: "`var` is function-scoped, while `let` and `const` are block-scoped. `const` prevents reassignment.",
-    timestamp: "2025-12-15T05:00:22.000Z"
-  },
-  {
-    id: "3b9c7a7e-1c32-4f1e-a7c2-7c99b40df002",
-    speaker: "assistant",
-    text: "Good. How do you manage state in a React application?",
-    timestamp: "2025-12-15T05:00:30.000Z"
-  },
-  {
-    id: "9fdad1d1-b78b-4d61-a7f4-6f77a98bcb11",
-    speaker: "user",
-    text: "For local state I use useState and useReducer, and for global state I use Context or Redux.",
-    timestamp: "2025-12-15T05:00:38.000Z"
-  },
-  {
-    id: "1c8c5b4a-4f62-44dd-8e5f-0a1c87a3d333",
-    speaker: "assistant",
-    text: "How do you optimize performance in a frontend application?",
-    timestamp: "2025-12-15T05:00:45.000Z"
-  },
-  {
-    id: "6d9e2c5f-2a54-4c8a-8a66-7c9e6eaf9222",
-    speaker: "user",
-    text: "I use memoization, code splitting, lazy loading, and avoid unnecessary re-renders.",
-    timestamp: "2025-12-15T05:00:52.000Z"
-  },
-  {
-    id: "b84f17c1-9a3f-46d1-a3fd-3f6b0f1b1444",
-    speaker: "assistant",
-    text: "Can you explain how the browser rendering process works?",
-    timestamp: "2025-12-15T05:01:00.000Z"
-  },
-  {
-    id: "2a7c4e5d-1c25-4a9f-9e3a-7d9a6f88a555",
-    speaker: "user",
-    text: "The browser parses HTML and CSS, builds the DOM and CSSOM, creates the render tree, then paints.",
-    timestamp: "2025-12-15T05:01:08.000Z"
-  },
-  {
-    id: "7f3b1a9c-3b6d-4e42-8b7e-91b0c3a16666",
-    speaker: "assistant",
-    text: "Nice explanation. How do you handle API errors on the frontend?",
-    timestamp: "2025-12-15T05:01:15.000Z"
-  },
-  {
-    id: "4a6f9c8d-71e3-4c35-bf3e-9a8f14b97777",
-    speaker: "user",
-    text: "I use try/catch, show user-friendly messages, and log errors for debugging.",
-    timestamp: "2025-12-15T05:01:22.000Z"
-  },
-  {
-    id: "e1a3b4c6-9f44-4b9e-9d2a-3e6f8c2a8888",
-    speaker: "assistant",
-    text: "Do you have experience with testing frontend applications?",
-    timestamp: "2025-12-15T05:01:30.000Z"
-  },
-  {
-    id: "5c7a1f92-5c42-4f89-9d18-6f0c2d0a9999",
-    speaker: "user",
-    text: "Yes, I use Jest and React Testing Library for unit and integration tests.",
-    timestamp: "2025-12-15T05:01:38.000Z"
-  },
-  {
-    id: "9b2c1f44-0e67-4e32-bd41-7f2a1cbbbbbb",
-    speaker: "assistant",
-    text: "Excellent. That’s all from my side. Thanks for your time!",
-    timestamp: "2025-12-15T05:01:45.000Z"
-  }
-];
   
   const videoRef = useRef(null);
   const containerRef = useRef(null);
@@ -134,12 +77,20 @@ const conversationSample = [
 
   const vapiRef = useRef(null);
   const interviewStartedRef = useRef(false);
+  const vapiConnectedRef = useRef(false);
 
   const [liveTranscript, setLiveTranscript] = useState([]);
   const transcriptContainerRef = useRef(null);
 
   const startCalledRef = useRef(false);
 
+const silenceStateRef = useRef({
+  timer: null,
+  startedAt: null,
+  firstPromptSent: false,
+  secondPromptSent: false,
+  thirdPromptSent: false
+});
 
   useEffect(() => {
     if (!startCalledRef.current) {
@@ -454,8 +405,21 @@ const conversationSample = [
       }
     });
 
-    vapi.on("speech-start", () => setMicOpen(false));
-    vapi.on("speech-end", () => setMicOpen(true));
+    vapi.on("speech-end", () => {setMicOpen(true);});
+
+    vapi.on("speech-start", () => {
+      setMicOpen(false);
+    });
+
+    vapi.on("message", (message) => {
+      if (message.type !== 'speech-update') return;
+      if(message.status === 'stopped' && message.role === 'assistant'){
+        startSilenceMonitor();
+      }
+      if(message.status === 'started' && message.role === 'user'){
+        resetSilenceMonitor();
+      }
+    })
 
     vapi.on("message", (message) => {
       if (message.type !== "transcript") return;
@@ -515,15 +479,24 @@ const conversationSample = [
       }
     });
 
-    // ❌ Handle disconnect / error
-    vapi.on("disconnect", handleVapiFailure);
-    vapi.on("error", handleVapiFailure);
-
-    // 🧠 Optional: detect natural end
-    vapi.on("end", () => {
-      handleSubmit();
+    vapi.on("assistant.started", () => {
+      vapiConnectedRef.current = true;
     });
 
+    vapi.on("disconnect", () => {
+      vapiConnectedRef.current = false;
+    });
+
+    vapi.on("error", handleVapiFailure);
+
+    // Optional: detect natural end
+    // vapi.on("end", () => {
+    //   handleSubmit();
+    // });
+
+    vapi.on("end", () => {
+      console.log("Vapi ended naturally — waiting for silence logic");
+    });
   };
 
   useEffect(() => {
@@ -573,13 +546,95 @@ const conversationSample = [
     }
   };
 
-  const handleVapiFailure = async () => {
-    if (hasSubmittedRef.current) return;
-  
-    console.error("Vapi disconnected — auto ending interview");
-  
-    await handleSubmit();
-  };
+const handleVapiFailure = async () => {
+  if (hasSubmittedRef.current) return;
+
+  console.warn("Vapi disconnected — ending interview cleanly");
+
+  vapiConnectedRef.current = false;
+
+  await handleSubmit();
+};
+
+const sendAssistantMessage = async (text) => {
+  try {
+    const vapi = vapiRef.current;
+    vapi.say(text, false);
+    await new Promise((r) => setTimeout(r, 7000));
+  } catch (err) {
+    console.warn("Skipped send — Vapi not connected");
+  }
+};
+
+const startSilenceMonitor = useCallback(() => {
+  const state = silenceStateRef.current;
+
+  // prevent duplicates
+  if (state.timer) return;
+
+  state.startedAt = Date.now();
+  state.firstPromptSent = false;
+  state.secondPromptSent = false;
+
+  state.timer = setInterval(async () => {
+    const elapsed = Date.now() - state.startedAt;
+
+    // gentle prompt
+    if (elapsed >= 12000 && !state.firstPromptSent) {
+      state.firstPromptSent = true;
+      await sendAssistantMessage(
+        "Take your time and continue with your answer or let me know if you'd like me to repeat the question."
+      );
+      return;
+    }
+
+    // second warning
+    if (elapsed >= 33000 && !state.secondPromptSent) {
+      state.secondPromptSent = true;
+      await sendAssistantMessage(
+        "Take your time and continue with your answer or let me know if you'd like me to repeat the question."
+      );
+      return;
+    }
+
+    // third warning
+    if (elapsed >= 52000 && !state.thirdPromptSent) {
+      state.thirdPromptSent = true;
+      await sendAssistantMessage(
+        "We're approaching the time limit for this question. If you need more time or want to skip this question, please let me know."
+      );
+      return;
+    }
+
+    // hard end
+    if (elapsed >= 75000) {
+      clearInterval(state.timer);
+      state.timer = null;
+
+      await sendAssistantMessage(
+        "Since I haven’t heard back, I’ll end the interview now. Thank you for your time."
+      );
+
+      await new Promise(r => setTimeout(r, 4000));
+
+      handleSubmit();
+    }
+  }, 300); // small interval, cheap & responsive
+}, []);
+
+const resetSilenceMonitor = () => {
+  const state = silenceStateRef.current;
+
+  if (state.timer) {
+    clearInterval(state.timer);
+    state.timer = null;
+  }
+
+  state.startedAt = null;
+  state.firstPromptSent = false;
+  state.secondPromptSent = false;
+  state.thirdPromptSent = false;
+};
   
   // Handle fullscreen changes
   const handleFullscreenChange = useCallback(() => {
@@ -593,29 +648,50 @@ const conversationSample = [
   }, [enterFullscreen, logViolation]);
 
   // Handle submit
-  const handleSubmit = async () => {
-    setShowEndInterviewModal(false);
-    setIsSubmitting(true);
+const handleSubmit = async () => {
+  if (hasSubmittedRef.current) return;
+  hasSubmittedRef.current = true;
 
-    if (vapiRef.current) {
-      vapiRef.current.stop();
-      vapiRef.current = null;
-    }
+  const state = silenceStateRef.current;
+  if (state.silenceTimer) {
+    clearInterval(state.silenceTimer);
+    state.silenceTimer = null;
+  }
 
-    if (roomRef.current) {
-      await roomRef.current.disconnect();
-      roomRef.current = null;
-    }
+  if (vapiRef.current && vapiConnectedRef.current) {
+    await sendAssistantMessage(
+      "Thank you for your time today. This concludes the interview."
+    );
 
-    await handleEndInterview();
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    // allow speech to play
+    await new Promise(r => setTimeout(r, 2500));
 
-    stopProctoring();
-    setIsSubmitting(false);
-    exitFullscreen();
-    onInterviewEnd();
-    onClose();
-  };
+    vapiRef.current.stop();
+  }
+
+  vapiRef.current = null;
+  vapiConnectedRef.current = false;
+
+  setShowEndInterviewModal(false);
+  setIsSubmitting(true);
+
+  // Disconnect LiveKit
+  if (roomRef.current) {
+    await roomRef.current.disconnect();
+    roomRef.current = null;
+  }
+
+  // End interview backend
+  await handleEndInterview();
+
+  await new Promise(resolve => setTimeout(resolve, 1000));
+
+  stopProctoring();
+  setIsSubmitting(false);
+  exitFullscreen();
+  onInterviewEnd();
+  onClose();
+};
 
   // Format time
   const formatTime = (seconds) => {

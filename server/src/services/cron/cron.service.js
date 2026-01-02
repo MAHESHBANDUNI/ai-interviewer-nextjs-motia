@@ -16,15 +16,34 @@ export const CronService = {
         });
         return cancelledInterviews;
     },
+
     async processFailedInterviews() {
-        const cancelledInterviews = await prisma.interview.updateMany({
+        const now = Date.now();
+    
+        const interviews = await prisma.interview.findMany({
             where: {
                 status: 'ONGOING'
+            }
+        });
+    
+        const expiredIds = interviews
+            .filter(i => {
+                const endTime =
+                    new Date(i.attemptedAt).getTime() +
+                    i.durationMin * 60 * 1000;
+                return endTime < now;
+            })
+            .map(i => i.interviewId);
+        
+        if (!expiredIds.length) return { count: 0 };
+        
+        return prisma.interview.updateMany({
+            where: {
+                interviewId: { in: expiredIds }
             },
             data: {
                 status: 'COMPLETED'
             }
         });
-        return cancelledInterviews;
-    },
+    }
 };

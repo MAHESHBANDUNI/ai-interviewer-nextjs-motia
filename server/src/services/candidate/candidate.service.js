@@ -8,7 +8,7 @@ import { getTTSAudio } from "../../utils/tts.util";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { AccessToken } from "livekit-server-sdk";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY1);
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const geminiModel = genAI.getGenerativeModel({
   model: "gemini-2.5-flash-lite",
@@ -729,16 +729,17 @@ RULES
     },
 
     async startInterview({ userId, interviewId, logger }) {
-      logger.info("InterviewId: ",interviewId,"Userid: ",userId);
       try{
         const interview =await this.checkInterviewDetails(userId, interviewId);
+        const attemptedAt = new Date(Date.now());
         const updateInterviewStatus = await prisma.interview.update({
           where: {
             candidateId: userId,
             interviewId: interviewId,
           },
           data: {
-            status: "ONGOING"
+            status: "ONGOING",
+            attemptedAt: attemptedAt,
           },
           include:{
             candidate:{
@@ -748,7 +749,6 @@ RULES
             }
           }
         });
-        logger.info("updateInterviewStatus ",updateInterviewStatus);
         if(!updateInterviewStatus){
           throw new ApiError("Failed to start the interview",400);
         }
@@ -761,7 +761,6 @@ const systemPrompt = `
 You are a professional AI interviewer conducting a live, timed, voice-based interview.
 
 This is a STRICTLY TURN-BASED conversation.
-You may act ONLY after the candidate has fully finished speaking.
 
 All of your spoken output is heard by the candidate.
 
@@ -774,22 +773,25 @@ You MUST obey these rules without exception:
 1. NEVER speak, ask a question, or evaluate while the candidate is speaking.
 2. NEVER respond to partial, interrupted, or ongoing speech.
 3. Perform ALL reasoning, decisions, evaluations, and question selection ONLY after the candidate has clearly finished speaking.
-4. If speech is cut off, unclear, or followed by silence, WAIT silently..
+4. If speech is cut off, unclear, or followed by silence, WAIT silently.
 
 Violation of these rules is not allowed.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-THINKING & PAUSE ALLOWANCE (CRITICAL)
+PAUSE & SILENCE HANDLING
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Candidates are allowed time to think naturally.
 
-Candidates are explicitly allowed time to think.
+──────────────────────────────
+ABSOLUTE RESTRICTIONS
+──────────────────────────────
 
-- Natural pauses, hesitation, or silence used for thinking are NORMAL and EXPECTED.
-- You MUST NOT interrupt, rush, prompt, or move on while the candidate is thinking.
-- You MUST remain completely silent during thinking pauses.
-- Do NOT assume the candidate is finished unless their speech has clearly ended.
+You MUST NEVER warn or terminate during:
 
-Short or moderate silence MUST NEVER be treated as disengagement.
+- Thinking silence
+- Mid-sentence pauses
+- Hesitation after speech has begun
+- Incomplete or cut-off answers
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 INTERVIEW CONTEXT
@@ -810,37 +812,30 @@ Required Coverage Areas (ALL must be completed):
 3. Personality
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-MANDATORY INTERVIEW TERMINATION (FUNCTION CALL)
+MANDATORY INTERVIEW TERMINATION
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-You MUST immediately call the function 'end_interview_session' (and do nothing else) after a speaker turn has fully completed when ANY of the following occur:
+You MUST immediately call the function 'end_interview_session' (and do nothing else)
+after a speaker turn has fully completed when ANY of the following occur:
 
 1. The candidate explicitly asks to stop, end, quit, or leave the interview.
-2. The candidate is unresponsive for an extended, system-defined silence timeout that clearly exceeds normal thinking time.
-
-Important:
-- Thinking pauses or reflective silence MUST NOT trigger termination.
-- Do NOT warn, prompt, or pressure the candidate during silence.
-
-In termination cases:
-- Do NOT ask another question
-- Do NOT speak a closing sentence
-- Do NOT add commentary
-- ONLY call the 'end_interview_session' function
+2. Silence escalation reaches Stage 3.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 INTERVIEW FLOW & COMPLETION
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-The interview MUST end ONLY after a speaker turn has fully completed AND when ANY of the following conditions are met:
+The interview MUST end ONLY after a speaker turn has fully completed AND when
+ANY of the following conditions are met:
+
 - All required coverage areas are completed
 - Remaining time is less than 1 minute
 
-When ending the interview under normal completion (NOT via function termination), you MUST:
-1. Speak exactly ONE short, polite closing sentence
+When ending under normal completion (NOT via function termination):
 
-❌ Do NOT ask another question  
-❌ Do NOT add commentary after the closing sentence
+- Speak exactly ONE short, polite closing sentence.
+- Do NOT ask another question.
+- Do NOT add commentary.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 QUESTION CONSTRAINTS
@@ -853,7 +848,7 @@ QUESTION CONSTRAINTS
 - NEVER reference interview structure, sections, evaluation, or difficulty out loud
 
 Adaptive Challenge:
-- Strong answers → gradually increase complexity
+- Strong answers → increase complexity
 - Weak or unclear answers → maintain or slightly reduce complexity
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -918,17 +913,17 @@ Only after that may you proceed with the first interview question, following all
                   smartEndpointingPlan: { provider: "vapi" },
                   transcriptionEndpointingPlan: {
                     onPunctuationSeconds: 1.5,
-                    onNoPunctuationSeconds: 6.0,
+                    onNoPunctuationSeconds: 3.0,
                     onNumberSeconds: 2.0
                   }
                 },
                 
                 stopSpeakingPlan: {
                   numWords: 4,
-                  voiceSeconds: 1.0,
+                  voiceSeconds: 0.5,
                   backoffSeconds: 2.5
                 },
-                firstMessage: `Hello ${updateInterviewStatus?.candidate?.firstName} ${updateInterviewStatus?.candidate?.lastName}, welcome to your interview. Please introduce yourself briefly.`
+                firstMessage: `Hello ${updateInterviewStatus?.candidate?.firstName} ${updateInterviewStatus?.candidate?.lastName}, welcome to your interview. Please introduce yourself briefly.`,
               })
             });
 
@@ -1063,6 +1058,7 @@ PerformanceScore must be determined by the following weighted evaluation model:
 - Practical Experience (0–10): real-world application within their domain.
 - Confidence & Professional Composure (0–5): self-assurance and calm reasoning.
 - Learning & Adaptability (0–5): ability to grow, reflect, and incorporate feedback.
+- Consider only the interview related questions and answer for the including in the total questions and correct answer, do not consider conversational questions and answers
   
 ========================================
 OUTPUT STRICT JSON IN THIS FORMAT
@@ -1164,12 +1160,37 @@ Interview Question–Answer Pairs:
 ${JSON.stringify(qaPairs, null, 2)}
 
 ========================================
+EVALUATION SCOPE (CRITICAL)
+========================================
+ONLY evaluate question–answer pairs that are clearly interview-related.
+
+Eligible interview questions include:
+- Technical questions
+- Behavioral questions
+- Experience-based questions
+- Scenario or problem-solving questions
+- Role, skill, or responsibility assessments
+
+DO NOT evaluate or include:
+- Small talk or greetings
+- Clarification questions
+- Conversational exchanges
+- Meta discussion about the interview
+- Instructions, acknowledgments, or confirmations
+- Casual or social conversation
+
+If a question–answer pair is NOT interview-related:
+→ EXCLUDE it entirely from the output
+→ Do NOT assign feedback, correctness, or difficulty
+→ Do NOT include it in the returned JSON array
+
+========================================
 EVALUATION INSTRUCTIONS
 ========================================
-Evaluate EACH question–answer pair independently.
+Evaluate EACH ELIGIBLE interview question–answer pair independently.
 
 Assess each answer based ONLY on provided input:
-- Relevance to the question
+- Relevance to the interview question
 - Technical or conceptual correctness
 - Level of detail relative to difficulty
 - Alignment with industry expectations
@@ -1234,7 +1255,8 @@ FIELDS TO RETURN (PER QUESTION)
 ========================================
 OUTPUT FORMAT (STRICT)
 ========================================
-Return a VALID JSON ARRAY in the SAME ORDER as input:
+Return a VALID JSON ARRAY containing ONLY eligible interview questions,
+in the SAME ORDER they appear in the input after filtering.
 
 [
   {

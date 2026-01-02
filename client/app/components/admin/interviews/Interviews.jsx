@@ -2,7 +2,7 @@
 
 import AddInterviewForm from "./AddInterviewForm";
 import InterviewTable from "./InterviewTable";
-import { ChevronDown, Search, X, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { ChevronDown, Search, X, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { successToast, errorToast } from "@/app/components/ui/toast";
 import { useSession } from "next-auth/react";
@@ -13,6 +13,7 @@ import { SocketProvider } from "@/app/providers/SocketProvider";
 
 export default function Interview() {
   const [selectedStatus, setSelectedStatus] = useState("Status");
+  const [statusOpen, setStatusOpen] = useState(false);
   const [interviewsList, setInterviewsList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -35,16 +36,20 @@ export default function Interview() {
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const statusRef = useRef(null);
-  const positionRef = useRef(null);
   const formRef = useRef(null);
   const containerRef = useRef(null);
+
+  // Get unique statuses from interviews
+  const statusOptions = ["All", ...new Set(interviewsList.map(interview => interview.status).filter(Boolean))];
 
   // Filter interviews based on search and filters
   const filteredInterviews = interviewsList.filter(interview => {
     const matchesSearch = interview.candidate.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          interview.candidate.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          interview.candidate.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = selectedStatus === "Status" || interview.status === selectedStatus;
+    const matchesStatus = selectedStatus === "Status" || 
+                         selectedStatus === "All" || 
+                         interview.status === selectedStatus;
     
     return matchesSearch && matchesStatus;
   });
@@ -109,16 +114,11 @@ export default function Interview() {
     if (statusRef.current && !statusRef.current.contains(event.target)) {
       setStatusOpen(false);
     }
-    if (positionRef.current && !positionRef.current.contains(event.target)) {
-      setPositionOpen(false);
-    }
   };
 
   const clearFilter = (type) => {
     if (type === 'status') {
       setSelectedStatus("Status");
-    } else if (type === 'position') {
-      setSelectedPosition("Position");
     } else if (type === 'search') {
       setSearchQuery("");
     }
@@ -337,7 +337,7 @@ export default function Interview() {
   }
 
   return (
-    <div className="max-w-screen-2xl bg-gradient-to-br from-slate-50 to-blue-50/30 mx-auto p-6 space-y-6" ref={containerRef}>
+    <div className="max-w-screen-2xl bg-gradient-to-br from-slate-50 to-blue-50/30 mx-auto p-4 sm:p-6 space-y-6" ref={containerRef}>
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
@@ -345,48 +345,163 @@ export default function Interview() {
           <p className="text-gray-600 mt-1">Manage and track candidate interviews</p>
         </div>
 
-        <div className="flex flex-col gap-2 lg:flex-row">
-          <div className="relative w-full lg:w-auto">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search interviews..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full lg:w-64 pl-10 pr-10 py-2.5 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all duration-200"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => clearFilter('search')}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          {/* Search and Filter Bar */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            {/* Search Input */}
+            <div className="relative w-full sm:w-auto">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search interviews..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full sm:w-64 pl-10 pr-10 py-2.5 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all duration-200"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => clearFilter('search')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Status Filter */}
+            <div className="relative" ref={statusRef}>
+              <button
+                onClick={() => setStatusOpen(!statusOpen)}
+                className={`flex items-center justify-between w-full sm:w-auto px-4 py-2.5 border rounded-xl bg-white hover:bg-gray-50 transition-all duration-200 ${
+                  selectedStatus !== "Status" ? "border-blue-300 bg-blue-50/50" : "border-gray-200"
+                } ${statusOpen ? "ring-2 ring-blue-100 border-blue-300" : ""}`}
+              >
+                <div className="flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-gray-400" />
+                  <span className="text-gray-700">
+                    {selectedStatus === "Status" ? "Filter by Status" : selectedStatus}
+                  </span>
+                </div>
+                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${statusOpen ? "rotate-180" : ""}`} />
+              </button>
+
+              {statusOpen && (
+                <div className="absolute z-50 mt-2 w-full sm:w-48 bg-white border border-gray-200 rounded-xl shadow-lg py-2">
+                  {statusOptions.map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => {
+                        setSelectedStatus(status);
+                        setStatusOpen(false);
+                      }}
+                      className={`w-full text-left px-4 py-2.5 hover:bg-gray-50 transition-colors ${
+                        selectedStatus === status ? "bg-blue-50 text-blue-600" : "text-gray-700"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span>{status}</span>
+                        {selectedStatus === status && (
+                          <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                  
+                  {selectedStatus !== "Status" && (
+                    <div className="border-t border-gray-100 mt-2 pt-2">
+                      <button
+                        onClick={() => {
+                          clearFilter('status');
+                          setStatusOpen(false);
+                        }}
+                        className="w-full text-left px-4 py-2.5 text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        Clear filter
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
+
+          {/* Schedule Interview Button */}
           <button 
             onClick={() => setIsFormOpen(true)}
-            className="cursor-pointer bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium py-2.5 px-6 rounded-full shadow-sm hover:shadow-md transition-all duration-200 transform hover:-translate-y-0.5"
+            className="cursor-pointer bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium py-2.5 px-6 rounded-full shadow-sm hover:shadow-md transition-all duration-200 transform hover:-translate-y-0.5 whitespace-nowrap"
           >
             Schedule Interview
           </button>
         </div>
       </div>
 
+      {/* Active Filters */}
+      {(selectedStatus !== "Status" || searchQuery) && (
+        <div className="flex flex-wrap items-center gap-2 p-3 bg-white rounded-xl border border-gray-200">
+          <span className="text-sm text-gray-600">Active filters:</span>
+          
+          {selectedStatus !== "Status" && (
+            <div className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm">
+              <span>Status: {selectedStatus}</span>
+              <button
+                onClick={() => clearFilter('status')}
+                className="ml-1 text-blue-500 hover:text-blue-700"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+          
+          {searchQuery && (
+            <div className="flex items-center gap-1 px-3 py-1.5 bg-gray-50 text-gray-700 rounded-lg text-sm">
+              <span>Search: "{searchQuery}"</span>
+              <button
+                onClick={() => clearFilter('search')}
+                className="ml-1 text-gray-500 hover:text-gray-700"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+          
+          {(selectedStatus !== "Status" || searchQuery) && (
+            <button
+              onClick={() => {
+                clearFilter('status');
+                clearFilter('search');
+              }}
+              className="ml-2 text-sm text-red-600 hover:text-red-700 hover:underline"
+            >
+              Clear all
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Results Count */}
       {interviewsList.length > 0 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-600">
-            {filteredInterviews.length > 0
-            ? <>Showing <span className="font-semibold">{indexOfFirstItem + 1}-{Math.min(indexOfLastItem, totalItems)}</span> of <span className="font-semibold">{totalItems}</span> interviews</>
-            : "No interviews found."}
-          </p>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+            <p className="text-sm text-gray-600">
+              {filteredInterviews.length > 0
+              ? <>Showing <span className="font-semibold">{indexOfFirstItem + 1}-{Math.min(indexOfLastItem, totalItems)}</span> of <span className="font-semibold">{totalItems}</span> interviews</>
+              : "No interviews found with current filters."}
+            </p>
+            
+            {selectedStatus !== "Status" && selectedStatus !== "All" && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">
+                  {filteredInterviews.length} {filteredInterviews.length === 1 ? 'interview' : 'interviews'} with status "{selectedStatus}"
+                </span>
+              </div>
+            )}
+          </div>
           
-          {/* Items per page selector - hidden on small screens */}
-          <div className="hidden sm:flex items-center space-x-2">
-            <span className="text-sm text-gray-600">Show:</span>
+          {/* Items per page selector */}
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-600 hidden sm:inline">Show:</span>
             <select
               value={itemsPerPage}
               onChange={(e) => handleItemsPerPageChange(e.target.value)}
@@ -398,7 +513,7 @@ export default function Interview() {
               <option value="50">50</option>
               <option value="100">100</option>
             </select>
-            <span className="text-sm text-gray-600">per page</span>
+            <span className="text-sm text-gray-600 hidden sm:inline">per page</span>
           </div>
         </div>
       )}
@@ -422,23 +537,6 @@ export default function Interview() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-3 bg-white rounded-xl border border-gray-200 shadow-sm">
-          {/* Mobile items per page selector */}
-          <div className="sm:hidden flex items-center space-x-2 w-full justify-center">
-            <span className="text-sm text-gray-600">Show:</span>
-            <select
-              value={itemsPerPage}
-              onChange={(e) => handleItemsPerPageChange(e.target.value)}
-              className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300"
-            >
-              <option value="5">5</option>
-              <option value="10">10</option>
-              <option value="25">25</option>
-              <option value="50">50</option>
-              <option value="100">100</option>
-            </select>
-            <span className="text-sm text-gray-600">per page</span>
-          </div>
-
           <div className="text-sm text-gray-600">
             Page <span className="font-semibold">{currentPage}</span> of <span className="font-semibold">{totalPages}</span>
           </div>
@@ -508,9 +606,9 @@ export default function Interview() {
             </button>
           </div>
 
-          {/* Page jump - hidden on small screens */}
-          <div className="hidden md:flex items-center space-x-2">
-            <span className="text-sm text-gray-600">Go to:</span>
+          {/* Page jump */}
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-600 hidden md:inline">Go to:</span>
             <input
               type="number"
               min="1"

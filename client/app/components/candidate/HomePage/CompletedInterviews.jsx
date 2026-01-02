@@ -55,7 +55,6 @@ export default function CompletedInterviewsPage() {
           interviews
             .sort(sortByDate)
         );
-        console.log('II',interviews);
         setLoading(false);
         }
         if(!res.ok){
