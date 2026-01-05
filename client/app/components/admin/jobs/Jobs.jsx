@@ -1,35 +1,29 @@
 'use client';
 
-import AddInterviewForm from "./AddInterviewForm";
-import InterviewTable from "./InterviewTable";
+import AddJobForm from "./AddJobForm";
+import JobTable from "./JobTable";
 import { ChevronDown, Search, X, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { successToast, errorToast } from "@/app/components/ui/toast";
 import { useSession } from "next-auth/react";
-import CancelInterviewModal from "./CancelInterviewModal";
-import InterviewDetailsModal from "./InterviewDetailsModal";
-import LivePreview from "./LivePreview";
-import { SocketProvider } from "@/app/providers/SocketProvider";
+import CloseJobModal from "./CloseJobModal";
+import JobDetailsModal from "./JobDetailsModal";
 
-export default function Interviews() {
+export default function Jobs() {
   const [selectedStatus, setSelectedStatus] = useState("Status");
   const [statusOpen, setStatusOpen] = useState(false);
-  const [interviewsList, setInterviewsList] = useState([]);
+  const [jobsList, setJobsList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const { data: session } = useSession();
   const [saving, setSaving] = useState(false);
-  const [selectedInterviewId, setSelectedInterviewId] = useState(null);
-  const [showCancelInterviewModal, setShowCancelInterviewModal] = useState(false);
-  const [interviewDetailsModalOpen, setInterviewDetailsModalOpen] = useState(false);
-  const [showRescheduleInterviewModalOpen, setShowRescheduleInterviewModalOpen] = useState(false);
-  const [showLivePreviewModal, setShowLivePreviewModal] = useState(false);
+  const [selectedJobId, setSelectedJobId] = useState(null);
+  const [showCloseJobModal, setShowCloseJobModal] = useState(false);
+  const [jobDetailsModalOpen, setJobDetailsModalOpen] = useState(false);
+  const [showEditJobDetailsModalOpen, setShowEditJobDetailsModalOpen] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [interviewDetails, setInterviewDetails] = useState(null);
-  const [interviewSessionToken, setInterviewSessionToken] = useState(null);
-  const [interviewStreamToken, setInterviewStreamToken] = useState(null);
-  const [interviewStreamUrl, setInterviewStreamUrl] = useState(null);
+  const [jobDetails, setJobDetails] = useState(null);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -39,29 +33,27 @@ export default function Interviews() {
   const formRef = useRef(null);
   const containerRef = useRef(null);
 
-  // Get unique statuses from interviews
-  const statusOptions = ["All", ...new Set(interviewsList.map(interview => interview.status).filter(Boolean))];
+  // Get unique statuses from jobs
+  const statusOptions = ["All", ...new Set(jobsList.map(job => job.jobStatus).filter(Boolean))];
 
-  // Filter interviews based on search and filters
-  const filteredInterviews = interviewsList.filter(interview => {
-    const matchesSearch = interview.candidate.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         interview.candidate.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         interview.candidate.email.toLowerCase().includes(searchQuery.toLowerCase());
+  // Filter jobs based on search and filters
+  const filteredJobs = jobsList.filter(job => {
+    const matchesSearch = job.jobPositionName.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = selectedStatus === "Status" || 
                          selectedStatus === "All" || 
-                         interview.status === selectedStatus;
+                         job.jobStatus === selectedStatus;
     
     return matchesSearch && matchesStatus;
   });
 
   // Pagination calculations
-  const totalItems = filteredInterviews.length;
+  const totalItems = filteredJobs.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   
   // Get current page items
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentInterviews = filteredInterviews.slice(indexOfFirstItem, indexOfLastItem);
+  const currentJobs = filteredJobs.slice(indexOfFirstItem, indexOfLastItem);
   
   // Generate page numbers for display
   const getPageNumbers = () => {
@@ -132,148 +124,142 @@ export default function Interviews() {
   useEffect(() => {
     if (!session?.user?.token) return;
 
-    fetchInterviews();
+    fetchJobs();
   }, [session?.user?.token]);
 
-  const fetchInterviews = async () => {
+  const fetchJobs = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/interviews/list`,
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/job/list`,
         {
           method: 'GET',
           headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`},
         }
       );
       if (!response.ok) {
-        errorToast('Failed to fetch interviews');
+        errorToast('Failed to fetch jobs');
         setLoading(false);
         return;
       } else {
         const data = await response.json();
-        setInterviewsList(data?.interviews);
+        setJobsList(data?.jobs);
         setLoading(false);
       }
     } catch (error) {
       console.log("error", error);
-      errorToast('Failed to fetch interviews');
+      errorToast('Failed to fetch jobs');
       setLoading(false);
     }
   };
 
   const handleSubmit = async (formData) => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/interview/schedule`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/job/create`, {
         method: 'POST',
         headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`},
-        body: JSON.stringify({jobId: formData.jobId, candidateId: formData.candidateId, datetime: formData.datetime, duration: formData.duration}),
+        body: JSON.stringify({jobPositionName: formData.jobPositionName, jobDescription: formData.jobDescription}),
       });
 
       const response = await res.json();
 
       if(!res.ok){
-        errorToast('Problem scheduling interview');
-        console.error(response?.error || 'Problem scheduling interview');
+        errorToast('Problem creating job');
+        console.error(response?.error || 'Problem creating job');
         setSaving(false);
         setIsFormOpen(false);
         return;
       }
       if(res?.ok){
-        successToast('Interview scheduled successfully');
+        successToast('Jobs scheduled successfully');
       }
     } catch (error) {
       console.log("error", error);
-      errorToast('Problem scheduling interview');
+      errorToast('Problem creating job');
     } finally {
-      fetchInterviews();
+      fetchJobs();
       setIsFormOpen(false);
       setSaving(false);
     }
   };
 
-  const handleCancelInterview = async () => {
+  const handleCloseJob = async () => {
+    console.log("reached: ",selectedJobId);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/interview/cancel`,
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/job/status`,
         {
           method: 'PUT',
           headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`},
-          body: JSON.stringify({ interviewId: selectedInterviewId })
+          body: JSON.stringify({ jobId: selectedJobId })
         }
       );
       if (response?.ok) {
-        successToast('Interview cancelled successfully');
+        successToast('Jobs status changed successfully');
       } else if (!response?.ok) {
-        errorToast(response?.data?.error || 'Failed to cancel interview');
+        errorToast(response?.data?.error || 'Failed to change job status');
       } else {
-        errorToast('Failed to cancel interview');
+        errorToast('Failed to change job status');
       }
     } catch (error) {
-      errorToast('Failed to cancel interview');
+      errorToast('Failed to change job status');
     }
     finally {
-      setShowCancelInterviewModal(false);
-      setSelectedInterviewId(null);
-      fetchInterviews();
+      setShowCloseJobModal(false);
+      setSelectedJobId(null);
+      fetchJobs();
     }
   };
 
-  const handleCancelInterviewClick = async (interviewId) => {
-    setSelectedInterviewId(interviewId);
-    setShowCancelInterviewModal(true);
+  const handleCloseJobClick = async (jobId) => {
+    setSelectedJobId(jobId);
+    setShowCloseJobModal(true);
   }
 
-  const handleInterviewDetailClick = async (interviewId) => {
-    setSelectedInterviewId(interviewId);
-    setInterviewDetailsModalOpen(true);
+  const handleJobDetailsClick = async (jobId) => {
+    setSelectedJobId(jobId);
+    setJobDetailsModalOpen(true);
   }
 
-  const handleRescheduleInterviewClick = async (interviewId) => {
-    setSelectedInterviewId(interviewId);
-    setShowRescheduleInterviewModalOpen(true);
+  const handleEditJobClick = async (jobId) => {
+    setSelectedJobId(jobId);
+    setShowEditJobDetailsModalOpen(true);
   }
 
-  const handleLivePreviewClick = async (interviewId) => {
-    setSelectedInterviewId(interviewId);
-    setShowLivePreviewModal(true);
-    await fetchInterviewDetails(interviewId);
-    await joinInterviewStream(interviewId);
-  }
-
-  const handleRescheduleInterview = async (formData) => {
-    // Get old interview details
-    const oldInterviewDetails = interviewsList.find(
-      (i) => i.interviewId === selectedInterviewId
+  const handleEditJob = async (formData) => {
+    // Get old job details
+    const oldJobDetails = jobsList.find(
+      (i) => i.jobId === selectedJobId
     );
 
-    if (!oldInterviewDetails) {
-      errorToast("Old interview details not found");
+    if (!oldJobDetails) {
+      errorToast("Old job details not found");
       return;
     }
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/interview/reschedule`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/job/update`, {
         method: "PUT",
         headers: {'Content-type':'application/json', 'Authorization':`Bearer ${session?.user?.token}`},
         body: JSON.stringify({
-          candidateId: formData.candidateId, interviewId: selectedInterviewId, newDatetime: formData.datetime, oldDatetime: oldInterviewDetails?.scheduledAt, duration: formData.duration}),
+          jobId: selectedJobId, jobPositionName: formData.jobPositionName, jobDescription: formData.jobDescription}),
       });
 
       const response = await res.json();
 
       if (!res.ok) {
-        errorToast("Problem rescheduling interview");
-        console.error(response?.error || "Problem rescheduling interview");
+        errorToast("Problem creating job");
+        console.error(response?.error || "Problem creating job");
         setSaving(false);
         setIsFormOpen(false);
         return;
       }
 
-      successToast("Interview rescheduled successfully");
+      successToast("Job created successfully");
 
     } catch (error) {
       console.error("Error:", error);
-      errorToast("Problem rescheduling interview");
+      errorToast("Problem creating job");
     } finally {
-      fetchInterviews();
+      fetchJobs();
       setIsFormOpen(false);
       setSaving(false);
     }
@@ -291,48 +277,28 @@ export default function Interviews() {
     setCurrentPage(1); // Reset to first page when changing items per page
   };
 
-  const fetchInterviewDetails = async(interviewId) => {
-    if(!interviewId || !session?.user) return ;
+  const fetchJobDetails = async(jobId) => {
+    if(!jobId || !session?.user) return ;
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/interview/${interviewId}`,
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/job/${jobId}`,
        {
           method: 'GET',
           headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`}
         }
       );
       if(!response.ok){
-        errorToast('Problem fetching interview details');
+        errorToast('Problem fetching job details');
         router.push('/');
       }
       if(response.ok){
         const data = await response.json();
-        const {interview, interviewSessionToken} = data.data;
-        console.log("Interview details fetched: ",interview);
-        setInterviewDetails(interview);
-        setInterviewSessionToken(interviewSessionToken);
+        const {job, jobSessionToken} = data.data;
+        console.log("Job details fetched: ",job);
+        setJobDetails(job);
       }
     }
     catch(err){
-      console.error("Error fetching interview details: ",err);
-    }
-  }
-
-  const joinInterviewStream = async(interviewId) => {
-    try{
-        const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/interview/stream`, {
-          method: "POST",
-          headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`},
-          body: JSON.stringify({
-            interviewId,
-          })
-        });
-      
-        const data = await res.json();
-        setInterviewStreamToken(data?.data?.token);
-        setInterviewStreamUrl(data?.data?.url);
-    }
-    catch(error){
-      console.error("Failed to join interview");
+      console.error("Error fetching job details: ",err);
     }
   }
 
@@ -341,8 +307,8 @@ export default function Interviews() {
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Interviews</h1>
-          <p className="text-gray-600 mt-1">Manage and track candidate interviews</p>
+          <h1 className="text-2xl font-bold text-gray-900">Jobs</h1>
+          <p className="text-gray-600 mt-1">Manage and track job positions</p>
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -354,7 +320,7 @@ export default function Interviews() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search interviews..."
+                  placeholder="Search jobs..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full sm:w-64 pl-10 pr-10 py-2.5 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition-all duration-200"
@@ -401,27 +367,24 @@ export default function Interviews() {
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <span>
-                          {status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()}
-                        </span>
+                        <span>{status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()}</span>
                         {selectedStatus === status && (
                           <div className="w-2 h-2 rounded-full bg-blue-500"></div>
                         )}
                       </div>
                     </button>
                   ))}
-                  
                 </div>
               )}
             </div>
           </div>
 
-          {/* Schedule Interview Button */}
+          {/* Create Jobs Button */}
           <button 
             onClick={() => setIsFormOpen(true)}
             className="cursor-pointer bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium py-2.5 px-6 rounded-full shadow-sm hover:shadow-md transition-all duration-200 transform hover:-translate-y-0.5 whitespace-nowrap"
           >
-            Schedule Interview
+            Post New Job
           </button>
         </div>
       </div>
@@ -470,19 +433,19 @@ export default function Interviews() {
       )} */}
 
       {/* Results Count */}
-      {interviewsList.length > 0 && (
+      {jobsList.length > 0 && (
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
             <p className="text-sm text-gray-600">
-              {filteredInterviews.length > 0
-              ? <>Showing <span className="font-semibold">{indexOfFirstItem + 1}-{Math.min(indexOfLastItem, totalItems)}</span> of <span className="font-semibold">{totalItems}</span> interviews</>
-              : "No interviews found with current filters."}
+              {filteredJobs.length > 0
+              ? <>Showing <span className="font-semibold">{indexOfFirstItem + 1}-{Math.min(indexOfLastItem, totalItems)}</span> of <span className="font-semibold">{totalItems}</span> jobs</>
+              : "No jobs found with current filters."}
             </p>
             
             {/* {selectedStatus !== "Status" && selectedStatus !== "All" && (
               <div className="flex items-center gap-2">
                 <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">
-                  {filteredInterviews.length} {filteredInterviews.length === 1 ? 'interview' : 'interviews'} with status "{selectedStatus}"
+                  {filteredJobs.length} {filteredJobs.length === 1 ? 'job' : 'jobs'} with status "{selectedStatus}"
                 </span>
               </div>
             )} */}
@@ -507,18 +470,17 @@ export default function Interviews() {
         </div>
       )}
 
-      {interviewsList && (
-        <div className={`bg-white overflow-hidden ${interviewsList.length>0 && 'rounded-xl border border-gray-200 shadow-sm'}`}>
-          <InterviewTable 
-            interviews={currentInterviews}
+      {jobsList && (
+        <div className={`bg-white overflow-hidden ${jobsList.length>0 && 'rounded-xl border border-gray-200 shadow-sm'}`}>
+          <JobTable 
+            jobs={currentJobs}
             loading={loading}
             error={error}
-            handleCancelInterviewClick={(interviewId) => handleCancelInterviewClick(interviewId)}
-            handleInterviewDetailClick={(interviewId) => handleInterviewDetailClick(interviewId)}
-            handleRescheduleInterviewClick={(interviewId) => handleRescheduleInterviewClick(interviewId)}
-            handleLivePreviewClick={(interviewId) => handleLivePreviewClick(interviewId)}
-            selectedInterviewId={selectedInterviewId}
-            setSelectedInterviewId={setSelectedInterviewId}
+            handleCloseJobClick={(jobId) => handleCloseJobClick(jobId)}
+            handleJobDetailsClick={(jobId) => handleJobDetailsClick(jobId)}
+            handleEditJobClick={(jobId) => handleEditJobClick(jobId)}
+            selectedJobId={selectedJobId}
+            setSelectedJobId={setSelectedJobId}
           />
         </div>
       )}
@@ -615,7 +577,7 @@ export default function Interviews() {
         </div>
       )}
 
-      <AddInterviewForm 
+      <AddJobForm 
         isOpen={isFormOpen} 
         onClose={() => setIsFormOpen(false)}
         onSubmit={handleSubmit}
@@ -623,157 +585,33 @@ export default function Interviews() {
         setSaving={setSaving}
       />
 
-      {showCancelInterviewModal && (
-        <CancelInterviewModal
-          showCancelInterviewModal={showCancelInterviewModal}
-          setShowCancelInterviewModal={setShowCancelInterviewModal}
-          onCancelInterview={() => handleCancelInterview()}
+      {showCloseJobModal && (
+        <CloseJobModal
+          showCloseJobModal={showCloseJobModal}
+          setShowCloseJobModal={setShowCloseJobModal}
+          onCloseJob={() => handleCloseJob()}
         />
       )}
 
-      {interviewDetailsModalOpen && 
-        <InterviewDetailsModal 
-          interviewDetailsModalOpen={interviewDetailsModalOpen}
-          setInterviewDetailsModalOpen={setInterviewDetailsModalOpen}
-          selectedInterviewId={selectedInterviewId}
-          interview={interviewsList.find(i => i.interviewId === selectedInterviewId)}
+      {jobDetailsModalOpen && 
+        <JobDetailsModal 
+          jobDetailsModalOpen={jobDetailsModalOpen}
+          setJobDetailsModalOpen={setJobDetailsModalOpen}
+          selectedJobId={selectedJobId}
+          jobDetails={jobsList.find(i => i.jobId === selectedJobId)}
         />
       }
 
-      {showRescheduleInterviewModalOpen && <AddInterviewForm 
-        isOpen={showRescheduleInterviewModalOpen} 
-        onClose={() => setShowRescheduleInterviewModalOpen(false)}
-        onSubmit={handleRescheduleInterview}
+      {setShowEditJobDetailsModalOpen && <AddJobForm 
+        isOpen={showEditJobDetailsModalOpen} 
+        onClose={() => setShowEditJobDetailsModalOpen(false)}
+        onSubmit={handleEditJob}
         saving={saving}
         setSaving={setSaving}
-        selectedInterviewId={selectedInterviewId}
-        isRescheduling='true'
-        interview={interviewsList.find(i => i.interviewId === selectedInterviewId)}
+        selectedJobId={selectedJobId}
+        isEditing='true'
+        job={jobsList.find(i => i.jobId === selectedJobId)}
       />}
-
-      
-      {showLivePreviewModal && (  
-      <>
-        {interviewSessionToken && session?.user && interviewStreamToken && interviewStreamUrl ? (
-          <SocketProvider
-            user={session?.user}
-            interviewId={selectedInterviewId}
-            interviewSessionToken={interviewSessionToken}
-          >
-            <LivePreview
-              user={session?.user}
-              interview={interviewDetails}
-              interviewSessionToken={interviewSessionToken}
-              interviewStreamToken={interviewStreamToken}
-              interviewStreamUrl={interviewStreamUrl}
-              onClose={() => {
-                setShowLivePreviewModal(false);
-                setInterviewDetails(null);
-                setInterviewSessionToken(null);
-                setSelectedInterviewId(null);
-                setInterviewSessionToken(null);
-                setInterviewStreamUrl(null);
-              }}
-            />
-          </SocketProvider>
-        ) : (
-          <div className="fixed inset-0 z-[1000]">
-            {/* Backdrop */}
-            <div
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
-              onClick={()=>{
-                setShowLivePreviewModal(false);
-                setInterviewDetails(null);
-                setInterviewSessionToken(null);
-                setSelectedInterviewId(null);
-                setInterviewSessionToken(null);
-                setInterviewStreamUrl(null);
-              }}
-            />
-              <div className="fixed inset-0 flex items-center justify-center overflow-y-auto p-2 sm:p-4">
-                <div
-                  className="pointer-events-auto relative w-full max-w-7xl rounded-2xl shadow-2xl bg-white dark:bg-gray-900 flex flex-col h-auto max-h-[95vh] p-8 sm:p-12"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {/* Header Skeleton */}
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 animate-pulse"></div>
-                      <div className="space-y-2">
-                        <div className="h-4 w-48 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 animate-pulse rounded"></div>
-                        <div className="h-3 w-32 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 animate-pulse rounded"></div>
-                      </div>
-                    </div>
-                    <div className="h-10 w-32 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 animate-pulse rounded-lg"></div>
-                  </div>
-            
-                  {/* Main Content Area */}
-                  <div className="flex-1 flex flex-col lg:flex-row gap-6">
-                    {/* Video Panel Skeleton */}
-                    <div className="flex-1 space-y-4">
-                      <div className="aspect-video rounded-xl bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 animate-pulse relative overflow-hidden">
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="text-center">
-                            <div className="inline-flex items-center gap-3">
-                              <div className="relative">
-                                <div className="w-5 h-5 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
-                              </div>
-                              <div className="text-gray-600 dark:text-gray-400 font-medium animate-pulse">
-                                Connecting to live interview...
-                              </div>
-                            </div>
-                            <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
-                              Please wait while we establish a secure connection
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-            
-                      {/* Controls Skeleton */}
-                      <div className="flex items-center justify-center gap-4 p-4">
-                        {[1, 2, 3, 4, 5].map((i) => (
-                          <div
-                            key={i}
-                            className="w-12 h-12 rounded-full bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 animate-pulse"
-                          ></div>
-                        ))}
-                      </div>
-                    </div>
-                      
-                    {/* Side Panel Skeleton */}
-                    <div className="lg:w-80 space-y-6">
-                      {/* Timer */}
-                      <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800">
-                        <div className="h-4 w-24 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 animate-pulse rounded mb-2"></div>
-                        <div className="h-8 w-32 bg-gradient-to-r from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700 animate-pulse rounded"></div>
-                      </div>
-                      
-                      {/* Question */}
-                      <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800">
-                        <div className="h-4 w-32 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 animate-pulse rounded mb-3"></div>
-                        <div className="space-y-2">
-                          <div className="h-3 w-full bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 animate-pulse rounded"></div>
-                          <div className="h-3 w-4/5 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 animate-pulse rounded"></div>
-                          <div className="h-3 w-3/4 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 animate-pulse rounded"></div>
-                        </div>
-                      </div>
-                      
-                      {/* Status */}
-                      <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800">
-                        <div className="h-4 w-28 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 animate-pulse rounded mb-3"></div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-gradient-to-r from-gray-200 to-gray-300 animate-pulse"></div>
-                          <div className="h-3 w-32 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 animate-pulse rounded"></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-          </div>
-        )}
-      </>
-      )}
 
     </div>
   );

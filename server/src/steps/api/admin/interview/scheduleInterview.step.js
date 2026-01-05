@@ -19,8 +19,8 @@ export const handler = async(req, {emit, logger}) => {
     try{
         logger.info('Processing schedule interview request', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
         const userId = await req?.user?.userId;
-        const {candidateId, datetime, duration} = await req.body;
-        const result = await AdminService.scheduleInterview({userId, candidateId, datetime, duration});
+        const {jobId, candidateId, datetime, duration} = await req.body;
+        const result = await AdminService.scheduleInterview({userId, jobId, candidateId, datetime, duration});
         if(!result){
           logger.error('Failed to schedule interview');
           return {

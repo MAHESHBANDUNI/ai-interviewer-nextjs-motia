@@ -10,6 +10,16 @@ import CustomCalendarModal from './CustomCalenderModal';
 import { useSession } from "next-auth/react";
 
 const schema = z.object({
+  job: z
+    .object({
+      jobId: z.string(),
+      jobPositionName: z.string()
+    })
+    .nullable()
+    .refine(val => val !== null, {
+      message: 'Job position is required',
+    }),
+
   candidate: z
     .object({
       candidateId: z.string(),
@@ -63,8 +73,14 @@ export default function AddInterviewForm({
   // Candidate search
   const [query, setQuery] = useState('');
   const [candidates, setCandidates] = useState([]);
+  const [activeJobPositions, setActiveJobPositions] = useState([]);
   const [selectedCandidate, setSelectedCandidate] = useState('');
   const [filteredCandidates, setFilterCandidates] = useState([]);
+  // Job search
+  const [jobQuery, setJobQuery] = useState('');
+  const [filteredJobs, setFilteredJobs] = useState([]);
+  const [selectedJob, setSelectedJob] = useState(null);
+
   const { data: session } = useSession();
 
   // Calendar
@@ -93,6 +109,7 @@ export default function AddInterviewForm({
 
     if (isOpen && !selectedInterviewId) {
       fetchCandidates();
+      fetchActiveJobPositions();
     }
   }, [isOpen, session?.user?.token]);
 
@@ -111,6 +128,30 @@ export default function AddInterviewForm({
     setFilterCandidates(filtered);
   }, [query, candidates]);
 
+useEffect(() => {
+  if (!activeJobPositions.length) {
+    setFilteredJobs([]);
+    return;
+  }
+
+  const filtered = activeJobPositions.filter((job) =>
+    job.jobPositionName.toLowerCase().includes(jobQuery.toLowerCase())
+  );
+
+  setFilteredJobs(filtered);
+}, [jobQuery, activeJobPositions]);
+
+const onJobQueryChange = (e) => {
+  const value = e.target.value;
+  setJobQuery(value);
+
+  if (
+    selectedJob &&
+    value !== selectedJob.jobPositionName
+  ) {
+    setSelectedJob(null);
+  }
+};
 
   useEffect(() => {
     if (!isRescheduling || !interview?.scheduledAt) return;
@@ -126,6 +167,10 @@ export default function AddInterviewForm({
       const minutes = prev.getMinutes().toString().padStart(2, "0");
       setSelectedTime(`${hours}:${minutes}`);
     }
+
+    // Job
+    setSelectedJob(interview.job);
+    setJobQuery(interview.job.jobPositionName);
 
     // Candidate
     const fullName = `${interview.candidate.firstName} ${interview.candidate.lastName}`;
@@ -147,6 +192,22 @@ export default function AddInterviewForm({
 
       const data = await response.json();
       setCandidates(data.candidates);
+    } catch (error) {
+      console.log("error", error);
+    }
+  };
+
+  const fetchActiveJobPositions = async () => {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/admin/job/list`, {
+        method: 'GET',
+        headers: {'Content-type':'application/json','Authorization':`Bearer ${session?.user?.token}`},
+      });
+
+      if (!response.ok) return;
+
+      const data = await response.json();
+      setActiveJobPositions(data?.jobs.filter((job) => job.jobStatus === 'OPEN'));
     } catch (error) {
       console.log("error", error);
     }
@@ -183,6 +244,7 @@ const handleDurationChange = (e) => {
 
 const validateAndBuildPayload = () => {
   const result = schema.safeParse({
+    job: selectedJob || null,
     candidate: selectedCandidate || null,
     date: selectedDate,
     time: selectedTime,
@@ -202,10 +264,11 @@ const validateAndBuildPayload = () => {
   setErrors({});
 
   const {
+    job,
     candidate,
     date,
     time,
-    duration: parsedDuration, // ✅ renamed
+    duration: parsedDuration,
   } = result.data;
 
   const [hour, minute] = time.split(':').map(Number);
@@ -213,6 +276,7 @@ const validateAndBuildPayload = () => {
   dt.setHours(hour, minute, 0, 0);
 
   return {
+    jobId: job.jobId, 
     candidateId: candidate.candidateId,
     datetime: dt.toISOString(),
     duration: parsedDuration,
@@ -299,6 +363,58 @@ const handleSubmit = async (e) => {
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+{/* Job search */}
+<div>
+  <label className="block text-sm font-medium text-gray-700">
+    Job Position
+  </label>
+
+  <input
+    value={
+      isRescheduling
+        ? interview?.job?.jobPositionName
+        : jobQuery
+    }
+    onChange={isRescheduling ? undefined : onJobQueryChange}
+    placeholder="Search job positions..."
+    className={`w-full p-2 border border-gray-300 rounded-lg mt-2 ${disabledStyles}`}
+    disabled={isRescheduling || saving}
+  />
+
+  {!isRescheduling &&
+    filteredJobs &&
+    !selectedJob &&
+    jobQuery && (
+      <div
+        className={`mt-2 rounded-lg max-h-36 overflow-y-auto ${
+          filteredJobs.length > 0 ? 'border' : ''
+        }`}
+      >
+        {filteredJobs.length === 0 ? (
+          <div className="p-2 text-sm text-gray-500">No results</div>
+        ) : (
+          filteredJobs.map((job) => (
+            <div
+              key={job.jobId}
+              onClick={() => {
+                setSelectedJob(job);
+                setJobQuery(job.jobPositionName);
+                setFilteredJobs([]);
+                clearError('job');
+              }}
+              className="p-2 cursor-pointer hover:bg-blue-50"
+            >
+              {job.jobPositionName}
+            </div>
+          ))
+        )}
+      </div>
+    )}
+
+  {errors.job && (
+    <p className="text-red-500 text-xs mt-1">{errors.job}</p>
+  )}
+</div>
 
           {/* Candidate search */}
           <div>

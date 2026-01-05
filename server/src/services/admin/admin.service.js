@@ -546,6 +546,12 @@ export const AdminService = {
               }
             }
           }
+        },
+        job: {
+          select: {
+            jobId: true,
+            jobPositionName: true
+          }
         }
       },
       orderBy: {
@@ -608,7 +614,7 @@ export const AdminService = {
       return {interview: interview, interviewSessionToken: interviewSessionToken};
   },
 
-  async scheduleInterview({datetime, duration, candidateId, userId}){
+  async scheduleInterview({jobId, datetime, duration, candidateId, userId}){
     await this.checkAdminAuth(userId);
     if( !candidateId || !datetime || !duration){
         throw new ApiError("Missing fields",400);
@@ -622,6 +628,7 @@ export const AdminService = {
 
     const interview = await prisma.interview.create({
       data:{
+        jobId: jobId,
         candidateId: candidateId,
         scheduledAt: datetime,
         durationMin: Number(duration),
@@ -801,5 +808,54 @@ export const AdminService = {
       token: jwt,
       url: LIVEKIT_URL
     };
+  },
+
+  async createJob({userId, jobPositionName, jobDescription}){
+    const admin = await this.checkAdminAuth(userId);
+    const newJob = await prisma.job.create({
+      data: {
+        jobPositionName: jobPositionName,
+        jobDescription: jobDescription,
+        jobStatus: 'OPEN'
+      }
+    })
+    return newJob;
+  },
+
+  async updateJob({userId, jobId, jobPositionName, jobDescription}){
+    const admin = await this.checkAdminAuth(userId);
+    const updatedJob = await prisma.job.update({
+      where: {
+        jobId
+      },
+      data: {
+        jobPositionName,
+        jobDescription,
+      }
+    })
+    return updatedJob;
+  },
+
+  async changeJobStatus({userId, jobId}){
+    const admin = await this.checkAdminAuth(userId);
+    const updatedJob = await prisma.job.update({
+       where: {
+        jobId
+      },
+      data: {
+        jobStatus: 'CLOSED',
+      }
+    })
+    return updatedJob;
+  },
+
+  async getAllJobs({userId}){
+    const admin = await this.checkAdminAuth(userId);
+    const jobs = await prisma.job.findMany({
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
+    return jobs;
   }
 }

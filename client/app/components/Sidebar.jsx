@@ -14,6 +14,7 @@ import {
   Calendar,
   CheckCircle,
   XCircle,
+  Briefcase
 } from "lucide-react"
 import { successToast, errorToast } from "@/app/components/ui/toast"
 import { useSession, signOut } from "next-auth/react"
@@ -22,11 +23,8 @@ import { useEffect, useRef, useState } from "react"
 const navItemsAdmin = [
   { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
   { name: "Candidates", href: "/admin/candidates", icon: User },
-  { 
-    name: "Interviews", 
-    href: "/admin/interview", 
-    icon: Laptop
-  }
+  { name: "Interviews", href: "/admin/interviews", icon: Laptop },
+  { name: 'Jobs', href: "/admin/jobs", icon: Briefcase}
 ]
 
 const navItemsCandidate = [

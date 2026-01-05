@@ -79,10 +79,23 @@ model ResumeProfile {
   jobArea           JobAreas? @relation(fields: [jobAreaId], references: [jobAreaId])
 }
 
+model Job {
+  jobId              String       @id @default(uuid())
+  jobPositionName    String
+  jobDescription     String?
+  jobStatus          JobStatus    @default(OPEN)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  interviews         Interview[]
+
+  @@map("jobs")
+}
+
 model Interview {
   interviewId        String              @id @default(uuid())
   candidateId        String
   adminId            String
+  jobId              String?
   scheduledAt        DateTime
   durationMin        Int
   status             InterviewStatus     @default(PENDING)
@@ -92,6 +105,7 @@ model Interview {
   completionMin      Float?
   attemptedAt        DateTime?
   admin              Admin               @relation(fields: [adminId], references: [adminId])
+  job                Job?                 @relation(fields: [jobId], references: [jobId])
   candidate          Candidate           @relation(fields: [candidateId], references: [candidateId])
   interviewProfile   InterviewProfile?
   questions          InterviewQuestion[]
@@ -142,4 +156,9 @@ enum InterviewStatus {
   ONGOING
   CANCELLED
   RESCHEDULED
+}
+
+enum JobStatus {
+  OPEN
+  CLOSED
 }
