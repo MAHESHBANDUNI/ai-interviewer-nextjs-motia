@@ -746,6 +746,12 @@ RULES
               include:{
                 resumeProfile: true,
               }
+            },
+            job: {
+              select: {
+                jobPositionName: true,
+                jobDescription: true
+              }
             }
           }
         });
@@ -803,13 +809,20 @@ ${updateInterviewStatus?.candidate?.firstName} ${updateInterviewStatus?.candidat
 Resume Profile:
 ${JSON.stringify(updateInterviewStatus?.candidate?.resumeProfile, null, 2)}
 
+Job Description:
+${JSON.stringify(updateInterviewStatus?.job, null, 2)}
+
 Total Interview Duration:
 ${updateInterviewStatus?.durationMin} minutes
 
+Interview Basis (MANDATORY):
+- The interview MUST be based on BOTH the candidate’s resume AND the job description.
+- Every question must evaluate how the candidate’s background, skills, and experience align with the role requirements.
+
 Required Coverage Areas (ALL must be completed):
-1. Skills
-2. Work Experience
-3. Personality
+1. Skills (role-relevant)
+2. Work Experience (resume experience mapped to job expectations)
+3. Personality (fit for the role, team, and work environment)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 MANDATORY INTERVIEW TERMINATION
@@ -819,7 +832,6 @@ You MUST immediately call the function 'end_interview_session' (and do nothing e
 after a speaker turn has fully completed when ANY of the following occur:
 
 1. The candidate explicitly asks to stop, end, quit, or leave the interview.
-2. Silence escalation reaches Stage 3.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 INTERVIEW FLOW & COMPLETION
@@ -843,13 +855,15 @@ QUESTION CONSTRAINTS
 
 - Ask EXACTLY ONE question per turn
 - Each question must be 1–2 concise sentences
-- Every question MUST be grounded in the candidate’s resume
+- Every question MUST be grounded in the candidate’s resume AND directly relevant to the job description
+- Questions should explicitly assess suitability for the role’s responsibilities, skills, or expectations
+- NEVER ask resume-only questions that are unrelated to the job
 - NEVER repeat, rephrase, or revisit a previous question
 - NEVER reference interview structure, sections, evaluation, or difficulty out loud
 
 Adaptive Challenge:
-- Strong answers → increase complexity
-- Weak or unclear answers → maintain or slightly reduce complexity
+- Strong answers → increase complexity and job-specific depth
+- Weak or unclear answers → maintain or slightly reduce complexity while staying job-relevant
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 SPEECH & DELIVERY RULES
@@ -992,40 +1006,69 @@ Only after that may you proceed with the first interview question, following all
 
     async generateCandidateInterviewProfile({ candidateId, interviewId, interviewConversation, logger }){
       const interviewQuestions = await this.evaluateAnswer(candidateId, interviewId, interviewConversation, logger);
-        const candidate = await prisma.candidate.findFirst({
+        const interviewDetails = await prisma.interview.findFirst({
           where: {
             candidateId: candidateId,
-            interviews: {
-              some: {
-                interviewId
-              }
-            }
+            interviewId: interviewId
           },
           include: {
-            resumeProfile: true,
-            interviews: {
-              where: {
-                interviewId
-              },
+            questions: {
+              select:{
+                interviewQuestionId: true,
+                content: true,
+                candidateAnswer: true,
+                aiFeedback: true,
+                correct: true,
+                difficultyLevel: true
+              }
+            },
+            candidate: {
               include: {
-                questions: true
+                resumeProfile: true
+              }
+            },
+            job :{
+              select: {
+                jobPositionName: true,
+                jobDescription: true
               }
             }
           }
         })
+        // const candidate = await prisma.candidate.findFirst({
+        //   where: {
+        //     candidateId: candidateId,
+        //     interviews: {
+        //       some: {
+        //         interviewId
+        //       }
+        //     }
+        //   },
+        //   include: {
+        //     resumeProfile: true,
+        //     interviews: {
+        //       where: {
+        //         interviewId
+        //       },
+        //       include: {
+        //         questions: true
+        //       }
+        //     }
+        //   }
+        // })
 
-        logger.info("Questions: ",candidate?.interviews[0]?.questions);
+        logger.info("Interview details: ",interviewDetails);
 
         const structuredInterviewData = {
           interviewMeta: {
             candidate: {
-              firstName: candidate?.firstName,
-              lastName: candidate?.lastName,
+              firstName: interviewDetails?.candidate?.firstName,
+              lastName: interviewDetails?.candidate?.lastName,
             },
-            scheduledAt: candidate?.interviews?.scheduledAt,
-            durationMin: candidate?.interviews?.durationMin,
+            scheduledAt: interviewDetails?.scheduledAt,
+            durationMin: interviewDetails?.durationMin,
           },
-          QnA: candidate?.interviews[0]?.questions?.map((q) => ({
+          QnA: interviewDetails?.questions?.map((q) => ({
             question: q?.content,
             difficulty: q?.difficultyLevel,
             answer: q?.candidateAnswer,
@@ -1034,32 +1077,95 @@ Only after that may you proceed with the first interview question, following all
           })),
         };
       
-        const prompt = `
-You are an expert senior hiring evaluator with broad cross-industry assessment capabilities. Your task is to objectively evaluate the candidate based on their resume profile and interview Q&A performance, regardless of professional field or specialization.
-  
+const prompt = `
+You are an expert senior hiring evaluator with broad cross-industry assessment capabilities.
+Your task is to objectively evaluate the candidate based on their resume profile,
+job description, and interview Q&A performance.
+
+You are NOT the interviewer.
+You are producing a final hiring-oriented evaluation.
+
 ========================================
-RESUME PROFILE
+INPUT DATA
 ========================================
-${JSON.stringify(candidate.resumeProfile, null, 2)}
-  
-========================================
-INTERVIEW Q/A
-========================================
+
+Resume Profile:
+${JSON.stringify(interviewDetails?.candidate?.resumeProfile, null, 2)}
+
+Job Description (MANDATORY REFERENCE):
+${JSON.stringify(interviewDetails?.job, null, 2)}
+
+Interview Q/A (Structured):
 ${JSON.stringify(structuredInterviewData, null, 2)}
-  
+
+========================================
+EVALUATION SCOPE (STRICT)
+========================================
+ONLY consider interview-related questions and answers.
+
+INCLUDE:
+- Technical questions
+- Behavioral questions
+- Experience-based questions
+- Scenario or problem-solving questions
+- Role, skill, or responsibility assessments
+
+EXCLUDE ENTIRELY:
+- Greetings or small talk
+- Clarifications or follow-ups
+- Conversational or social exchanges
+- Meta discussion about the interview
+- Instructions or acknowledgments
+
+Excluded items MUST NOT affect scoring, analytics, or conclusions.
+
+========================================
+CORE EVALUATION PRINCIPLES (ENFORCED)
+========================================
+
+ROLE-FIT SCORING DIMENSIONS (IMPLICIT):
+Internally assess:
+- Alignment with job-required skills
+- Match to role responsibilities
+- Seniority and ownership expectations
+- Practical applicability to the role
+
+JD MUST-COVER SKILL ENFORCEMENT:
+- If the job description specifies REQUIRED skills or responsibilities,
+  failure to demonstrate them in relevant answers MUST negatively impact:
+  performanceScore, domainFit, weaknesses, and recommendedRoles.
+
+RESUME–ANSWER CONSISTENCY CHECK:
+- If interview answers contradict, exaggerate, or are unsupported by the resume:
+  → Penalize performanceScore
+  → Reflect in weaknesses
+  → Reduce role recommendations accordingly
+- Do NOT infer unstated experience.
+
+DIFFICULTY NORMALIZATION BY JOB SENIORITY:
+- Interpret question difficulty relative to the job’s seniority level.
+- Answers acceptable for a lower level but insufficient for this role
+  MUST be scored lower and reflected in analytics and weaknesses.
+
 ========================================
 PERFORMANCE SCORING CRITERIA (0–100)
 ========================================
-PerformanceScore must be determined by the following weighted evaluation model:
-- Accuracy & Reliability of Responses (0–30): correctness and factual integrity.
-- Depth of Domain Knowledge (0–25): conceptual understanding and reasoning depth.
-- Problem-Solving & Decision-Making Approach (0–15): structured logical thinking and ability to resolve challenges.
-- Communication Clarity (0–10): ability to express ideas clearly and professionally.
-- Practical Experience (0–10): real-world application within their domain.
-- Confidence & Professional Composure (0–5): self-assurance and calm reasoning.
-- Learning & Adaptability (0–5): ability to grow, reflect, and incorporate feedback.
-- Consider only the interview related questions and answer for the including in the total questions and correct answer, do not consider conversational questions and answers
-  
+performanceScore MUST be computed holistically using the model below,
+adjusted for job relevance and seniority expectations:
+
+- Accuracy & Reliability of Responses (0–30)
+- Depth of Domain Knowledge (0–25)
+- Problem-Solving & Decision-Making (0–15)
+- Communication Clarity (0–10)
+- Practical Experience (0–10)
+- Confidence & Professional Composure (0–5)
+- Learning & Adaptability (0–5)
+
+Scores MUST reflect:
+- Job relevance over generic correctness
+- Seniority-appropriate depth
+- Resume consistency
+
 ========================================
 OUTPUT STRICT JSON IN THIS FORMAT
 ========================================
@@ -1075,17 +1181,21 @@ OUTPUT STRICT JSON IN THIS FORMAT
     "averageDifficulty": Float
   }
 }
-  
+
 ========================================
-RULES
+OUTPUT RULES (NON-NEGOTIABLE)
 ========================================
-- Output JSON only.
-- No explanation or backticks.
-- Do not add or modify fields.
-- If any data is missing → return null.
-- Return only 2–3 recommended roles.
-- Strengths and weaknesses must contain 2–4 words each.
-- The output must be strictly valid JSON.
+- Output JSON ONLY
+- No explanations, markdown, or backticks
+- Do NOT add, remove, or rename fields
+- If any required data is missing → return null
+- Return ONLY 2–3 recommended roles
+- Strengths and weaknesses:
+  → Each entry must be 2–4 words
+  → Must reflect job and seniority alignment
+- Analytics.averageDifficulty must reflect
+  difficulty normalized to job seniority
+- Output MUST be strictly valid, parseable JSON
 `;
   
         const result = await geminiModel.generateContent(prompt);
@@ -1124,13 +1234,27 @@ async evaluateAnswer(
   logger
 ) {
   try {
-    // 1️⃣ Fetch candidate
-    const candidate = await prisma.candidate.findFirst({
-      where: { candidateId },
-      include: { resumeProfile: true }
-    });
+    if (!interviewConversation?.length) return null;
 
-    if (!candidate || !interviewConversation?.length) return null;
+    const interviewDetails = await prisma.interview.findFirst({
+      where: {
+        candidateId: candidateId,
+        interviewId: interviewId,
+      },
+      include:{
+        candidate:{
+          include:{
+            resumeProfile: true,
+          }
+        },
+        job: {
+          select: {
+            jobPositionName: true,
+            jobDescription: true
+          }
+        }
+      }
+    });
 
     // 2️⃣ Build QA pairs
     const qaPairs = await this.buildQuestionAnswerPairs(interviewConversation);
@@ -1154,7 +1278,10 @@ INPUT DATA
 ========================================
 
 Resume Extract (may be empty):
-${JSON.stringify(candidate?.resumeProfile, null, 2)}
+${JSON.stringify(interviewDetails?.candidate?.resumeProfile, null, 2)}
+
+Job Description (MANDATORY REFERENCE):
+${JSON.stringify(interviewDetails?.job, null, 2)}
 
 Interview Question–Answer Pairs:
 ${JSON.stringify(qaPairs, null, 2)}
@@ -1185,28 +1312,59 @@ If a question–answer pair is NOT interview-related:
 → Do NOT include it in the returned JSON array
 
 ========================================
-EVALUATION INSTRUCTIONS
+EVALUATION INSTRUCTIONS (ENHANCED)
 ========================================
 Evaluate EACH ELIGIBLE interview question–answer pair independently.
 
+Assess each answer using ALL of the following internal dimensions
+(do NOT expose them directly in output):
+
+ROLE-FIT DIMENSIONS (IMPLICIT):
+- Skill alignment with job description
+- Responsibility and ownership alignment
+- Seniority and scope expectations
+- Practical applicability to the role
+
+JD MUST-COVER VALIDATION:
+- If a question targets a REQUIRED job skill or responsibility,
+  the answer MUST explicitly demonstrate it.
+- Failure to demonstrate a required JD skill results in correct = false.
+
+RESUME CONSISTENCY CHECK:
+- If the answer contradicts, exaggerates, or is unsupported by the resume,
+  mark correct = false.
+- Do NOT assume unstated experience.
+
+DIFFICULTY NORMALIZATION:
+- Interpret difficultyLevel (1–5) relative to the job’s seniority.
+- An answer acceptable for a lower level but insufficient for this role
+  must be marked incorrect.
+
 Assess each answer based ONLY on provided input:
 - Relevance to the interview question
+- Alignment with job description expectations
+- Consistency with resume claims
 - Technical or conceptual correctness
-- Level of detail relative to difficulty
-- Alignment with industry expectations
+- Depth appropriate to role seniority
 
 Do NOT infer unstated experience.
 Do NOT assume intent.
 Do NOT rewrite or improve the candidate’s answer.
 
 ========================================
-CORRECTNESS CRITERIA
+CORRECTNESS CRITERIA (FINAL)
 ========================================
 correct = true
-→ Answer is relevant and at least partially correct
+→ Answer is relevant, at least partially correct,
+demonstrates required JD skills (if applicable),
+aligns with role seniority,
+AND does not conflict with the resume.
 
 correct = false
-→ Answer is incorrect, irrelevant, evasive, or lacks required detail
+→ Answer is incorrect, irrelevant, too generic for the role,
+misses required JD skills,
+lacks depth for the job level,
+OR conflicts with resume information.
 
 ========================================
 AI FEEDBACK GUIDELINES
@@ -1214,19 +1372,21 @@ AI FEEDBACK GUIDELINES
 aiFeedback represents an evaluator’s assessment note.
 
 It MUST:
-- Sound like professional evaluation feedback
+- Sound like professional evaluator feedback
 - Be neutral and corrective
 - Be ONE sentence only
 - Be 6–8 words maximum
-- State what was missing, unclear, or insufficient
-- Avoid praise or encouragement
-- Avoid vague wording
+- Reflect ONE primary deficiency only
+- Reference role fit, JD skill gaps, seniority mismatch,
+  or resume inconsistency when applicable
+- Avoid praise, encouragement, or vague language
 
 Acceptable feedback examples:
-- "Lacks clarity on role and responsibilities."
-- "Did not address the question directly."
-- "Missing specific examples and outcomes."
-- "Response too vague for stated experience."
+- "Missing required skills outlined in role."
+- "Too shallow for expected seniority level."
+- "Experience claim not supported by resume."
+- "Does not align with role responsibilities."
+- "Generic response for this position."
 
 Unacceptable feedback examples:
 - "Good answer"

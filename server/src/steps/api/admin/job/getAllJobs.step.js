@@ -19,7 +19,8 @@ export const handler = async(req, {emit, logger}) => {
     try{
         logger.info('Processing get all jobs positions request', { appName: process.env.APP_NAME || 'AI-Interviewer', timestamp: new Date().toISOString() });
         const userId = await req?.user?.userId;
-        const result = await AdminService.getAllJobs({userId});
+        const { status } = req?.queryParams;
+        const result = await AdminService.getAllJobs({userId, status});
         if(!result){
           logger.error('Failed to get all jobs position job');
           return {

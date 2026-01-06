@@ -2,7 +2,7 @@
 
 import AddCandidateForm from "./AddCandidateForm";
 import CandidateTable from "./CandidateTable";
-import { ChevronDown, Search, X, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { ChevronDown, Search, X, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, User2 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { successToast, errorToast } from "@/app/components/ui/toast";
 import { useSession } from "next-auth/react";
@@ -314,7 +314,7 @@ export default function Candidates() {
           <p className="text-gray-600 mt-1">Manage and track candidate applications</p>
         </div>
 
-        <div className="flex flex-col gap-2 lg:flex-row">
+        {candidatesList.length>0 && <div className="flex flex-col gap-2 lg:flex-row">
           <div className="relative w-full lg:w-auto">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -335,13 +335,13 @@ export default function Candidates() {
               )}
             </div>
           </div>
-          {candidatesList.length>0 && <button 
+          <button 
             onClick={() => setIsFormOpen(true)}
             className="cursor-pointer bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium py-2.5 px-6 rounded-full shadow-sm hover:shadow-md transition-all duration-200 transform hover:-translate-y-0.5"
           >
             Add Candidate
-          </button>}
-        </div>
+          </button>
+        </div>}
       </div>
 
       {/* Results Count */}
@@ -372,8 +372,38 @@ export default function Candidates() {
         </div>
       )}
 
-      {candidatesList && (
-        <div className={`bg-white overflow-hidden ${candidatesList.length>0 && 'rounded-xl border border-gray-200 shadow-sm'}`}>
+      {loading &&
+      <div className="bg-white overflow-hidden rounded-xl border border-gray-200 shadow-sm">
+        <div className="flex flex-col items-center justify-center py-20 space-y-6">
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-blue-100 rounded-full"></div>
+            <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin absolute top-0 left-0"></div>
+          </div>
+          <div className="text-center space-y-2">
+            <p className="text-lg font-semibold text-gray-900 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+              Loading Candidates
+            </p>
+            <p className="text-sm text-gray-500">Preparing your candidate dashboard</p>
+          </div>
+        </div>
+      </div>
+      }
+
+      {!loading && currentCandidates.length === 0 && 
+        <div className="bg-white overflow-hidden rounded-xl border border-gray-200 shadow-sm">
+           <div className="flex flex-col items-center justify-center py-20 px-6 text-center bg-gradient-to-br from-gray-50/80 to-blue-50/80 backdrop-blur-sm rounded-2xl border border-gray-200/60">
+             <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-purple-100 rounded-3xl flex items-center justify-center mb-6 shadow-lg shadow-blue-200/50">
+               <User2 className="w-12 h-12 text-blue-600/80" />
+             </div>
+             <h3 className="text-2xl font-bold text-gray-900 mb-3 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+               No Candidates found
+             </h3>
+           </div>
+        </div>
+      }
+
+      {!loading && currentCandidates.length>0 && (
+        <div className={`bg-white overflow-hidden ${currentCandidates.length>0 && 'rounded-xl border border-gray-200 shadow-sm'}`}>
           <CandidateTable 
             candidates={currentCandidates}
             loading={loading}

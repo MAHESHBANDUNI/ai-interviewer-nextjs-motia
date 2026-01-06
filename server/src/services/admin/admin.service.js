@@ -849,13 +849,40 @@ export const AdminService = {
     return updatedJob;
   },
 
-  async getAllJobs({userId}){
-    const admin = await this.checkAdminAuth(userId);
+  async getAllJobs({ userId, status }) {
+    await this.checkAdminAuth(userId);
+
     const jobs = await prisma.job.findMany({
+      where: {
+        ...(status && { jobStatus: status }),
+      },
       orderBy: {
-        createdAt: 'desc'
-      }
-    })
-    return jobs;
+        createdAt: 'desc',
+      },
+      include: {
+        _count: {
+          select: {
+            interviews: {
+              where: {
+                status: {
+                  not: 'CANCELLED',
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if(!status){
+      return jobs.map(({ _count, ...job }) => ({
+        ...job,
+        activeCandidatesCount: _count.interviews,
+      }));
+    }
+    return jobs.map(job => ({
+      jobId: job.jobId,
+      jobPositionName: job.jobPositionName,
+    }));
   }
 }

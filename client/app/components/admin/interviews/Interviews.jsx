@@ -2,7 +2,7 @@
 
 import AddInterviewForm from "./AddInterviewForm";
 import InterviewTable from "./InterviewTable";
-import { ChevronDown, Search, X, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter } from "lucide-react";
+import { ChevronDown, Search, X, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Filter, User2 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { successToast, errorToast } from "@/app/components/ui/toast";
 import { useSession } from "next-auth/react";
@@ -345,7 +345,7 @@ export default function Interviews() {
           <p className="text-gray-600 mt-1">Manage and track candidate interviews</p>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        {interviewsList.length>0 && <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           {/* Search and Filter Bar */}
           <div className="flex flex-col sm:flex-row gap-3">
             {/* Search Input */}
@@ -423,7 +423,7 @@ export default function Interviews() {
           >
             Schedule Interview
           </button>
-        </div>
+        </div>}
       </div>
 
       {/* Active Filters */}
@@ -507,8 +507,38 @@ export default function Interviews() {
         </div>
       )}
 
-      {interviewsList && (
-        <div className={`bg-white overflow-hidden ${interviewsList.length>0 && 'rounded-xl border border-gray-200 shadow-sm'}`}>
+      {loading &&
+      <div className="bg-white overflow-hidden rounded-xl border border-gray-200 shadow-sm">
+        <div className="flex flex-col items-center justify-center py-20 space-y-6">
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-blue-100 rounded-full"></div>
+            <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin absolute top-0 left-0"></div>
+          </div>
+          <div className="text-center space-y-2">
+            <p className="text-lg font-semibold text-gray-900 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+              Loading Interviews
+            </p>
+            <p className="text-sm text-gray-500">Preparing your interview dashboard</p>
+          </div>
+        </div>
+      </div>
+      }
+
+      {!loading && currentInterviews.length === 0 && 
+        <div className="bg-white overflow-hidden rounded-xl border border-gray-200 shadow-sm">
+           <div className="flex flex-col items-center justify-center py-20 px-6 text-center bg-gradient-to-br from-gray-50/80 to-blue-50/80 backdrop-blur-sm rounded-2xl border border-gray-200/60">
+             <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-purple-100 rounded-3xl flex items-center justify-center mb-6 shadow-lg shadow-blue-200/50">
+               <User2 className="w-12 h-12 text-blue-600/80" />
+             </div>
+             <h3 className="text-2xl font-bold text-gray-900 mb-3 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+               No Interviews found
+             </h3>
+           </div>
+        </div>
+      }
+
+      {!loading && currentInterviews.length>0 && (
+        <div className={`bg-white overflow-hidden ${currentInterviews.length>0 && 'rounded-xl border border-gray-200 shadow-sm'}`}>
           <InterviewTable 
             interviews={currentInterviews}
             loading={loading}

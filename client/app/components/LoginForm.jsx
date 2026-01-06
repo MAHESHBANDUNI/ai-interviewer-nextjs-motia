@@ -11,7 +11,7 @@ export default function LoginForm() {
   const [error, setError] = useState("")
   const [animate, setAnimate] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showPassword, setShowPassword] = useState(false); // <-- added
+  const [showPassword, setShowPassword] = useState(false);
   const searchParams = useSearchParams();
 
   useEffect(() => {

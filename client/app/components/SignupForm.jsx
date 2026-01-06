@@ -13,7 +13,7 @@ export default function SignupForm() {
   const [error, setError] = useState("")
   const [animate, setAnimate] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showPassword, setShowPassword] = useState(false); // 👈 added
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     setAnimate(true)
@@ -30,7 +30,7 @@ export default function SignupForm() {
     setError("");
 
     try{
-      const res = await fetch("${process.env.NEXT_PUBLIC_SERVER_URL}/api/auth/signup", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/auth/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, firstName, lastName, phone }),

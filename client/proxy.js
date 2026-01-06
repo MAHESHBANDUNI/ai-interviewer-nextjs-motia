@@ -22,7 +22,6 @@ const ROLE_CONFIG = {
 // Public routes
 const PUBLIC_ROUTES = [
   "/auth/signin",
-  "/auth/signup",
   "/api/public",
   "/api/auth",
   "/api/inngest"

@@ -145,7 +145,7 @@ export default function JobTable({ jobs, loading, error, handleCloseJobClick, ha
                           {/* <div className="w-8 h-8 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center border border-gray-200/50">
                             <Clock className="w-3.5 h-3.5 text-gray-500" />
                           </div> */}
-                          <span className='text-base text-gray-700 font-medium'>9</span>
+                          <span className='text-base text-gray-700 font-medium'>{job.activeCandidatesCount}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
