@@ -67,6 +67,7 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }
   const roomRef = useRef(null);
   const micTrackRef = useRef(null);
   const assistantAudioTrackRef = useRef(null);
+  const silenceCycleActiveRef = useRef(false);
   const [interviewStreamToken, setInterviewStreamToken] = useState(null);
   const [interviewStreamUrl, setInterviewStreamUrl] = useState(null);
   
@@ -417,24 +418,24 @@ const silenceStateRef = useRef({
     vapi.on("message", (message) => {
       if (message.type !== "speech-update") return;
     
-      // USER STARTED SPEAKING → cancel silence
+      // User starts speaking → silence cycle ends
       if (message.status === "started" && message.role === "user") {
+        silenceCycleActiveRef.current = false;
         resetSilenceMonitor();
         return;
       }
     
-      // ASSISTANT FINISHED SPEAKING
+      // Assistant finished speaking
       if (message.status === "stopped" && message.role === "assistant") {
         const intent = assistantIntentRef.current;
       
-        if (intent === "question") {
-          // ONLY real questions start silence monitoring
-          resetSilenceMonitor(); // safety
+        // ONLY start silence ONCE after a real question
+        if (intent === "question" && !silenceCycleActiveRef.current) {
+          silenceCycleActiveRef.current = true;
+          resetSilenceMonitor();
           startSilenceMonitor();
         }
       
-        // IMPORTANT: reset intent ONLY AFTER handling
-        assistantIntentRef.current = "question";
       }
     });
 
@@ -695,6 +696,9 @@ const handleSubmit = async () => {
 
     vapiRef.current.stop();
   }
+
+  silenceCycleActiveRef.current = false;
+  resetSilenceMonitor();
 
   vapiRef.current = null;
   vapiConnectedRef.current = false;
