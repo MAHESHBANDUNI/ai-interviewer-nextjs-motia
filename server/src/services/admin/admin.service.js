@@ -242,7 +242,7 @@ export const AdminService = {
       }
     });
     if(candidates.length < 1){
-      throw new ApiError(400, 'Candidate not found');
+      return [];
     }
     return candidates;
   },
@@ -316,13 +316,17 @@ export const AdminService = {
               select:{
                 candidateId: true,
                 firstName: true,
-                lastName: true
+                lastName: true,
+                resumeProfile: {
+                  select:{
+                    profileTitle: true
+                  }
+                }
               }
             },
             interviewProfile: {
               select:{
                 performanceScore: true,
-                analytics: true,
                 recommendedRoles: true,
                 strengths: true,
                 weaknesses: true
@@ -333,15 +337,13 @@ export const AdminService = {
                 content: true,
                 candidateAnswer: true,
                 aiFeedback: true,
-                difficultyLevel: true,
-                correct: true
               }
             },
-            admin: {
-                select:{
-                    firstName: true,
-                    lastName: true
-                }
+            job: {
+              select: {
+                jobPositionName: true,
+                jobDescription: true
+              }
             }
         },
         orderBy: {
@@ -350,7 +352,7 @@ export const AdminService = {
     })
 
     if(!interviews || interviews.length < 1){
-      throw new ApiError('Candidate interviews profile not found.',404)
+      return [];
     }
     return interviews;
   },
@@ -559,7 +561,7 @@ export const AdminService = {
       }
     });
     if(interviews.length < 1){
-      throw new ApiError('No interview found.',404)
+      return [];
     }
     return interviews;
   },
@@ -598,11 +600,8 @@ export const AdminService = {
               }
             }
           },
-          admin: {
-            select:{
-              firstName: true,
-              lastName: true
-            }
+          job: {
+            jobPositionName: true
           }
         }
       });
@@ -873,6 +872,10 @@ export const AdminService = {
         },
       },
     });
+
+    if(jobs.length < 1){
+      return [];
+    }
 
     if(!status){
       return jobs.map(({ _count, ...job }) => ({

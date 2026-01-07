@@ -24,6 +24,7 @@ const cardVariants = {
 }
 
 export default function InterviewsPage() {
+    const [loading, setLoading] = useState(false);
     const { data: session } = useSession();
     const router = useRouter();
     const [stats, setStats] = useState({
@@ -41,6 +42,7 @@ export default function InterviewsPage() {
     
 
     const fetchInterviewAnalytics = async() => {
+      setLoading(true);
         try{
             const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/candidate/interviews/analytics`,{
                 method: 'GET',
@@ -61,6 +63,9 @@ export default function InterviewsPage() {
         }
         catch(error){
             console.error('Error fetching analytics',error);
+        }
+        finally{
+          setLoading(false);
         }
     }
 
@@ -112,7 +117,7 @@ export default function InterviewsPage() {
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1 min-w-0">
                         <p className="text-slate-500 text-sm font-medium mb-2 truncate">Total Interviews</p>
-                        <h3 className="text-2xl sm:text-3xl font-bold text-slate-800">{stats.total || '--'}</h3>
+                        <h3 className="text-2xl sm:text-3xl font-bold text-slate-800">{loading ? '--' : stats.total > 0 ? stats.total : 0 }</h3>
                       </div>
                       <div className="p-2 sm:p-3 bg-orange-500/10 rounded-xl flex-shrink-0 ml-3">
                         <Laptop className="text-orange-600 w-5 h-5 sm:w-6 sm:h-6" />
@@ -137,7 +142,7 @@ export default function InterviewsPage() {
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1 min-w-0">
                         <p className="text-slate-500 text-sm font-medium mb-2 truncate">Upcoming</p>
-                        <h3 className="text-2xl sm:text-3xl font-bold text-slate-800">{stats.upcoming || '--'}</h3>
+                        <h3 className="text-2xl sm:text-3xl font-bold text-slate-800">{loading ? '--' : stats.upcoming > 0 ? stats.upcoming : 0 }</h3>
                       </div>
                       <div className="p-2 sm:p-3 bg-blue-500/10 rounded-xl flex-shrink-0 ml-3">
                         <CalendarClock className="text-blue-600 w-5 h-5 sm:w-6 sm:h-6" />
@@ -162,7 +167,7 @@ export default function InterviewsPage() {
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1 min-w-0">
                         <p className="text-slate-500 text-sm font-medium mb-2 truncate">Completed</p>
-                        <h3 className="text-2xl sm:text-3xl font-bold text-slate-800">{stats.completed || '--'}</h3>
+                        <h3 className="text-2xl sm:text-3xl font-bold text-slate-800">{loading ? '--' : stats.completed > 0 ? stats.completed : 0 }</h3>
                       </div>
                       <div className="p-2 sm:p-3 bg-green-500/10 rounded-xl flex-shrink-0 ml-3">
                         <CalendarCheckIcon className="text-green-600 w-5 h-5 sm:w-6 sm:h-6" />
@@ -187,7 +192,7 @@ export default function InterviewsPage() {
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1 min-w-0">
                         <p className="text-slate-500 text-sm font-medium mb-2 truncate">Cancelled</p>
-                        <h3 className="text-2xl sm:text-3xl font-bold text-slate-800">{stats.cancelled || '--'}</h3>
+                        <h3 className="text-2xl sm:text-3xl font-bold text-slate-800">{loading ? '--' : stats.cancelled > 0 ? stats.cancelled : 0 }</h3>
                       </div>
                       <div className="p-2 sm:p-3 bg-red-500/10 rounded-xl flex-shrink-0 ml-3">
                         <CalendarX className="text-red-600 w-5 h-5 sm:w-6 sm:h-6" />

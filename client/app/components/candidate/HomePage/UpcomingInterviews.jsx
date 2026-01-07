@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Calendar, Timer, Clock, Video, Users, Play, ChevronRight, AlertCircle, Zap, ArrowLeft, CalendarClock } from "lucide-react";
+import { Calendar, Timer, Clock, Video, Users, Play, ChevronRight, AlertCircle, Zap, ArrowLeft, CalendarClock, User2 } from "lucide-react";
 import Pagination from "../other/Pagination";
 
 export default function UpcomingInterviewsPage() {
@@ -181,12 +181,12 @@ export default function UpcomingInterviewsPage() {
                                             <div className="flex items-start justify-between mb-6">
                                                 <div className="flex items-center gap-4">
                                                     <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">
-                                                        {/* {interview.admin?.firstName?.charAt(0)}{interview.admin?.lastName?.charAt(0)} */}
                                                         <CalendarClock className="w-6 h-6" />
                                                     </div>
                                                     <div>
                                                         <h3 className="text-xl font-bold text-gray-900">Technical Interview</h3>
-                                                        <p className="text-gray-600">With {interview.admin?.firstName} {interview.admin?.lastName}</p>
+                                                        <span className="text-gray-800 mr-1">Position:</span>
+                                                        <span className="text-gray-800">{interview?.job?.jobPositionName}</span>
                                                     </div>
                                                 </div>
                                                 <span className="px-3 py-1 bg-blue-50 text-blue-700 text-sm font-medium rounded-full">

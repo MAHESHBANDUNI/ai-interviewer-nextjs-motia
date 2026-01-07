@@ -220,8 +220,8 @@ export default function CancelledInterviewsPage() {
                 {/* Interview List */}
                 {interviews.length === 0 ? (
                     <div className="text-center py-16 bg-white rounded-2xl shadow-sm border border-gray-200">
-                        <div className="w-24 h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <XCircle className="w-12 h-12 text-gray-400" />
+                        <div className="w-24 h-24 bg-gradient-to-br from-red-100 to-red-200 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <XCircle className="w-12 h-12 text-red-400" />
                         </div>
                         <h3 className="text-2xl font-semibold text-gray-900 mb-3">No Cancelled Interviews</h3>
                         <p className="text-gray-600 max-w-md mx-auto mb-8">
@@ -250,7 +250,8 @@ export default function CancelledInterviewsPage() {
                                                 </div>
                                                 <div>
                                                     <h3 className="text-xl font-bold text-gray-900">Technical Interview</h3>
-                                                    <p className="text-gray-600">With {interview.admin?.firstName} {interview.admin?.lastName}</p>
+                                                    <span className="text-gray-800 mr-1">Position:</span>
+                                                    <span className="text-gray-800">{interview?.job?.jobPositionName}</span>
                                                 </div>
                                             </div>
                                             <span className="px-3 py-1 bg-red-50 text-red-700 text-sm font-medium rounded-full">

@@ -115,12 +115,9 @@ model InterviewQuestion {
   interviewQuestionId String    @id @default(uuid())
   interviewId         String
   content             String
-  difficultyLevel     Int
   askedAt             DateTime  @default(now())
   candidateAnswer     String?
   aiFeedback          String?
-  correct             Boolean?
-  section             String?
   interview           Interview @relation(fields: [interviewId], references: [interviewId])
 }
 
@@ -132,7 +129,6 @@ model InterviewProfile {
   recommendedRoles   Json?
   strengths          Json?
   weaknesses         Json?
-  analytics          Json?
   createdAt          DateTime  @default(now())
   candidate          Candidate @relation(fields: [candidateId], references: [candidateId])
   interview          Interview @relation(fields: [interviewId], references: [interviewId])

@@ -4,7 +4,6 @@ export default function PerformanceModal({ interview, isOpen, onClose, formatDat
     if (!isOpen || !interview) return null;
 
     const InterviewQuestions = ({ questions }) => {
-        if (!questions || questions.length === 0) return null;
 
         return (
             <div className="mt-6">
@@ -12,7 +11,7 @@ export default function PerformanceModal({ interview, isOpen, onClose, formatDat
                     <div className="w-1 h-8 bg-indigo-500 rounded-full mr-3"></div>
                     <h3 className="text-xl font-bold text-gray-800">Interview Questions</h3>
                     <span className="ml-3 px-3 py-1 bg-blue-50 text-blue-600 text-sm font-medium rounded-full">
-                        {questions.length} Questions
+                        {questions.length > 0 ? questions.length : 'No'} {questions.length === 1 ? "Question" : "Questions"}
                     </span>
                 </div>
                 
@@ -27,14 +26,9 @@ export default function PerformanceModal({ interview, isOpen, onClose, formatDat
                                         </div>
                                         <div>
                                             <p className="text-gray-800 font-medium">{question.content}</p>
-                                            {question.topic && (
-                                                <span className="inline-block mt-2 px-3 py-1 bg-blue-50 text-blue-600 text-xs font-medium rounded-full">
-                                                    {question.topic}
-                                                </span>
-                                            )}
                                         </div>
                                     </div>
-                                    <div className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
+                                    {/* <div className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
                                         question.difficultyLevel >= 4 
                                             ? 'bg-red-50 text-red-700 border border-red-100' 
                                             : question.difficultyLevel >= 3 
@@ -43,30 +37,28 @@ export default function PerformanceModal({ interview, isOpen, onClose, formatDat
                                     }`}>
                                         {question.difficultyLevel >= 4 ? 'Expert' : 
                                          question.difficultyLevel >= 3 ? 'Intermediate' : 'Beginner'}
-                                    </div>
+                                    </div> */}
                                 </div>
 
-                                {question.candidateAnswer && (
-                                    <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
-                                        <div className="flex items-center mb-2">
-                                            <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
-                                            <span className="text-sm font-semibold text-blue-700">Your Answer</span>
-                                        </div>
-                                        <p className="text-gray-700 text-sm leading-relaxed">{question.candidateAnswer}</p>
+                                <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
+                                    <div className="flex items-center mb-2">
+                                        <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
+                                        <span className="text-sm font-semibold text-blue-700">Your Answer</span>
                                     </div>
-                                )}
+                                    <p className="text-gray-700 text-sm leading-relaxed">{question.candidateAnswer ? question.candidateAnswer : 'Not provided.'}</p>
+                                </div>
 
-                                {question.aiFeedback && (
-                                    <div className="mt-4 p-4 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg border border-indigo-100">
-                                        <div className="flex items-center mb-2">
-                                            <svg className="w-4 h-4 text-indigo-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                                            </svg>
-                                            <span className="text-sm font-semibold text-indigo-700">AI Feedback</span>
-                                        </div>
-                                        <p className="text-gray-700 text-sm leading-relaxed">{question.aiFeedback}</p>
+                                
+                                <div className="mt-4 p-4 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg border border-indigo-100">
+                                    <div className="flex items-center mb-2">
+                                        <svg className="w-4 h-4 text-indigo-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                        </svg>
+                                        <span className="text-sm font-semibold text-indigo-700">AI Feedback</span>
                                     </div>
-                                )}
+                                    <p className="text-gray-700 text-sm leading-relaxed">{question.aiFeedback ? question.aiFeedback : ''}</p>
+                                </div>
+                                
                             </div>
                         </div>
                     ))}
@@ -109,12 +101,8 @@ export default function PerformanceModal({ interview, isOpen, onClose, formatDat
                                             Performance Analysis
                                         </h2>
                                         <div className="flex flex-wrap items-center gap-2 mt-1">
-                                            <span className="inline-flex items-center px-3 py-1 bg-blue-50 text-blue-700 text-sm font-medium rounded-full">
-                                                {interview.admin?.firstName} {interview.admin?.lastName}
-                                            </span>
-                                            <span className="text-gray-500">•</span>
                                             <span className="text-gray-600">
-                                                {formatDate(interview.scheduledAt)}
+                                                Position: {interview?.job?.jobPositionName}
                                             </span>
                                         </div>
                                     </div>
@@ -146,7 +134,7 @@ export default function PerformanceModal({ interview, isOpen, onClose, formatDat
                                                         <div className="relative">
                                                             <div className="flex items-baseline mb-4">
                                                                 <span className="text-6xl font-bold text-gray-900">
-                                                                    {interview.interviewProfile.performanceScore}
+                                                                    {interview.interviewProfile.performanceScore > 0 ? interview.interviewProfile.performanceScore : 0}
                                                                 </span>
                                                                 <span className="text-2xl text-gray-500 ml-2">/100</span>
                                                                 <div className={`ml-4 px-3 py-1 rounded-full text-sm font-semibold ${
@@ -174,13 +162,13 @@ export default function PerformanceModal({ interview, isOpen, onClose, formatDat
                                                                     </div>
                                                                     <div className="text-right">
                                                                         <span className="text-xs font-semibold inline-block text-blue-600">
-                                                                            {interview.interviewProfile.performanceScore}%
+                                                                            {interview.interviewProfile.performanceScore > 0 ? interview.interviewProfile.performanceScore : 0}%
                                                                         </span>
                                                                     </div>
                                                                 </div>
                                                                 <div className="overflow-hidden h-3 mb-4 text-xs flex rounded-full bg-gray-200">
                                                                     <div 
-                                                                        style={{ width: `${interview.interviewProfile.performanceScore}%` }}
+                                                                        style={{ width: `${interview.interviewProfile.performanceScore > 0 ? interview.interviewProfile.performanceScore : 0}%` }}
                                                                         className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center rounded-full transition-all duration-500 ${
                                                                             interview.interviewProfile.performanceScore >= 80 
                                                                                 ? 'bg-gradient-to-r from-green-500 to-emerald-600'
@@ -202,10 +190,10 @@ export default function PerformanceModal({ interview, isOpen, onClose, formatDat
                                                     </div>
                                                     
                                                     {/* Vertical Stats Divider */}
-                                                    <div className="hidden md:block w-px h-40 bg-gradient-to-b from-transparent via-blue-200 to-transparent"></div>
+                                                    {/* <div className="hidden md:block w-px h-40 bg-gradient-to-b from-transparent via-blue-200 to-transparent"></div> */}
                                                     
                                                     {/* Quick Stats */}
-                                                    <div className="flex-1">
+                                                    {/* <div className="flex-1">
                                                         <h4 className="text-lg font-semibold text-gray-700 mb-4">Quick Stats</h4>
                                                         <div className="space-y-4">
                                                             <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100">
@@ -264,7 +252,7 @@ export default function PerformanceModal({ interview, isOpen, onClose, formatDat
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                    </div>
+                                                    </div> */}
                                                 </div>
                                             </div>
 

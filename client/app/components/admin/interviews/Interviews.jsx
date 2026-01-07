@@ -345,9 +345,10 @@ export default function Interviews() {
           <p className="text-gray-600 mt-1">Manage and track candidate interviews</p>
         </div>
 
-        {interviewsList.length>0 && <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        {!loading && <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           {/* Search and Filter Bar */}
-          <div className="flex flex-col sm:flex-row gap-3">
+
+          {currentInterviews.length > 0 && <div className="flex flex-col sm:flex-row gap-3">
             {/* Search Input */}
             <div className="relative w-full sm:w-auto">
               <div className="relative">
@@ -414,7 +415,7 @@ export default function Interviews() {
                 </div>
               )}
             </div>
-          </div>
+          </div>}
 
           {/* Schedule Interview Button */}
           <button 

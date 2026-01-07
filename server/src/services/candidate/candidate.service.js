@@ -177,7 +177,6 @@ export const CandidateService = {
                 interviewProfile: {
                   select:{
                     performanceScore: true,
-                    analytics: true,
                     recommendedRoles: true,
                     strengths: true,
                     weaknesses: true
@@ -187,16 +186,14 @@ export const CandidateService = {
                   select:{
                     content: true,
                     candidateAnswer: true,
-                    aiFeedback: true,
-                    difficultyLevel: true,
-                    correct: true
+                    aiFeedback: true
                   }
                 },
-                admin: {
-                    select:{
-                        firstName: true,
-                        lastName: true
-                    }
+                job: {
+                  select: {
+                    jobPositionName: true,
+                    jobDescription: true
+                  }
                 }
             }
         })
@@ -234,10 +231,9 @@ export const CandidateService = {
                 lastName: true
               }
             },
-            admin: {
-              select:{
-                firstName: true,
-                lastName: true
+            job: {
+              select: {
+                jobPositionName: true,
               }
             }
           }
@@ -887,6 +883,7 @@ Then WAIT until the candidate has completely finished speaking.
 Only after that may you proceed with the first interview question, following all rules above.
 `;
 
+console.log('vapi: ',process.env.VAPI_API_KEY);
           try{
             logger.info("Entering VAPI call");
             const vapiRes = await fetch("https://api.vapi.ai/assistant", {
@@ -1018,8 +1015,6 @@ Only after that may you proceed with the first interview question, following all
                 content: true,
                 candidateAnswer: true,
                 aiFeedback: true,
-                correct: true,
-                difficultyLevel: true
               }
             },
             candidate: {
@@ -1035,27 +1030,6 @@ Only after that may you proceed with the first interview question, following all
             }
           }
         })
-        // const candidate = await prisma.candidate.findFirst({
-        //   where: {
-        //     candidateId: candidateId,
-        //     interviews: {
-        //       some: {
-        //         interviewId
-        //       }
-        //     }
-        //   },
-        //   include: {
-        //     resumeProfile: true,
-        //     interviews: {
-        //       where: {
-        //         interviewId
-        //       },
-        //       include: {
-        //         questions: true
-        //       }
-        //     }
-        //   }
-        // })
 
         logger.info("Interview details: ",interviewDetails);
 
@@ -1070,10 +1044,8 @@ Only after that may you proceed with the first interview question, following all
           },
           QnA: interviewDetails?.questions?.map((q) => ({
             question: q?.content,
-            difficulty: q?.difficultyLevel,
             answer: q?.candidateAnswer,
             aiFeedback: q?.aiFeedback,
-            correct: q?.correct,
           })),
         };
       
@@ -1099,32 +1071,26 @@ Interview Q/A (Structured):
 ${JSON.stringify(structuredInterviewData, null, 2)}
 
 ========================================
-EVALUATION SCOPE (STRICT)
+QUESTION CLASSIFICATION (CRITICAL)
 ========================================
-ONLY consider interview-related questions and answers.
+You MUST process ALL question–answer entries.
 
-INCLUDE:
-- Technical questions
-- Behavioral questions
-- Experience-based questions
-- Scenario or problem-solving questions
-- Role, skill, or responsibility assessments
+Internally classify each entry as ONE of:
+- INTERVIEW-RELATED (technical, behavioral, experience, scenario, role-based)
+- NON-INTERVIEW (greetings, encouragement, clarifications, meta, acknowledgments, casual)
 
-EXCLUDE ENTIRELY:
-- Greetings or small talk
-- Clarifications or follow-ups
-- Conversational or social exchanges
-- Meta discussion about the interview
-- Instructions or acknowledgments
-
-Excluded items MUST NOT affect scoring, analytics, or conclusions.
+NON-INTERVIEW entries:
+- MUST be included in processing
+- MUST NOT affect performanceScore
+- MUST NOT affect strengths, weaknesses, or recommendedRoles
+- MUST NOT be interpreted as evidence of skill, experience, or seniority
 
 ========================================
 CORE EVALUATION PRINCIPLES (ENFORCED)
 ========================================
 
 ROLE-FIT SCORING DIMENSIONS (IMPLICIT):
-Internally assess:
+Internally assess ONLY INTERVIEW-RELATED content for:
 - Alignment with job-required skills
 - Match to role responsibilities
 - Seniority and ownership expectations
@@ -1132,11 +1098,11 @@ Internally assess:
 
 JD MUST-COVER SKILL ENFORCEMENT:
 - If the job description specifies REQUIRED skills or responsibilities,
-  failure to demonstrate them in relevant answers MUST negatively impact:
-  performanceScore, domainFit, weaknesses, and recommendedRoles.
+  failure to demonstrate them in INTERVIEW-RELATED answers MUST negatively impact:
+  performanceScore, weaknesses, and recommendedRoles.
 
 RESUME–ANSWER CONSISTENCY CHECK:
-- If interview answers contradict, exaggerate, or are unsupported by the resume:
+- If INTERVIEW-RELATED answers contradict, exaggerate, or are unsupported by the resume:
   → Penalize performanceScore
   → Reflect in weaknesses
   → Reduce role recommendations accordingly
@@ -1145,12 +1111,13 @@ RESUME–ANSWER CONSISTENCY CHECK:
 DIFFICULTY NORMALIZATION BY JOB SENIORITY:
 - Interpret question difficulty relative to the job’s seniority level.
 - Answers acceptable for a lower level but insufficient for this role
-  MUST be scored lower and reflected in analytics and weaknesses.
+  MUST be scored lower and reflected in weaknesses and scoring.
 
 ========================================
 PERFORMANCE SCORING CRITERIA (0–100)
 ========================================
-performanceScore MUST be computed holistically using the model below,
+performanceScore MUST be computed holistically
+using ONLY INTERVIEW-RELATED questions,
 adjusted for job relevance and seniority expectations:
 
 - Accuracy & Reliability of Responses (0–30)
@@ -1171,15 +1138,9 @@ OUTPUT STRICT JSON IN THIS FORMAT
 ========================================
 {
   "performanceScore": Float (0–100),
-  "domainFit": Json,
   "recommendedRoles": Json,
   "strengths": Json,
-  "weaknesses": Json,
-  "analytics": {
-    "totalQuestions": String,
-    "correctAnswers": String,
-    "averageDifficulty": Float
-  }
+  "weaknesses": Json
 }
 
 ========================================
@@ -1190,14 +1151,12 @@ OUTPUT RULES (NON-NEGOTIABLE)
 - Do NOT add, remove, or rename fields
 - If any required data is missing → return null
 - Return ONLY 2–3 recommended roles
-- Strengths and weaknesses:
+- Return only 4-5 Strengths and 4-5 weaknesses:
   → Each entry must be 2–4 words
   → Must reflect job and seniority alignment
-- Analytics.averageDifficulty must reflect
-  difficulty normalized to job seniority
 - Output MUST be strictly valid, parseable JSON
 `;
-  
+
         const result = await geminiModel.generateContent(prompt);
         let output =
         result?.response?.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -1219,8 +1178,7 @@ OUTPUT RULES (NON-NEGOTIABLE)
             performanceScore: aiAnalysis.performanceScore,
             recommendedRoles: aiAnalysis.recommendedRoles,
             strengths: aiAnalysis.strengths,
-            weaknesses: aiAnalysis.weaknesses,
-            analytics: aiAnalysis.analytics,
+            weaknesses: aiAnalysis.weaknesses
           },
         });
 
@@ -1287,92 +1245,77 @@ Interview Question–Answer Pairs:
 ${JSON.stringify(qaPairs, null, 2)}
 
 ========================================
-EVALUATION SCOPE (CRITICAL)
+QUESTION CLASSIFICATION (CRITICAL)
 ========================================
-ONLY evaluate question–answer pairs that are clearly interview-related.
+You MUST process EVERY question–answer pair in the input.
 
-Eligible interview questions include:
+First, classify each pair internally as ONE of the following:
+
+INTERVIEW-RELATED:
 - Technical questions
 - Behavioral questions
 - Experience-based questions
 - Scenario or problem-solving questions
 - Role, skill, or responsibility assessments
 
-DO NOT evaluate or include:
-- Small talk or greetings
-- Clarification questions
-- Conversational exchanges
+NON-INTERVIEW:
+- Greetings or small talk
+- Encouragement or reassurance
+- Clarification or confirmation questions
 - Meta discussion about the interview
-- Instructions, acknowledgments, or confirmations
+- Instructions or acknowledgments
 - Casual or social conversation
 
-If a question–answer pair is NOT interview-related:
-→ EXCLUDE it entirely from the output
-→ Do NOT assign feedback, correctness, or difficulty
-→ Do NOT include it in the returned JSON array
+========================================
+EVALUATION RULES
+========================================
+
+IF the question is INTERVIEW-RELATED:
+→ Perform full evaluation using all rules below
+→ Generate evaluator-style aiFeedback
+
+IF the question is NON-INTERVIEW:
+→ Do NOT evaluate correctness, depth, or skills
+→ Do NOT generate feedback
+→ aiFeedback MUST be an empty string: ""
 
 ========================================
-EVALUATION INSTRUCTIONS (ENHANCED)
+INTERVIEW QUESTION EVALUATION (STRICT)
 ========================================
-Evaluate EACH ELIGIBLE interview question–answer pair independently.
+For interview-related questions, internally assess using ALL dimensions below
+(do NOT expose them directly):
 
-Assess each answer using ALL of the following internal dimensions
-(do NOT expose them directly in output):
-
-ROLE-FIT DIMENSIONS (IMPLICIT):
-- Skill alignment with job description
-- Responsibility and ownership alignment
+- Alignment with job description skills and responsibilities
 - Seniority and scope expectations
 - Practical applicability to the role
+- Technical or conceptual correctness
+- Consistency with resume claims
+- Depth appropriate to role level
 
 JD MUST-COVER VALIDATION:
 - If a question targets a REQUIRED job skill or responsibility,
   the answer MUST explicitly demonstrate it.
-- Failure to demonstrate a required JD skill results in correct = false.
+- Failure to do so requires corrective feedback.
 
 RESUME CONSISTENCY CHECK:
 - If the answer contradicts, exaggerates, or is unsupported by the resume,
-  mark correct = false.
-- Do NOT assume unstated experience.
+  feedback MUST reflect this issue.
 
 DIFFICULTY NORMALIZATION:
-- Interpret difficultyLevel (1–5) relative to the job’s seniority.
 - An answer acceptable for a lower level but insufficient for this role
-  must be marked incorrect.
-
-Assess each answer based ONLY on provided input:
-- Relevance to the interview question
-- Alignment with job description expectations
-- Consistency with resume claims
-- Technical or conceptual correctness
-- Depth appropriate to role seniority
+  MUST receive corrective feedback.
 
 Do NOT infer unstated experience.
 Do NOT assume intent.
 Do NOT rewrite or improve the candidate’s answer.
 
 ========================================
-CORRECTNESS CRITERIA (FINAL)
-========================================
-correct = true
-→ Answer is relevant, at least partially correct,
-demonstrates required JD skills (if applicable),
-aligns with role seniority,
-AND does not conflict with the resume.
-
-correct = false
-→ Answer is incorrect, irrelevant, too generic for the role,
-misses required JD skills,
-lacks depth for the job level,
-OR conflicts with resume information.
-
-========================================
 AI FEEDBACK GUIDELINES
 ========================================
 aiFeedback represents an evaluator’s assessment note.
 
-It MUST:
-- Sound like professional evaluator feedback
+For INTERVIEW-RELATED questions, it MUST:
+- Sound like professional evaluator notes
 - Be neutral and corrective
 - Be ONE sentence only
 - Be 6–8 words maximum
@@ -1381,51 +1324,42 @@ It MUST:
   or resume inconsistency when applicable
 - Avoid praise, encouragement, or vague language
 
-Acceptable feedback examples:
+For NON-INTERVIEW questions:
+- aiFeedback MUST be an empty string: ""
+
+Acceptable interview feedback examples:
 - "Missing required skills outlined in role."
 - "Too shallow for expected seniority level."
 - "Experience claim not supported by resume."
 - "Does not align with role responsibilities."
 - "Generic response for this position."
 
-Unacceptable feedback examples:
+Unacceptable examples:
 - "Good answer"
 - "Nice explanation"
-- "Try to be clearer"
 - "Needs improvement"
+- "Try to be clearer"
 
-========================================
-FIELDS TO RETURN (PER QUESTION)
-========================================
-1. content
-   → Original interview question text
+======================================== 
+FIELDS TO RETURN (PER QUESTION) 
+======================================== 
 
-2. candidateAnswer
-   → Candidate’s answer (UNCHANGED)
-
-3. correct
-   → boolean
-
-4. difficultyLevel
-   → number from 1–5 (as provided)
-
-5. aiFeedback
-   → Evaluator-style assessment note
+1. content → Original interview question text 
+2. candidateAnswer → Candidate’s answer (UNCHANGED) 
+3. aiFeedback → Evaluator-style assessment note
 
 ========================================
 OUTPUT FORMAT (STRICT)
 ========================================
-Return a VALID JSON ARRAY containing ONLY eligible interview questions,
-in the SAME ORDER they appear in the input after filtering.
+Return a VALID JSON ARRAY with ONE entry per input question,
+in the SAME ORDER as provided.
 
-[
-  {
-    "content": string,
-    "candidateAnswer": string,
-    "correct": boolean,
-    "difficultyLevel": number,
-    "aiFeedback": string
-  }
+[ 
+  { 
+    "content": string, 
+    "candidateAnswer": string, 
+    "aiFeedback": string 
+  } 
 ]
 
 ========================================
@@ -1472,8 +1406,6 @@ STRICT RULES
         interviewId: interviewId,
         content: q.content,
         candidateAnswer: q.candidateAnswer,
-        correct: q.correct,
-        difficultyLevel: q.difficultyLevel,
         aiFeedback: q.aiFeedback,
         askedAt: new Date(qaPairs[index]?.askedAt ?? new Date())
       }))

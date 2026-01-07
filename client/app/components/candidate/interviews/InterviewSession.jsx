@@ -84,8 +84,11 @@ const InterviewSession = ({ devices, onInterviewEnd, onClose, interviewDetails }
 
   const startCalledRef = useRef(false);
 
+  const assistantIntentRef = useRef("question");  // "question" | "silence"
+
 const silenceStateRef = useRef({
   timer: null,
+  graceTimeout: null,
   startedAt: null,
   firstPromptSent: false,
   secondPromptSent: false,
@@ -412,14 +415,28 @@ const silenceStateRef = useRef({
     });
 
     vapi.on("message", (message) => {
-      if (message.type !== 'speech-update') return;
-      if(message.status === 'stopped' && message.role === 'assistant'){
-        startSilenceMonitor();
-      }
-      if(message.status === 'started' && message.role === 'user'){
+      if (message.type !== "speech-update") return;
+    
+      // USER STARTED SPEAKING → cancel silence
+      if (message.status === "started" && message.role === "user") {
         resetSilenceMonitor();
+        return;
       }
-    })
+    
+      // ASSISTANT FINISHED SPEAKING
+      if (message.status === "stopped" && message.role === "assistant") {
+        const intent = assistantIntentRef.current;
+      
+        if (intent === "question") {
+          // ONLY real questions start silence monitoring
+          resetSilenceMonitor(); // safety
+          startSilenceMonitor();
+        }
+      
+        // IMPORTANT: reset intent ONLY AFTER handling
+        assistantIntentRef.current = "question";
+      }
+    });
 
     vapi.on("message", (message) => {
       if (message.type !== "transcript") return;
@@ -472,6 +489,7 @@ const silenceStateRef = useRef({
 
     vapi.on("message", (message) => {
       console.log('Message: ',message);
+      console.log("assistantIntent: ",assistantIntentRef.current);
       if (message.type !== "tool-calls") return;
     
       if(message.toolCallList[0].function.name === 'end_interview_session'){
@@ -558,6 +576,7 @@ const handleVapiFailure = async () => {
 
 const sendAssistantMessage = async (text) => {
   try {
+    assistantIntentRef.current = "silence"; // mark intent
     const vapi = vapiRef.current;
     vapi.say(text, false);
     await new Promise((r) => setTimeout(r, 7000));
@@ -569,57 +588,60 @@ const sendAssistantMessage = async (text) => {
 const startSilenceMonitor = useCallback(() => {
   const state = silenceStateRef.current;
 
-  // prevent duplicates
-  if (state.timer) return;
+  // 🚫 already running or pending
+  if (state.timer || state.graceTimeout) return;
 
-  state.startedAt = Date.now();
-  state.firstPromptSent = false;
-  state.secondPromptSent = false;
+  state.graceTimeout = setTimeout(() => {
+    state.graceTimeout = null;
 
-  state.timer = setInterval(async () => {
-    const elapsed = Date.now() - state.startedAt;
+    state.startedAt = Date.now();
+    state.firstPromptSent = false;
+    state.secondPromptSent = false;
+    state.thirdPromptSent = false;
 
-    // gentle prompt
-    if (elapsed >= 12000 && !state.firstPromptSent) {
-      state.firstPromptSent = true;
-      await sendAssistantMessage(
-        "Take your time and continue with your answer or let me know if you'd like me to repeat the question."
-      );
-      return;
-    }
+    state.timer = setInterval(async () => {
+      const elapsed = Date.now() - state.startedAt;
 
-    // second warning
-    if (elapsed >= 33000 && !state.secondPromptSent) {
-      state.secondPromptSent = true;
-      await sendAssistantMessage(
-        "Take your time and continue with your answer or let me know if you'd like me to repeat the question."
-      );
-      return;
-    }
+      if (elapsed >= 12000 && !state.firstPromptSent) {
+        state.firstPromptSent = true;
+        assistantIntentRef.current = "silence";
+        await sendAssistantMessage(
+          "Take your time and continue with your answer or let me know if you'd like me to repeat the question."
+        );
+        return;
+      }
 
-    // third warning
-    if (elapsed >= 52000 && !state.thirdPromptSent) {
-      state.thirdPromptSent = true;
-      await sendAssistantMessage(
-        "We're approaching the time limit for this question. If you need more time or want to skip this question, please let me know."
-      );
-      return;
-    }
+      if (elapsed >= 33000 && !state.secondPromptSent) {
+        state.secondPromptSent = true;
+        assistantIntentRef.current = "silence";
+        await sendAssistantMessage(
+          "Take your time and continue with your answer or let me know if you'd like me to repeat the question."
+        );
+        return;
+      }
 
-    // hard end
-    if (elapsed >= 75000) {
-      clearInterval(state.timer);
-      state.timer = null;
+      if (elapsed >= 52000 && !state.thirdPromptSent) {
+        state.thirdPromptSent = true;
+        assistantIntentRef.current = "silence";
+        await sendAssistantMessage(
+          "We're approaching the time limit for this question. If you need more time or want to skip this question, please let me know."
+        );
+        return;
+      }
 
-      await sendAssistantMessage(
-        "Since I haven’t heard back, I’ll end the interview now. Thank you for your time."
-      );
+      if (elapsed >= 75000) {
+        clearInterval(state.timer);
+        state.timer = null;
 
-      await new Promise(r => setTimeout(r, 4000));
+        assistantIntentRef.current = "silence";
+        await sendAssistantMessage(
+          "Since I haven’t heard back, I’ll end the interview now. Thank you for your time."
+        );
 
-      handleSubmit();
-    }
-  }, 300); // small interval, cheap & responsive
+        handleSubmit();
+      }
+    }, 1000);
+  }, 4000);
 }, []);
 
 const resetSilenceMonitor = () => {
@@ -628,6 +650,11 @@ const resetSilenceMonitor = () => {
   if (state.timer) {
     clearInterval(state.timer);
     state.timer = null;
+  }
+
+  if (state.graceTimeout) {
+    clearTimeout(state.graceTimeout);
+    state.graceTimeout = null;
   }
 
   state.startedAt = null;
