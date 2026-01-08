@@ -416,26 +416,35 @@ const silenceStateRef = useRef({
     });
 
     vapi.on("message", (message) => {
-      if (message.type !== "speech-update") return;
+      if (!message) return;
     
-      // User starts speaking → silence cycle ends
-      if (message.status === "started" && message.role === "user") {
+      // USER SPOKE — transcript is the source of truth
+      if (
+        message.type === "transcript" &&
+        message.role === "user" &&
+        message.transcript?.trim()
+      ) {
         silenceCycleActiveRef.current = false;
         resetSilenceMonitor();
+      
+        // reset intent so next assistant turn is treated as a question
+        assistantIntentRef.current = "question";
         return;
       }
     
       // Assistant finished speaking
-      if (message.status === "stopped" && message.role === "assistant") {
+      if (
+        message.type === "speech-update" &&
+        message.status === "stopped" &&
+        message.role === "assistant"
+      ) {
         const intent = assistantIntentRef.current;
       
-        // ONLY start silence ONCE after a real question
         if (intent === "question" && !silenceCycleActiveRef.current) {
           silenceCycleActiveRef.current = true;
           resetSilenceMonitor();
           startSilenceMonitor();
         }
-      
       }
     });
 

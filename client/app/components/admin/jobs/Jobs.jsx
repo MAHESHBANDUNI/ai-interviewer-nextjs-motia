@@ -170,7 +170,7 @@ export default function Jobs() {
         return;
       }
       if(res?.ok){
-        successToast('Jobs scheduled successfully');
+        successToast('Jobs posted successfully');
       }
     } catch (error) {
       console.log("error", error);
@@ -253,7 +253,7 @@ export default function Jobs() {
         return;
       }
 
-      successToast("Job created successfully");
+      successToast("Job updated successfully");
 
     } catch (error) {
       console.error("Error:", error);

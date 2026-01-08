@@ -88,9 +88,12 @@ const AddCandidateForm = ({ isOpen, onClose, onSubmit, saving, setSaving }) => {
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
 
-  useEffect(() => {
-    const handleMouseDown = (e) => {
-      if (!e.target.closest('.modal-content')) onClose();
+useEffect(() => {
+  if (!isOpen) return;
+
+  const handleMouseDown = (e) => {
+    if (!e.target.closest('.modal-content')) {
+      onClose();
       setFormData({
         firstName: '',
         lastName: '',
@@ -100,10 +103,12 @@ const AddCandidateForm = ({ isOpen, onClose, onSubmit, saving, setSaving }) => {
         declaration: false,
       });
       setTouched({});
-    };
-    document.addEventListener('mousedown', handleMouseDown);
-    return () => document.removeEventListener('mousedown', handleMouseDown);;
-  }, [onClose]);
+    }
+  };
+
+  document.addEventListener('mousedown', handleMouseDown);
+  return () => document.removeEventListener('mousedown', handleMouseDown);
+}, [isOpen, onClose]);
 
   // ✔ LIVE VALIDATION (safe)
   const handleChange = (e) => {

@@ -487,7 +487,7 @@ room.on(RoomEvent.TrackSubscribed, (track, publication) => {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600 dark:text-gray-400">Position:</span>
-                        <span className="ml-1 font-medium truncate">{interview?.candidate?.resumeProfile?.profileTitle}</span>
+                        <span className="ml-1 font-medium truncate">{interview?.job?.jobPositionName}</span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-gray-600 dark:text-gray-400">Status:</span>

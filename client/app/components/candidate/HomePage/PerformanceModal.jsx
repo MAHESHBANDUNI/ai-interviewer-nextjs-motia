@@ -127,7 +127,7 @@ export default function PerformanceModal({ interview, isOpen, onClose, formatDat
                                     <div className="mb-8">
                                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                             {/* Main Score Card */}
-                                            <div className="lg:col-span-2 bg-gradient-to-br from-white to-blue-50 rounded-2xl p-6 border border-blue-100 shadow-sm">
+                                            <div className="lg:col-span-2 bg-gradient-to-br from-white to-blue-50 rounded-2xl p-6 border border-blue-100 shadow-sm max-w-[500px]">
                                                 <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                                                     <div className="flex-1">
                                                         <h3 className="text-lg font-semibold text-gray-700 mb-3">Overall Performance Score</h3>
@@ -361,11 +361,27 @@ export default function PerformanceModal({ interview, isOpen, onClose, formatDat
                                         {interview.interviewProfile.recommendedRoles && (
                                             <div className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm">
                                                 <div className="flex items-center mb-4">
-                                                    <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center mr-3">
-                                                        <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2V6" />
-                                                        </svg>
-                                                    </div>
+                                                <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center mr-3">
+                                                  <svg
+                                                    className="w-5 h-5 text-blue-600"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                    strokeWidth={2}
+                                                  >
+                                                    <path
+                                                      strokeLinecap="round"
+                                                      strokeLinejoin="round"
+                                                      d="M12 14l9-5-9-5-9 5 9 5z"
+                                                    />
+                                                    <path
+                                                      strokeLinecap="round"
+                                                      strokeLinejoin="round"
+                                                      d="M5 10v4a7 7 0 0014 0v-4"
+                                                    />
+                                                  </svg>
+                                                </div>
+
                                                     <h4 className="text-lg font-semibold text-gray-800">Recommended Roles</h4>
                                                 </div>
                                                 <div className="flex flex-wrap gap-3">

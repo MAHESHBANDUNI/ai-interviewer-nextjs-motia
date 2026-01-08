@@ -349,9 +349,9 @@ export default function InterviewProfile({ candidateId}) {
                 <div className="bg-white rounded-2xl shadow-lg p-6">
                   <div className="flex items-center justify-between mb-4 lg:mb-10">
                     <h3 className="text-lg font-semibold text-gray-900">Performance Score</h3>
-                    <div className="text-sm font-medium px-3 py-1 rounded-full bg-blue-100 text-blue-700">
+                    {/* <div className="text-sm font-medium px-3 py-1 rounded-full bg-blue-100 text-blue-700">
                       {selectedInterview.interviewProfile?.analytics?.correctAnswers || 0}/{selectedInterview.interviewProfile?.analytics?.totalQuestions || 0} Correct
-                    </div>
+                    </div> */}
                   </div>
                   <div className="flex items-center justify-center">
                     <div className="relative w-48 h-48">
@@ -432,9 +432,9 @@ export default function InterviewProfile({ candidateId}) {
 
                   {/* Quick Stats */}
                   <div className="bg-white rounded-2xl shadow-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Performance Metrics</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Performance Stats</h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="text-center p-4 bg-blue-50 rounded-xl">
+                      {/* <div className="text-center p-4 bg-blue-50 rounded-xl">
                         <div className="text-2xl font-bold text-blue-600">
                           {selectedInterview.interviewProfile?.analytics?.averageDifficulty || '0'}
                         </div>
@@ -451,7 +451,7 @@ export default function InterviewProfile({ candidateId}) {
                           {selectedInterview.interviewProfile?.analytics?.totalQuestions || 0}
                         </div>
                         <div className="text-sm text-gray-600 mt-1">Total Questions</div>
-                      </div>
+                      </div> */}
                       <div className="text-center p-4 bg-amber-50 rounded-xl">
                         <div className="text-2xl font-bold text-amber-600">
                           {selectedInterview.interviewProfile?.recommendedRoles?.length || 0}

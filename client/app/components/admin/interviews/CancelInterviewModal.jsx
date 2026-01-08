@@ -1,10 +1,19 @@
 import { X } from "lucide-react";
+import { useState } from "react";
 
 export default function CancelInterviewModal({
   showCancelInterviewModal,
   setShowCancelInterviewModal,
   onCancelInterview
 }) {
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  const handleCancelInterview = (e)=>{
+    e?.preventDefault();
+    e?.stopPropagation();
+    setIsCancelling(true);
+    onCancelInterview();
+  }
   return (
     <>
       {showCancelInterviewModal && (
@@ -40,12 +49,15 @@ export default function CancelInterviewModal({
                 >
                   Back
                 </button>
-                <button
-                  onClick={onCancelInterview}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors cursor-pointer"
-                >
-                  Proceed
-                </button>
+                  <button
+                    onClick={(e) => handleCancelInterview(e)}
+                    disabled={isCancelling}
+                    className={`px-4 py-2 ${
+                      isCancelling ? 'opacity-50 bg-red-500 cursor-not-allowed' : 'bg-red-600 hover:bg-red-700'
+                    } text-white rounded-lg transition-colors`}
+                  >
+                    {isCancelling ? 'Cancelling...' : 'Proceed'}
+                  </button>
               </div>
             </div>
           </div>

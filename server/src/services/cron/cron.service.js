@@ -11,6 +11,7 @@ export const CronService = {
             },
             data: {
                 status: 'CANCELLED',
+                cancelledAt: new Date(),
                 cancellationReason: 'Candidate did not attended'
             }
         });

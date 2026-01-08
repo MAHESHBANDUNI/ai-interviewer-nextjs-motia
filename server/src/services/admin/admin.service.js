@@ -601,7 +601,9 @@ export const AdminService = {
             }
           },
           job: {
-            jobPositionName: true
+            select:{
+              jobPositionName: true
+            }
           }
         }
       });
