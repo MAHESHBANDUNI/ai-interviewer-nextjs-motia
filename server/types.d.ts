@@ -12,7 +12,6 @@ declare module 'motia' {
   }
 
   interface Handlers {
-    'GetTTSAudio': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'ProcessFailedInterviews': CronHandler<never>
     'CancelPendingRescheduledInterviews': CronHandler<never>
     'StartCandidateInterviewStream': ApiRouteHandler<Record<string, unknown>, unknown, never>
@@ -22,16 +21,9 @@ declare module 'motia' {
     'GetCandidateInterviewsDetails': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GenerateCandidateInterviewProfile': EventHandler<never, never>
     'EndCandidateInterviewSession': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'generate-candidate-interview-profile'; data: never }>
-    'StartInterviewSession': ApiRouteHandler<Record<string, unknown>, unknown, never>
-    'GenerateResponse': ApiRouteHandler<Record<string, unknown>, unknown, never>
-    'GenerateInterviewQuestion': ApiRouteHandler<Record<string, unknown>, unknown, never>
-    'GenerateInterviewProfile': EventHandler<never, never>
-    'GenerateFeedback': ApiRouteHandler<Record<string, unknown>, unknown, never>
-    'EndInterviewSession': ApiRouteHandler<Record<string, unknown>, unknown, { topic: 'generate-interview-profile'; data: never }>
     'GetCandidateDetails': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'UserSignup': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'UserLogin': ApiRouteHandler<Record<string, unknown>, unknown, never>
-    'GetAssemblyAIToken': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'UpdateJobPosition': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'GetAllJobs': ApiRouteHandler<Record<string, unknown>, unknown, never>
     'CreateJobPosition': ApiRouteHandler<Record<string, unknown>, unknown, never>

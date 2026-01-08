@@ -82,7 +82,7 @@ export const authOptions = {
   },
 
   secret: process.env.NEXTAUTH_SECRET,
-  debug: process.env.MOTIA_ENV !== "production"
+  debug: process.env.NEXT_ENV !== "production"
 };
 
 const handler = NextAuth(authOptions);
